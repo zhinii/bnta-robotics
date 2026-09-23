@@ -41,3 +41,7 @@ Suggested visible credit (appreciated, but not an additional MIT requirement):
 4. Record and run your movement program in the adjacent panel.
 
 Tablets and desktops use a two-to-one viewport/program layout. Narrow viewports use a collapsible bottom control tray; phones stack the program below the robot. Camera framing adapts to the open controls. Language remains available from the English / 中文 button.
+
+### Viewport controls
+
+Joint sliders are always visible directly over the viewport. XYZ target sliders support numeric entry; select **Move to XYZ** to execute with reach and collision checks. Compact jog controls and step selectors share the overlay. Live position and orientation are displayed together at the top.
