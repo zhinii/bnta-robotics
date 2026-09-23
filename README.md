@@ -12,7 +12,7 @@ This static edition includes 3D robot controls, expandable joints, gripper/sucti
 The teacher provides authored lessons and built-in guidance. Live AI chat is disabled. No API key, backend or installation is required. Programs and course progress are stored in the current browser; use Export to keep a copy of a program.
 
 ## Hosting and updates
-GitHub Pages publishes the main branch at its root. Upload the prepared static edition to update the website. Keep index.html, app.js and style.css from the same build. Do not upload API keys or server configuration.
+GitHub Pages publishes the main branch at its root. Upload the prepared static edition to update the website. Keep index.html, app.js, style.css and workspace.css from the same build. Do not upload API keys or server configuration.
 
 This is a simplified teaching simulation, not a real robot safety system or an exact industrial robot model. Three.js license is included in THREE-LICENSE.txt.
 
@@ -33,3 +33,11 @@ Suggested visible credit (appreciated, but not an additional MIT requirement):
 - Three.js retains its own copyright and MIT notice in [THREE-LICENSE.txt](THREE-LICENSE.txt); retain that notice when redistributing the bundled library.
 - School names, logos and other trademarks are excluded from this project's MIT grant. Obtain the relevant permission or replace the branding when creating your own version.
 - The arm's appearance is FAIRINO-inspired. This project does not claim endorsement by or affiliation with FAIRINO Robotics.
+
+## Start here
+1. Choose English or 简体中文 when the app opens.
+2. Choose Guided lesson, Quick tour, or Free practice. Free practice opens all controls without requiring a quiz.
+3. Use Move robot · Controls inside the viewport to switch between sliders, XYZ coordinates and jog buttons. Live XYZ stays attached to the controls.
+4. Record and run your movement program in the adjacent panel.
+
+Tablets and desktops use a two-to-one viewport/program layout. Narrow viewports use a collapsible bottom control tray; phones stack the program below the robot. Camera framing adapts to the open controls. Language remains available from the English / 中文 button.
