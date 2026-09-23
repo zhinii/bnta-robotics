@@ -42,3 +42,7 @@ footer{display:flex;min-height:30px;padding:6px 16px;margin:0;gap:5px 12px;justi
 @container(max-width:419px){#joints{grid-template-columns:repeat(2,minmax(0,1fr))}#pose-strip{left:10px;right:100px}#pose-strip .telemetry output,#pose-strip .orientation-readout output{font-size:16px}#pose-strip .telemetry-label>span:last-child{display:none}#controls-panel .movement-tabs button{font-size:10px;padding:3px 6px}#controls-panel .manual-io{gap:5px}#controls-panel .tool-buttons button{font-size:9px;padding:3px 6px}#controls-panel .jog-settings{gap:10px}#controls-panel .xyz-inputs{gap:6px}}
 @media(max-width:639px){.workbench,main[data-panel=program]>.workbench{height:max(680px,85dvh)}#controls-panel .panel-heading{display:flex}}
 @media(pointer:coarse){#controls-panel .movement-tabs button,#controls-panel .tool-buttons button,#controls-panel .jog-pad button{min-height:36px}#controls-panel input[type=range]{min-height:28px;height:28px}}
+/* Preserve the complete supplied identity artwork, including its original lettering. */
+header .brand{width:auto;flex:none;justify-content:flex-start}header .academy-logo{width:auto;height:128px;max-width:none;object-fit:contain;display:block}
+@media(max-width:1050px){header .academy-logo{height:110px}header .brand{width:auto}}
+@media(max-width:639px){header .brand{width:100%;justify-content:center}header .academy-logo{height:120px}}
