@@ -1,6 +1,6 @@
-# Robot Lab — Christopher Hansen & BNTA
+# Robot Lab — Chris for BNTA
 
-**Developed by Christopher Hansen for Beijing New Talent Academy (BNTA) / 北京市新英才学校.**
+**Developed by Chris for BNTA.** Chris is Christopher Hansen; BNTA is Beijing New Talent Academy / 北京市新英才学校.
 
 A bilingual robotics learning environment that helps students gain confidence with robot control, build a movement program, and test a solution to a practical loading problem. Designed around lower-secondary learners, including Grade 7 students, as preparation for work with physical robots.
 
@@ -41,6 +41,8 @@ Stacking includes synchronized plan/front/side diagrams and a scale standing per
 
 ## Save student progress
 
+The workspace adapts to the window: wide landscape screens show the 3D scene, movement controls and program in three columns. Narrower tablet and desktop windows put the controls below the scene while retaining a compact program column, at least 260 CSS pixels wide. Phone-sized screens stack the panels. Extra width goes to the scene; controls remain readable and scroll when height is limited.
+
 Use **Export progress** to download a JSON file containing the current task, robot and objects, program, placement plan, learning progress, explanation, timing and assessment state. **Import progress** restores a stopped session. Resume a saved timed attempt explicitly; time away from the saved session is excluded.
 
 Keep exported files when switching devices or ending a lesson. This static site does not upload student progress to a server.
@@ -63,11 +65,15 @@ The current local release passed 95 automated tests, with desktop and tablet-siz
 
 Original project software and documentation are available under the [MIT License](LICENSE). Keep the copyright notice and complete MIT permission notice in copies or substantial portions of the software. MIT permits use, modification and redistribution, including commercial use.
 
-Suggested visible credit, appreciated but not an additional MIT requirement:
+**Sharing or adapting Robot Lab? Credit Chris, BNTA, or both.** Link back to this repository so others can find the original project. Use any of these short credits:
 
-> Based on Robot Lab, developed by Christopher Hansen for Beijing New Talent Academy (BNTA) / 北京市新英才学校 — https://github.com/zhinii/bnta-robotics — MIT License.
+- Robot Lab — developed by Chris (Christopher Hansen).
+- Robot Lab — Beijing New Talent Academy (BNTA).
+- Robot Lab — developed by Chris for BNTA.
 
-**署名与许可：** 本项目由 Christopher Hansen 为北京市新英才学校（BNTA）开发。复制、修改或分发本软件时，请保留 Christopher Hansen 与北京市新英才学校的版权声明及完整 MIT 许可声明，并附带 LICENSE 文件。
+This is our request for visible project recognition. The MIT license's legal requirement is to retain the complete copyright and permission notices; a short visible credit to either party does not replace those notices. This request does not add a restriction to the MIT license.
+
+**署名与许可：** 本项目由 Chris（Christopher Hansen）为北京市新英才学校（BNTA）开发。分享或改编时，请注明 Chris、BNTA 或双方，并链接到本项目。可见署名是我们的项目致谢请求，并非 MIT 的额外限制。复制、修改或分发软件时，仍须保留包含双方姓名的完整版权声明及 MIT 许可声明；简短署名不能替代这些声明。
 
 - Three.js retains its own copyright and MIT notice in [THREE-LICENSE.txt](THREE-LICENSE.txt).
 - School names, logos and trademarks are excluded from this project's MIT grant. Obtain the relevant permission or replace the branding when creating your own version.
