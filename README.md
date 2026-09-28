@@ -25,6 +25,20 @@ The planner asks for **box placements, not route waypoints**. Assessment gives u
 
 Trail and path visibility can be toggled. Joint sliders and XYZ/jog controls offer different ways to explore movement. The shoulder has a dedicated mounting bracket above the base; this visual refinement does not change the joint axes or link lengths.
 
+## Choose orientation and movement
+
+- **Keep current:** the default when switching from joints to coordinates; preserves current roll and pitch. Rz remains an explicit editable target.
+- **Allow rotation:** position-only solving; the robot may rotate the gripper to reach the target. Rz input is disabled. Inspect the ghost tool before moving.
+- **Point downward:** an optional pickup aid. Guided pickup/placement shortcuts select this visibly.
+- **Direct tool movement:** follows the requested tool path in small Cartesian segments. Placement assistance may add a final alignment.
+- **Joint movement to target:** solves the destination pose, then turns the joints together. The tool can follow a curved path.
+
+Collision checks and joint limits remain active for every choice. Feedback distinguishes a constrained-orientation failure from a solver failure and detected collisions. Position, orientation, path and successful grip are separate conditions.
+
+Recorded moves retain their path and orientation settings; the step editor exposes both. New progress exports use version 3. Existing version 2 project files and legacy cargo programs remain importable with their original downward/direct settings. Older app versions may reject new exports rather than silently lose these settings.
+
+Stacking includes synchronized plan/front/side diagrams and a scale standing person within the existing finite collision volume (80 × 32 × 85 mm). The diagram's Z = 0 is the bed surface. This is a simulated obstacle, not a human safety separation model.
+
 ## Save student progress
 
 Use **Export progress** to download a JSON file containing the current task, robot and objects, program, placement plan, learning progress, explanation, timing and assessment state. **Import progress** restores a stopped session. Resume a saved timed attempt explicitly; time away from the saved session is excluded.
@@ -41,7 +55,7 @@ No account, API key or backend is needed. Teaching guidance is authored into the
 
 This is an educational model, not a real robot safety system or an exact industrial digital twin. It uses sampled motion checks and conservative collision bounds for the gripper, held cargo, task surfaces and obstacles. It does not simulate complete rigid-body dynamics, friction, forces or all arm/base/self-collisions. Placement assistance is intentionally forgiving. A clear preview means no blockage was found by these simulation checks; it is not a hardware safety guarantee.
 
-The current local release passed 87 automated tests, with desktop and tablet-sized browser checks for motion previews, collision feedback and the updated shoulder connection.
+The current local release passed 95 automated tests, with desktop and tablet-sized browser checks for motion previews, collision feedback and the updated shoulder connection.
 
 ## Credit and license
 
