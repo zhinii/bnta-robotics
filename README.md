@@ -10,17 +10,26 @@ The public edition uses a neutral whitebox interface, a gray 3D environment, and
 
 ## Learn, plan, program
 
-Choose **Learn & challenges** or **Explore** on entry, or switch using the Mode selector in the header. Explore offers a separate work surface with six boxes: move the arm, use the gripper, record positions and run programs immediately. There is no required lesson, quiz, placement plan, timer or score. Collision checks and joint limits remain active.
+Choose English or 简体中文, then Learn & challenges or Explore. The activity chain gives direct access to Introduction, Controls, Practice, Quiz, Challenge 1: Load, Challenge 2: Stack and Explore. All activities are available; completed activities turn green with a checkmark, while unfinished activities remain gray and selectable.
 
-Switching modes keeps their robot, program and learning states separately in the current browser tab. Export each session before closing the page: a JSON file saves the active mode only. Explore imports restore a stopped robot and do not open the learning journey. Reset scene keeps the program; Run resets the scene before executing it.
+- Introduction uses an isolated animated model to explain J1–J6 and the gripper. Controls introduces the camera and interface separately.
+- Practice helps students build and run a one-box transfer program. **Watch simulation** is optional and repeatable: it shows the complete transfer without a playback panel or action highlights. Closing it or letting it finish restores the student's program, robot pose and practice progress.
+- The introductory challenges use three boxes in assigned A → B → C pickup order and assigned destinations. Challenge 1 loads the bed; Challenge 2 adds stacking and an obstacle. World XYZ coordinates use whole-millimetre controls and readouts, while internal kinematics retain precision.
+- Move the robot, record positions, then add Open, Close and Check grip commands. Recording a command does not operate the robot. Collision checks and joint limits remain active; placements allow a small 5 mm / 5° training tolerance.
+- Successful loading is followed by truck departure once the empty gripper is lifted clear. Results include elapsed time and placement accuracy. These are simulation feedback, not proof of learning.
+- Explore provides a separate three-box workspace without a lesson gate, quiz, timer or score.
 
-1. Choose English or 简体中文, then a lesson, demonstration, guided practice, or the independent mission.
-2. Learn the six joints, gripper, coordinates, movement controls, program area and sensor feedback. Watch a demonstration, repeat it, play the program you built, and check your understanding with a quiz.
-3. Design an arrangement of six boxes in a limited truck bed. Use dimensions, rotation, local zero and centre coordinates to connect mathematics to actual placements. Explain what you are optimizing.
-4. Move the robot and record positions; add Open, Close and Wait DI1 in order. Test and improve the sequence.
-5. Progress to stacking in two levels while working around an obstacle.
+Switching activities preserves their separate programs and task states in the current browser tab. Export progress before closing the page; JSON includes the active task and saved activity sessions. Import restores a stopped robot. Reset keeps the program; Run resets the scene before execution. Student placement planning is reserved for future lessons rather than required in these introductory tasks.
 
-The planner asks for **box placements, not route waypoints**. Assessment gives up to **45 points for space efficiency, 40 for placement accuracy and 15 for time**. Placement accuracy allows 5 mm and 5° before deductions. Collision checks remain active: a geometrically compact arrangement may leave insufficient room for the gripper. Time targets are provisional classroom goals; scores are feedback on the simulation, not proof of learning.
+## Gravity and handling
+
+Opening the gripper at an unsafe height or unsupported placement now releases the box. A fixed-step rigid-body model simulates gravity, low rebound, friction, tipping and contact with other cargo, the floor, bed, shelf/obstacle solids and a simplified stationary robot. A box can balance with an overhang when its centre of mass is still above its support; the loading task still requires its full footprint to fit.
+
+Incidents replay at **0.35× speed**, explicitly labeled. Robot controls and progress export wait for the replay to finish; replay time is excluded from the challenge timer. **Gravity & handling** opens with the modeled net fall, peak impact speed and recovery explanation. Red outlines mark affected cargo. High releases do not earn placement credit; displaced cargo loses its credit and must be recovered. Reset scene keeps the program. Export/import preserves settled positions and the release review; existing progress files remain supported.
+
+Supported placements retain the existing small training tolerance. Friction and rebound are illustrative package properties, not calibrated material or damage predictions. Robot paths retain conservative collision guards; successful simulation does not establish that a physical robot operation is safe. If a release fails to converge to rest, the UI requests a scene reset before continuing.
+
+Cargo physics uses [cannon-es](https://github.com/pmndrs/cannon-es), with its [MIT notice](CANNON-LICENSE.txt) distributed alongside the application.
 
 ## See the movement
 
@@ -35,7 +44,7 @@ Trail and path visibility can be toggled. Joint sliders and XYZ/jog controls off
 
 - **Keep current:** the default when switching from joints to coordinates; preserves current roll and pitch. Rz remains an explicit editable target.
 - **Allow rotation:** position-only solving; the robot may rotate the gripper to reach the target. Rz input is disabled. Inspect the ghost tool before moving.
-- **Point downward:** an optional pickup aid. Guided pickup/placement shortcuts select this visibly.
+- **Point downward:** an optional pickup aid. Practice uses this pickup orientation.
 - **Direct tool movement:** follows the requested tool path in small Cartesian segments. Placement assistance may add a final alignment.
 - **Joint movement to target:** solves the destination pose, then turns the joints together. The tool can follow a curved path.
 
@@ -47,7 +56,7 @@ Stacking includes synchronized plan/front/side diagrams and a scale standing per
 
 ## Save student progress
 
-The 3D view keeps a **4:3 aspect ratio**. The workspace measures the active controls: when stacking them would squeeze the scene or make the controls dominate its remaining height, they move to a column beside it. This responds to control-mode, language and window changes. The program retains a compact column, at least 260 CSS pixels wide. Where readable columns cannot fit, panels remain stacked and scroll instead of distorting the scene. Phone-sized screens stack the panels.
+The 3D canvas fills the available scene area. The workspace measures the active controls: when stacking them would squeeze the scene or make the controls dominate its remaining height, they move to a column beside it. This responds to control-mode, language and window changes. The program retains a compact column, at least 260 CSS pixels wide. Where readable columns cannot fit, panels remain stacked and scroll instead of distorting the scene. Phone-sized screens stack the panels.
 
 Use **Export progress** to download a JSON file containing the current task, robot and objects, program, placement plan, learning progress, explanation, timing and assessment state. **Import progress** restores a stopped session. Resume a saved timed attempt explicitly; time away from the saved session is excluded.
 
@@ -55,15 +64,15 @@ Keep exported files when switching devices or ending a lesson. This static site 
 
 ## Hosting
 
-This repository contains the prepared static website. GitHub Pages publishes the `main` branch at its root. Keep `index.html`, `app.js`, `style.css`, `academy-logo.svg`, `LICENSE` and `THREE-LICENSE.txt` together when hosting a copy.
+This repository contains the prepared static website. GitHub Pages publishes the `main` branch at its root. Keep `index.html`, `app.js`, `style.css`, `academy-logo.svg`, `LICENSE`, `THREE-LICENSE.txt` and `CANNON-LICENSE.txt` together when hosting a copy.
 
 No account, API key or backend is needed. Teaching guidance is authored into the application; **live AI chat is not enabled in this edition**. Never put an API key in a public website or repository.
 
 ## Simulation limits
 
-This is an educational model, not a real robot safety system or an exact industrial digital twin. It uses sampled motion checks and conservative collision bounds for the gripper, held cargo, task surfaces and obstacles. It does not simulate complete rigid-body dynamics, friction, forces or all arm/base/self-collisions. Placement assistance is intentionally forgiving. A clear preview means no blockage was found by these simulation checks; it is not a hardware safety guarantee.
+This is an educational model, not a real robot safety system or an exact industrial digital twin. It uses sampled motion checks and conservative collision bounds for the gripper, held cargo, task surfaces and obstacles. Cargo uses simplified rigid-body gravity and contact physics, with illustrative friction and rebound. It does not model all robot forces or arm/base/self-collisions. Placement assistance is intentionally forgiving. A clear preview means no blockage was found by these simulation checks; it is not a hardware safety guarantee.
 
-The current local release passed 95 automated tests, with desktop and tablet-sized browser checks for motion previews, collision feedback and the updated shoulder connection.
+The current release passed 123 automated tests. Browser checks verified optional simulation playback, returning to the student’s unchanged work after completion or early close, desktop/mobile layout, and the absence of playback panels and action highlights during the simulation.
 
 ## Credit and license
 
@@ -84,3 +93,17 @@ This is our request for visible project recognition. The MIT license's legal req
 - Three.js retains its own copyright and MIT notice in [THREE-LICENSE.txt](THREE-LICENSE.txt).
 - School names, logos and trademarks are excluded from this project's MIT grant. Obtain the relevant permission or replace the branding when creating your own version.
 - The arm appearance is FAIRINO-inspired; no endorsement or affiliation with FAIRINO Robotics is claimed.
+
+
+## Program editing and contextual help
+
+Steps have explicit sequential numbers in execution order. New recordings append to the sequence. In the Record tab, each row supports edit, move up, move down and delete; Undo restores program edits. The Run tab shows the same numbered sequence with preview and playback controls. Adding a command does not operate the robot. **Do now** controls and **Add to program** are separate, and **Check grip** describes the DI1 check-and-stop behavior.
+
+The task reminder stays visible, while full lesson stages collapse. Failed playback instructions retain their number and explanation. The read-only position reference shows the held box’s assigned destination below the tool coordinates. A teaching demonstration restores the learner’s task state; the separate anatomy scene never changes it. Reduced-motion preferences disable automatic anatomy animation; replay and the joint slider remain available.
+
+
+## Three-box exercises and pickup targets
+
+New tasks use A, B and C. The introductory guided transfer still teaches one box before the independent three-box task. Stacking requires all three boxes to be placed across two levels, with at least one fully supported upper box. Existing six-box progress files retain their original inventory and stacking requirement rather than silently losing cargo.
+
+Pickup targets advance automatically from A to B to C. Their readout gives dimensions, top-centre XYZ and Rz in world coordinates; these are tool pickup coordinates, not the box centre of mass. There is no target selector or automatic pickup movement. Orientation and path controls remain in the collapsed Settings section. The camera buttons sit beside the view cube at the top of the viewport.

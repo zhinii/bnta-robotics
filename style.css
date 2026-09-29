@@ -209,6 +209,71 @@ body.controls-column #target-readout{top:130px}
  .start-choices strong{font-size:20px;margin-bottom:7px}
 }
 
+.physics-lesson{font-size:11px;border-top:1px solid var(--line);padding-top:8px;margin-top:10px}.physics-lesson summary{cursor:pointer;color:var(--text)}.physics-lesson p{font-size:11px;margin:8px 0}.physics-lesson strong{display:block;margin-top:9px}.physics-lesson small{color:var(--muted);font-size:10px;line-height:1.5;display:block}.physics-metrics{display:flex;flex-wrap:wrap;gap:6px 12px}.physics-metrics b{color:var(--text)}.physics-warning{font-weight:600}
+/* Short lessons and contextual guidance. Shared by both editions. */
+.command-heading{display:block;font-size:10px;letter-spacing:.08em;color:var(--muted);margin-bottom:7px}
+.insert-label{display:flex;align-items:center;gap:8px;font-size:11px;margin-bottom:8px}.insert-label select{min-width:0;flex:1;min-height:30px;font-size:11px}
+#steps li::before{display:none}#steps .step-number{font:700 13px Consolas,monospace;color:var(--text);align-self:flex-start;padding-top:3px}#steps li{align-items:flex-start;flex-wrap:wrap}#steps .step-description{flex:1;min-width:115px}#steps .step-actions{flex:0 0 auto;display:grid;grid-template-columns:repeat(2,28px);gap:2px}#steps .step-actions button{border:1px solid var(--line);min-height:28px}#steps button:disabled{opacity:.3}
+#steps li.failed-step{border:2px solid #ec3752;background:#66212b}#steps .step-error{color:#fff;font-size:11px;line-height:1.45}
+#task-goal{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:5px 18px;border-bottom:1px solid var(--line);font-size:12px;background:var(--panel);flex-shrink:0}#task-goal button{font-size:10px;min-height:27px;padding:3px 8px;white-space:nowrap}
+#controls>#guide,#program-panel>#guide{position:static!important;inset:auto!important;transform:none!important;width:auto!important;max-height:none!important;margin:8px;padding:10px;flex-shrink:0;border:2px solid #3cc7ff;background:var(--panel);color:var(--text);border-radius:8px;box-shadow:none}
+#controls>#guide{margin:0 0 12px}#guide .action-checks,#guide .purpose{color:var(--text)}#guide .actions{margin-top:8px}.pulse{outline:3px solid #00b8f0!important;outline-offset:3px;box-shadow:0 0 0 6px #00b8f022!important}
+.robot-introduction{width:min(1100px,calc(100vw - 24px));padding:22px;background:var(--panel);color:var(--text)}.intro-heading{display:flex;justify-content:space-between;gap:12px;align-items:start}.intro-heading h2{font-size:25px;margin:6px 0}.robot-introduction>p{font-size:14px;max-width:780px;color:var(--text)}.intro-layout{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(220px,1fr);gap:20px}.intro-layout #intro-scene{min-width:0;aspect-ratio:4/3;overflow:hidden;border-radius:10px;background:#dedede}.intro-layout #intro-scene canvas{display:block}.intro-parts{display:flex;flex-wrap:wrap;gap:6px}.intro-parts button{min-width:38px;padding:6px}.intro-parts button.active{outline:3px solid #00b8f0;outline-offset:1px}.intro-explanation p{font-size:14px;line-height:1.5;color:var(--text)}.intro-explanation .intro-note{font-size:11px;color:var(--muted)}#intro-slider-label{display:block;font-size:13px}#intro-slider{display:block;width:100%;margin-top:12px}#intro-angle{float:right;font-weight:bold}.intro-explanation .actions{gap:6px}.intro-explanation .actions button{font-size:12px}
+.plan-visibility{display:flex;gap:7px;font-size:11px;margin:10px 0}.placement-compare{font-size:11px;border-top:1px solid var(--line);padding-top:8px}.placement-compare table{font-size:11px}.placement-compare small{line-height:1.5;display:block;margin-top:8px}.planning-math{padding:10px 12px;border:1px solid var(--line);border-radius:8px;margin-bottom:12px;font-size:13px}.planning-math summary{cursor:pointer;font-weight:600}.planning-math li{margin:8px 0}
+@media(max-width:720px){.intro-layout{grid-template-columns:1fr;gap:10px}.intro-layout #intro-scene{max-height:40dvh;aspect-ratio:auto;height:280px}.robot-introduction{padding:15px}.intro-heading h2{font-size:20px}.intro-explanation h3{margin:12px 0 6px}#task-goal{font-size:11px;padding:6px 10px}#steps .step-actions{grid-template-columns:repeat(4,32px)}#steps .step-actions button{min-height:32px}}
+
+/* Advanced controls stay available without competing with movement controls. */
+.robot-settings{margin:8px 0 10px;font-size:11px;color:var(--muted)}.robot-settings>summary{cursor:pointer;width:fit-content;min-height:28px;padding:6px 3px;font-size:11px;line-height:16px}.robot-settings>summary:hover{color:var(--text)}.robot-settings>summary:focus-visible{outline:2px solid #00b8f0;outline-offset:2px;border-radius:4px}.robot-settings-content{border:1px solid var(--line);border-radius:7px;padding:10px;margin-top:4px}.robot-settings .frame-row{margin:0 0 10px}.robot-settings #motion-options{margin-bottom:0}.robot-settings .frame-row label>span{display:inline}.robot-settings .frame-row{align-items:flex-start}.robot-settings .frame-row label{flex-wrap:wrap}
+
+/* Fill the available drawing area; Three.js updates camera aspect on resize. */
+.workspace{grid-template-rows:minmax(300px,1fr) auto;align-content:stretch;overflow:hidden}.scene-stage{place-items:stretch}#viewport{width:100%;height:100%;aspect-ratio:auto;max-width:none;min-height:0}body.controls-column #viewport{width:100%;height:100%}
+.program-tabs{display:flex;gap:4px;padding:0 15px 10px}.program-tabs button{flex:1;background:transparent;min-height:32px;font-size:12px}.program-tabs button[aria-selected=true]{border-color:var(--gold);color:var(--text);background:var(--panel)}#program-panel[data-program-tab=run] #steps .step-actions{display:none}#program-panel[data-program-tab=record] .program-bottom{padding-top:8px}.pickup-reference{border:1px solid var(--line);border-radius:7px;padding:8px;margin:8px 0 12px;font-size:11px}.pickup-reference>label{display:flex;align-items:center;justify-content:space-between;gap:10px}.pickup-reference select{min-height:28px;min-width:70px;padding:3px 7px}#pickup-readout>strong,#pickup-readout>span,#pickup-readout>small{display:block;margin-top:5px}#pickup-readout>span,#pickup-readout>small{color:var(--muted);font-size:10px;line-height:1.4}.pickup-values{display:flex;flex-wrap:wrap;gap:5px 12px;margin-top:7px;font:11px Consolas,monospace}.pickup-values b{font-weight:500;color:var(--text)}
+@media(max-width:720px){body:not(.controls-column) .workspace{grid-template-rows:minmax(320px,55dvh) auto;height:auto;overflow:visible}#viewport{height:100%;min-height:320px}}
+
+/* Scene references stay compact and never capture orbit gestures. */
+#viewport > #path-legend{top:0;left:0;right:0;max-width:none;min-height:25px;padding:6px 8px;justify-content:center;gap:5px 12px;background:#10273ee8;border-radius:0;z-index:2;line-height:1.3}
+#viewport .scene-caption{top:37px}
+#viewport .telemetry{top:60px;max-width:calc(100% - 132px)}
+#viewport #view-cube{top:27px}
+#viewport .view-actions{top:143px}
+#viewport .path-hud{top:179px}
+#viewport #work-reference{border-top:1px solid var(--line);margin-top:7px;padding-top:6px;font-size:10px;pointer-events:none}
+#viewport #reference-content{padding:0;max-height:none;overflow:visible;display:grid;gap:3px}
+#viewport .destination-values{display:flex;flex-wrap:wrap;gap:5px 12px;margin:3px 0}
+#viewport .destination-values b{font-size:12px}
+@media(max-width:720px){
+ #viewport > #path-legend{font-size:9px;gap:4px 8px;min-height:24px}
+ #viewport .scene-caption{top:33px}
+ #viewport .telemetry{top:51px;left:10px}
+ #viewport #view-cube{top:25px}
+ #viewport .view-actions{top:101px}
+ #viewport .path-hud{top:139px}
+ #viewport .destination-values{flex-direction:column;gap:3px}
+}
+
+/* Visible, independently selectable learning activities. */
+#journey-steps{overflow-x:auto;scrollbar-width:thin;gap:3px}
+#journey-steps button{white-space:nowrap;flex-shrink:0;font-size:11px}
+#journey-steps button+button:before{content:'›';color:var(--muted);margin-right:3px}
+#journey-steps button:disabled{opacity:.48}
+.activity-menu{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:18px 0}
+.activity-menu button{display:flex;gap:10px;text-align:left;align-items:center;padding:14px;min-height:52px}
+.activity-menu button.current{border-color:var(--gold)}
+@media(max-width:720px){.activity-menu{grid-template-columns:1fr}#journey-steps button{font-size:10px}}
+
+#pickup-order{display:block;color:var(--muted);margin:3px 0 6px;font-size:11px}.assigned-layout{display:grid;grid-template-columns:minmax(130px,1fr) 2fr;gap:20px;align-items:center}.assigned-map{width:100%;max-height:190px;color:var(--text)}@media(max-width:720px){.assigned-layout{grid-template-columns:1fr}.assigned-map{max-height:140px}}
+
+/* Status is completion, never an activity prerequisite. */
+#journey-steps button.incomplete,.activity-menu button.incomplete{background:#29333d;color:#c7cdd4;border-color:#53606c}
+#journey-steps button.completed,.activity-menu button.completed{background:#163b30;color:#b7f4cb;border-color:#4fa378}
+#journey-steps button.completed span,.activity-menu button.completed span{color:inherit;border-color:currentColor}
+#journey-steps button.current,.activity-menu button.current{box-shadow:inset 0 -3px 0 #2797ff}
+#viewport .camera-views{position:absolute;top:34px;right:125px;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:4px;max-width:210px}
+.camera-views button{font-size:10px;min-height:27px;padding:3px 7px;background:#17334bed}
+@media(max-width:720px){#viewport .camera-views{top:32px;right:80px;max-width:175px}#viewport .scene-caption{display:none}#viewport .telemetry{top:68px}}
+
+#task-goal-text{flex:1} #watch-simulation{flex-shrink:0}
+
 .public-credit{flex-shrink:0;display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 16px;padding:7px 16px;margin:0;border-top:1px solid var(--line);background:var(--bg);font-size:10px;line-height:1.5;color:var(--muted)}.public-credit strong{font-weight:500;color:var(--gold)}.public-credit a{text-underline-offset:2px}@media(max-width:720px){.public-credit{font-size:9px;padding:8px 12px}}
 
 /* Public edition only: neutral surfaces, color reserved for information. */
@@ -283,3 +348,12 @@ svg [stroke="#fff"],svg [stroke="white"]{stroke:#155eef}
 .public-credit span:last-child{margin-left:auto}.public-credit a{color:#444}
 @media(max-width:1100px){header{gap:10px}.brand strong{font-size:18px}}
 @media(max-width:720px){header{min-height:64px;height:auto;padding:8px 12px}.brand{display:grid}.brand span{display:none}.brand strong{font-size:17px}.telemetry{padding:5px}.public-credit{font-size:9px;gap:4px 10px;padding:8px 12px}.credit-logo{height:44px;width:27px;grid-row:1 / 4}.public-credit{display:grid;grid-template-columns:27px 1fr}.public-credit span:last-child{margin-left:0}}
+/* Tutorial additions respect the neutral public edition. */
+html[data-edition=public] #steps li.failed-step{background:#fff0f1;border-color:#dc2544}html[data-edition=public] #steps .step-error{color:#a20e2a}html[data-edition=public] .robot-introduction{background:#fff;color:#171717}html[data-edition=public] #controls>#guide,html[data-edition=public] #program-panel>#guide{background:#f4fbff;color:#171717}html[data-edition=public] #guide .purpose,html[data-edition=public] #guide .action-checks{color:#333}
+
+#viewport > #path-legend{background:#ffffffed;border-bottom:1px solid #d5d5d5}
+
+#journey-steps button.incomplete,.activity-menu button.incomplete{background:#f0f1f2;color:#555b63;border-color:#c6c9cd}
+#journey-steps button.completed,.activity-menu button.completed{background:#e3f5e9;color:#176b39;border-color:#6bb884}
+#journey-steps button.current,.activity-menu button.current{box-shadow:inset 0 -3px 0 #155eef}
+.camera-views button{background:#fffffff0;color:#222}
