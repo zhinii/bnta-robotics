@@ -6,7 +6,13 @@ A bilingual robotics learning environment that helps students gain confidence wi
 
 [Open Robot Lab](https://zhinii.github.io/bnta-robotics/) · [GitHub repository](https://github.com/zhinii/bnta-robotics) · [MIT license](LICENSE)
 
+The public edition uses a neutral whitebox interface, a gray 3D environment, and a small monochrome BNTA logo in the footer. Blue marks selected controls and guided highlights; orange shows actual movement and red flags blocked movement. Box colors and letter labels connect the placement plan to the scene. The school edition retains its separate blue-and-gold branding.
+
 ## Learn, plan, program
+
+Choose **Learn & challenges** or **Explore** on entry, or switch using the Mode selector in the header. Explore offers a separate work surface with six boxes: move the arm, use the gripper, record positions and run programs immediately. There is no required lesson, quiz, placement plan, timer or score. Collision checks and joint limits remain active.
+
+Switching modes keeps their robot, program and learning states separately in the current browser tab. Export each session before closing the page: a JSON file saves the active mode only. Explore imports restore a stopped robot and do not open the learning journey. Reset scene keeps the program; Run resets the scene before executing it.
 
 1. Choose English or 简体中文, then a lesson, demonstration, guided practice, or the independent mission.
 2. Learn the six joints, gripper, coordinates, movement controls, program area and sensor feedback. Watch a demonstration, repeat it, play the program you built, and check your understanding with a quiz.
@@ -41,7 +47,7 @@ Stacking includes synchronized plan/front/side diagrams and a scale standing per
 
 ## Save student progress
 
-The workspace adapts to the window: wide landscape screens show the 3D scene, movement controls and program in three columns. Narrower tablet and desktop windows put the controls below the scene while retaining a compact program column, at least 260 CSS pixels wide. Phone-sized screens stack the panels. Extra width goes to the scene; controls remain readable and scroll when height is limited.
+The 3D view keeps a **4:3 aspect ratio**. The workspace measures the active controls: when stacking them would squeeze the scene or make the controls dominate its remaining height, they move to a column beside it. This responds to control-mode, language and window changes. The program retains a compact column, at least 260 CSS pixels wide. Where readable columns cannot fit, panels remain stacked and scroll instead of distorting the scene. Phone-sized screens stack the panels.
 
 Use **Export progress** to download a JSON file containing the current task, robot and objects, program, placement plan, learning progress, explanation, timing and assessment state. **Import progress** restores a stopped session. Resume a saved timed attempt explicitly; time away from the saved session is excluded.
 
