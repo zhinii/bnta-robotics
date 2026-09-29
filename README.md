@@ -10,10 +10,11 @@ The public edition uses a neutral whitebox interface, a gray 3D environment, and
 
 ## Learn, plan, program
 
-Choose English or 简体中文, then Learn & challenges or Explore. The activity chain gives direct access to Introduction, Controls, Practice, Quiz, Challenge 1: Load, Challenge 2: Stack and Explore. All activities are available; completed activities turn green with a checkmark, while unfinished activities remain gray and selectable.
+On first opening, choose English or 简体中文, then enter the Explore workspace directly. Returning visits remember the language. There is no startup task selector or next-activity popup. The activity chain gives direct access to Introduction, Controls, Practice, Quiz, Challenge 1: Load, Challenge 2: Stack and Explore. All activities are available; completed activities turn green with a checkmark, while unfinished activities remain gray and selectable.
 
-- Introduction uses an isolated animated model to explain J1–J6 and the gripper. Controls introduces the camera and interface separately.
+- Introduction uses an isolated animated model to explain J1–J6 and the gripper. Its canvas and camera refit to the selected joint’s motion when resized. Controls introduces the camera and interface separately.
 - Practice helps students build and run a one-box transfer program. **Watch simulation** is optional and repeatable: it shows the complete transfer without a playback panel or action highlights. Closing it or letting it finish restores the student's program, robot pose and practice progress.
+- Practice guidance is a compact helper with a bright blue border and pale-gold background. It floats over Program while using robot controls, and over Controls while recording or running instructions. It can be collapsed or moved within that panel and never covers the 3D scene.
 - The introductory challenges use three boxes in assigned A → B → C pickup order and assigned destinations. Challenge 1 loads the bed; Challenge 2 adds stacking and an obstacle. World XYZ coordinates use whole-millimetre controls and readouts, while internal kinematics retain precision.
 - Move the robot, record positions, then add Open, Close and Check grip commands. Recording a command does not operate the robot. Collision checks and joint limits remain active; placements allow a small 5 mm / 5° training tolerance.
 - Successful loading is followed by truck departure once the empty gripper is lifted clear. Results include elapsed time and placement accuracy. These are simulation feedback, not proof of learning.
@@ -72,7 +73,7 @@ No account, API key or backend is needed. Teaching guidance is authored into the
 
 This is an educational model, not a real robot safety system or an exact industrial digital twin. It uses sampled motion checks and conservative collision bounds for the gripper, held cargo, task surfaces and obstacles. Cargo uses simplified rigid-body gravity and contact physics, with illustrative friction and rebound. It does not model all robot forces or arm/base/self-collisions. Placement assistance is intentionally forgiving. A clear preview means no blockage was found by these simulation checks; it is not a hardware safety guarantee.
 
-The current release passed 123 automated tests. Browser checks verified optional simulation playback, returning to the student’s unchanged work after completion or early close, desktop/mobile layout, and the absence of playback panels and action highlights during the simulation.
+The current release passed 124 automated tests. Browser checks verified optional simulation playback, returning to the student’s unchanged work after completion or early close, desktop/mobile layout, and the absence of playback panels and action highlights during the simulation.
 
 ## Credit and license
 
