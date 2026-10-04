@@ -8,19 +8,27 @@ A bilingual robotics learning environment that helps students gain confidence wi
 
 The public edition uses a neutral whitebox interface, a gray 3D environment, and compact author attribution in the footer. Blue marks selected controls and guided highlights; orange shows actual movement and red flags blocked movement. Box colors and letter labels connect the placement plan to the scene.
 
-## Learn, plan, program
+## Introductory learning sequence
 
-On first opening, choose English or 简体中文, then enter the Explore workspace directly. Returning visits remember the language. There is no startup task selector or next-activity popup. The activity chain gives direct access to Introduction, Controls, Practice, Quiz, Challenge 1: Load, Challenge 2: Stack and Explore. All activities are available; completed activities turn green with a checkmark, while unfinished activities remain gray and selectable.
+**Robotics 101 → Interface → Practice → Task → Quiz.** English and 简体中文 are available throughout. First opening asks only for language; the activity bar starts the lessons. All five stages remain selectable so learners can revisit ideas. Completion adds a checkmark. Explore and the stacking extension are available separately in the ⋯ menu.
 
-- Introduction uses an isolated animated model to explain J1–J6 and the gripper. Its canvas and camera refit to the selected joint’s motion when resized. Controls introduces the camera and interface separately.
-- Practice helps students build and run a one-box transfer program. **Watch simulation** is optional and repeatable: it shows the complete transfer without a playback panel or action highlights. Closing it or letting it finish restores the student's program, robot pose and practice progress.
-- Practice guidance is a compact helper with a bright blue border and pale-gold background. It floats over Program while using robot controls, and over Controls while recording or running instructions. It starts collapsed and can be opened or moved within that panel, without taking extra layout space.
-- The introductory challenges use three boxes in assigned A → B → C pickup order and assigned destinations. Challenge 1 loads the bed; Challenge 2 adds stacking and an obstacle. World XYZ coordinates use whole-millimetre controls and readouts, while internal kinematics retain precision.
-- Move the robot, record positions, then add Open, Close and Check grip commands. Recording a command does not operate the robot. Collision checks and joint limits remain active; placements allow a small 5 mm / 5° training tolerance.
-- Successful loading is followed by truck departure once the empty gripper is lifted clear. Results include elapsed time and placement accuracy. These are simulation feedback, not proof of learning.
-- Explore provides a separate three-box workspace without a lesson gate, quiz, timer or score.
+| Stage | What students do | Evidence of understanding |
+| --- | --- | --- |
+| Robotics 101 | Five short interactive sections: useful robotic tasks; links, joints, motors and gripper; position versus orientation; feedback, gravity and limits. Students try two joints, identify parts, manipulate height/orientation, compare empty closure with a real grasp, and predict/test an unsupported release in an isolated model. | Explain an actuator versus a sensor, compare shoulder/wrist movement, and identify a useful task plus a limitation. |
+| Interface | Six verified actions in a temporary workspace: camera, a reached XYZ move, DO1/DI1, Capture, selecting a ghost, and running a prepared sequence. Closing restores the student session. | Distinguish moving now from recording for later; locate feedback and export progress. |
+| Practice | Watch an optional, repeatable one-box simulation, then build and run the transfer using contextual guidance. | Approach, grip/check, lift, transfer, lower, release and retreat in the right sequence. |
+| Task | Independently transfer assigned boxes A → B → C; write a brief approach, test the recorded program and reflect on a revision. | A working sequence, position accuracy, a height calculation and an explanation based on feedback. |
+| Quiz | Eight questions covering robotics, feedback, control and the maths used in the activity. Explanations and unlimited retries are provided. | First checked answers and corrections are saved separately; completing the simulator is not physical-robot operating certification. |
 
-Switching activities preserves their separate programs and task states in the current browser tab. Export progress before closing the page; JSON includes the active task and saved activity sessions. Import restores a stopped robot. Reset keeps the program; Run resets the scene before execution. Student placement planning is reserved for future lessons rather than required in these introductory tasks.
+The lessons use the supplied Grade 7 readiness: arithmetic, units, angles, rectangular area and simple coordinates. The worked pickup is Z 20 mm; on a 20 mm bed a 20 mm box has its top at Z 40 mm. A lift from Z 20 to 110 changes height by 90 mm. A 60 × 40 mm base has area 2,400 mm², unchanged by rotation. Total area as a percentage of the bed is an optional extension. No trigonometry, Pythagoras, function graphs or quantitative mechanics is required. Gravity/support are introduced through observation; optics and heat are not prerequisites.
+
+Teaching emphasis: identify a useful problem, predict, act, inspect feedback and revise. Timing and placement are simulation feedback; they do not establish learning on their own. Review the student's program, reasoning and final quiz together. Assigned destinations make this an introductory execution task, not an assessment of independent packing optimisation. Readiness and teaching time should be checked with the class; no unprovided departmental standard or research efficacy claim is asserted.
+
+Practice starts with a recorded Open command, requires a Check grip instruction after Close, and checks the bed-plus-box height calculation before placement. Guidance becomes less specific after the initial approach. Task completion requires a full successful Run from reset, assigned placement within 5 mm / 5°, and a clear final retreat. Manual delivery alone does not earn completion.
+
+Progress JSON version 5 stores the new practice and quiz evidence. Versions 2–4 and old program-only files still import; the first four unchanged quiz answers are retained where available, while revised questions need fresh answers.
+
+Practice demonstrations preserve the student's program and robot state. Switching activities keeps their separate work in the current tab. Export JSON before ending a session. Run resets the scene before executing the program; Reset keeps the program. Task completion lets the truck depart after the empty gripper is clear, and provides an explicit Continue to quiz action.
 
 ## Gravity and handling
 
@@ -51,13 +59,13 @@ Trail and path visibility can be toggled. Joint sliders and XYZ/jog controls off
 
 Collision checks and joint limits remain active for every choice. Feedback distinguishes a constrained-orientation failure from a solver failure and detected collisions. Position, orientation, path and successful grip are separate conditions.
 
-Recorded moves retain their path and orientation settings; the step editor exposes both. New progress exports use version 3. Existing version 2 project files and legacy cargo programs remain importable with their original downward/direct settings. Older app versions may reject new exports rather than silently lose these settings.
+Recorded moves retain their path and orientation settings; the step editor exposes both. New progress exports use version 4 for the eight-question final quiz. Existing version 2/3 project files and legacy cargo programs remain importable with their original downward/direct settings. Older app versions may reject new exports rather than silently lose these settings. Older three-question answers are retained, but do not count as completion of the expanded final quiz.
 
 Stacking includes synchronized plan/front/side diagrams and a scale standing person within the existing finite collision volume (80 × 32 × 85 mm). The diagram's Z = 0 is the bed surface. This is a simulated obstacle, not a human safety separation model.
 
 ## Save student progress
 
-The full-width 3D canvas is the workspace. Movement and Capture are compact overlay cards; portrait devices place them near the bottom and frame the robot above them. Choose XYZ, joint sliders or jog from the movement selector. Collapse movement for a larger view. View settings and workspace utilities stay in small menus.
+The full-width 3D canvas is the workspace. Movement and Capture are compact overlay cards; portrait devices place them near the bottom and frame the robot above them. Choose XYZ, joint sliders or jog from the compact movement selector. XYZ has a small Move button beside it; joints and jog move immediately. Click DO1 beside the selector to toggle OFF (Open) / ON (Close). DI1 is a separate read-only held-object indicator. Collapse movement for a larger view. View settings and workspace utilities stay in small menus.
 
 **Capture** adds a position or a gripper/check command without showing the entire sequence. **Review** hides movement controls and shows the program. Selecting a saved position displays its blue ghost without moving the robot. Use **Adjust position** to show controls, move the arm, and replace that saved pose. Selected steps can also be renamed, reordered or deleted. **Step** executes one instruction at a time and opens movement controls; **Run** executes from reset. Manual movement or program edits restart the next single-step run from the beginning. On very small or short screens, cards scroll internally while the scene remains visible.
 
@@ -75,7 +83,7 @@ No account, API key or backend is needed. Teaching guidance is authored into the
 
 This is an educational model, not a real robot safety system or an exact industrial digital twin. It uses sampled motion checks and conservative collision bounds for the gripper, held cargo, task surfaces and obstacles. Cargo uses simplified rigid-body gravity and contact physics, with illustrative friction and rebound. It does not model all robot forces or arm/base/self-collisions. Placement assistance is intentionally forgiving. A clear preview means no blockage was found by these simulation checks; it is not a hardware safety guarantee.
 
-The current release passed 124 automated tests. Browser checks verified optional simulation playback, returning to the student’s unchanged work after completion or early close, desktop/mobile layout, and the absence of playback panels and action highlights during the simulation.
+The curriculum release passed 134 automated controller, save-file, kinematics and physics checks. Real-browser checks covered the full Robotics 101 and Interface flows on desktop and phone, Chinese phone/tablet robot visibility, practice playback, quiz corrections and JSON export/import. Browser checks verified optional simulation playback, returning to the student’s unchanged work after completion or early close, desktop/mobile layout, and the absence of playback panels during the optional simulation.
 
 ## Credit and license
 
