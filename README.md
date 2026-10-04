@@ -1,12 +1,12 @@
-# Robot Lab — Christopher Hansen for BNTA
+# Robot Lab — Christopher Hansen
 
-**Developed by Christopher Hansen for BNTA.** BNTA is Beijing New Talent Academy / 北京市新英才学校.
+**Developed by Christopher Hansen.**
 
 A bilingual robotics learning environment that helps students gain confidence with robot control, build a movement program, and test a solution to a practical loading problem. Designed around lower-secondary learners, including Grade 7 students, as preparation for work with physical robots.
 
 [Open Robot Lab](https://zhinii.github.io/bnta-robotics/) · [GitHub repository](https://github.com/zhinii/bnta-robotics) · [MIT license](LICENSE)
 
-The public edition uses a neutral whitebox interface, a gray 3D environment, and a small monochrome BNTA logo in the footer. Blue marks selected controls and guided highlights; orange shows actual movement and red flags blocked movement. Box colors and letter labels connect the placement plan to the scene. The school edition retains its separate blue-and-gold branding.
+The public edition uses a neutral whitebox interface, a gray 3D environment, and compact author attribution in the footer. Blue marks selected controls and guided highlights; orange shows actual movement and red flags blocked movement. Box colors and letter labels connect the placement plan to the scene.
 
 ## Learn, plan, program
 
@@ -14,7 +14,7 @@ On first opening, choose English or 简体中文, then enter the Explore workspa
 
 - Introduction uses an isolated animated model to explain J1–J6 and the gripper. Its canvas and camera refit to the selected joint’s motion when resized. Controls introduces the camera and interface separately.
 - Practice helps students build and run a one-box transfer program. **Watch simulation** is optional and repeatable: it shows the complete transfer without a playback panel or action highlights. Closing it or letting it finish restores the student's program, robot pose and practice progress.
-- Practice guidance is a compact helper with a bright blue border and pale-gold background. It floats over Program while using robot controls, and over Controls while recording or running instructions. It can be collapsed or moved within that panel and never covers the 3D scene.
+- Practice guidance is a compact helper with a bright blue border and pale-gold background. It floats over Program while using robot controls, and over Controls while recording or running instructions. It starts collapsed and can be opened or moved within that panel, without taking extra layout space.
 - The introductory challenges use three boxes in assigned A → B → C pickup order and assigned destinations. Challenge 1 loads the bed; Challenge 2 adds stacking and an obstacle. World XYZ coordinates use whole-millimetre controls and readouts, while internal kinematics retain precision.
 - Move the robot, record positions, then add Open, Close and Check grip commands. Recording a command does not operate the robot. Collision checks and joint limits remain active; placements allow a small 5 mm / 5° training tolerance.
 - Successful loading is followed by truck departure once the empty gripper is lifted clear. Results include elapsed time and placement accuracy. These are simulation feedback, not proof of learning.
@@ -57,7 +57,9 @@ Stacking includes synchronized plan/front/side diagrams and a scale standing per
 
 ## Save student progress
 
-The 3D canvas fills the available scene area. The workspace measures the active controls: when stacking them would squeeze the scene or make the controls dominate its remaining height, they move to a column beside it. This responds to control-mode, language and window changes. The program retains a compact column, at least 260 CSS pixels wide. Where readable columns cannot fit, panels remain stacked and scroll instead of distorting the scene. Phone-sized screens stack the panels.
+The full-width 3D canvas is the workspace. Movement and Capture are compact overlay cards; portrait devices place them near the bottom and frame the robot above them. Choose XYZ, joint sliders or jog from the movement selector. Collapse movement for a larger view. View settings and workspace utilities stay in small menus.
+
+**Capture** adds a position or a gripper/check command without showing the entire sequence. **Review** hides movement controls and shows the program. Selecting a saved position displays its blue ghost without moving the robot. Use **Adjust position** to show controls, move the arm, and replace that saved pose. Selected steps can also be renamed, reordered or deleted. **Step** executes one instruction at a time and opens movement controls; **Run** executes from reset. Manual movement or program edits restart the next single-step run from the beginning. On very small or short screens, cards scroll internally while the scene remains visible.
 
 Use **Export progress** to download a JSON file containing the current task, robot and objects, program, placement plan, learning progress, explanation, timing and assessment state. **Import progress** restores a stopped session. Resume a saved timed attempt explicitly; time away from the saved session is excluded.
 
@@ -65,7 +67,7 @@ Keep exported files when switching devices or ending a lesson. This static site 
 
 ## Hosting
 
-This repository contains the prepared static website. GitHub Pages publishes the `main` branch at its root. Keep `index.html`, `app.js`, `style.css`, `academy-logo.svg`, `LICENSE`, `THREE-LICENSE.txt` and `CANNON-LICENSE.txt` together when hosting a copy.
+This repository contains the prepared static website. GitHub Pages publishes the `main` branch at its root. Keep `index.html`, `app.js`, `style.css`, `LICENSE`, `THREE-LICENSE.txt` and `CANNON-LICENSE.txt` together when hosting a copy.
 
 No account, API key or backend is needed. Teaching guidance is authored into the application; **live AI chat is not enabled in this edition**. Never put an API key in a public website or repository.
 
@@ -77,28 +79,23 @@ The current release passed 124 automated tests. Browser checks verified optional
 
 ## Credit and license
 
-**Copyright (c) 2026 Beijing New Talent Academy / 北京市新英才学校 and Christopher Hansen.**
+**Copyright (c) 2026 Christopher Hansen.**
 
 Original project software and documentation are available under the [MIT License](LICENSE). Keep the copyright notice and complete MIT permission notice in copies or substantial portions of the software. MIT permits use, modification and redistribution, including commercial use.
 
-**Sharing or adapting Robot Lab? Credit Christopher Hansen, BNTA, or both.** Link back to this repository so others can find the original project. Use any of these short credits:
+**Sharing or adapting Robot Lab? Credit Christopher Hansen.** Link back to this repository so others can find the original project. Suggested credit: “Robot Lab — developed by Christopher Hansen.”
 
-- Robot Lab — developed by Christopher Hansen.
-- Robot Lab — Beijing New Talent Academy (BNTA).
-- Robot Lab — developed by Christopher Hansen for BNTA.
+Visible project credit is requested; it adds no restriction to the MIT license. Copies must retain the copyright and permission notices in [LICENSE](LICENSE).
 
-This is our request for visible project recognition. The MIT license's legal requirement is to retain the complete copyright and permission notices; a short visible credit to either party does not replace those notices. This request does not add a restriction to the MIT license.
-
-**署名与许可：** 本项目由 Christopher Hansen 为北京市新英才学校（BNTA）开发。分享或改编时，请注明 Christopher Hansen、BNTA 或双方，并链接到本项目。可见署名是我们的项目致谢请求，并非 MIT 的额外限制。复制、修改或分发软件时，仍须保留包含双方姓名的完整版权声明及 MIT 许可声明；简短署名不能替代这些声明。
+**署名与许可：** 本项目由 Christopher Hansen 开发。分享或改编时，请注明 Christopher Hansen 并链接到本项目。可见署名是项目致谢请求，并非 MIT 的额外限制；复制或分发软件时仍须保留版权与许可声明。
 
 - Three.js retains its own copyright and MIT notice in [THREE-LICENSE.txt](THREE-LICENSE.txt).
-- School names, logos and trademarks are excluded from this project's MIT grant. Obtain the relevant permission or replace the branding when creating your own version.
 - The arm appearance is FAIRINO-inspired; no endorsement or affiliation with FAIRINO Robotics is claimed.
 
 
 ## Program editing and contextual help
 
-Steps have explicit sequential numbers in execution order. New recordings append to the sequence. In the Record tab, each row supports edit, move up, move down and delete; Undo restores program edits. The Run tab shows the same numbered sequence with preview and playback controls. Adding a command does not operate the robot. **Do now** controls and **Add to program** are separate, and **Check grip** describes the DI1 check-and-stop behavior.
+Capture appends a position or command without showing the full sequence. Review shows two columns: a compact list (Pos 1, Pos 2, and command names), and details for the selected instruction. Coordinates appear only after selection, together with edit, move up/down and delete. Selecting a position shows its ghost without executing it. Undo restores program edits. Run and single-step playback retain collision checks.
 
 The task reminder stays visible, while full lesson stages collapse. Failed playback instructions retain their number and explanation. The read-only position reference shows the held box’s assigned destination below the tool coordinates. A teaching demonstration restores the learner’s task state; the separate anatomy scene never changes it. Reduced-motion preferences disable automatic anatomy animation; replay and the joint slider remain available.
 
@@ -107,4 +104,4 @@ The task reminder stays visible, while full lesson stages collapse. Failed playb
 
 New tasks use A, B and C. The introductory guided transfer still teaches one box before the independent three-box task. Stacking requires all three boxes to be placed across two levels, with at least one fully supported upper box. Existing six-box progress files retain their original inventory and stacking requirement rather than silently losing cargo.
 
-Pickup targets advance automatically from A to B to C. Their readout gives dimensions, top-centre XYZ and Rz in world coordinates; these are tool pickup coordinates, not the box centre of mass. There is no target selector or automatic pickup movement. Orientation and path controls remain in the collapsed Settings section. The camera buttons sit beside the view cube at the top of the viewport.
+Pickup targets advance automatically from A to B to C. Their readout gives dimensions, top-centre XYZ and Rz in world coordinates; these are tool pickup coordinates, not the box centre of mass. There is no target selector or automatic pickup movement. Orientation and path controls remain in the collapsed Settings section. Use the view cube to change the camera. Trail and Path toggles remain visible beside it.

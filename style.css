@@ -278,6 +278,245 @@ body>#guide[data-panel] p,body>#guide[data-panel] .action-checks{color:#172638}b
 #guide .guide-heading{display:flex;align-items:center;gap:7px}#guide .guide-heading strong{flex:1;font-size:11px;line-height:1.4;cursor:grab;touch-action:none}#guide .guide-heading strong:active{cursor:grabbing}#guide-collapse{padding:0;min-height:24px;width:24px;font-size:16px;background:transparent}#guide .guide-body p{font-size:11px;margin:5px 0}#guide .action-checks{font-size:11px;line-height:1.5;margin:6px 0}#guide .actions{gap:5px;margin:5px 0 0}#guide .actions button{min-height:26px;font-size:10px;padding:3px 6px}#guide .guide-why{font-size:10px;margin-top:7px}#guide .guide-why summary{cursor:pointer;color:var(--muted)}#guide.guide-collapsed .guide-body{display:none}
 .intro-layout #intro-scene{position:relative;align-self:start}.intro-layout #intro-scene>canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
 
+/* Scene-first workspace. Cards overlay the canvas rather than allocating columns. */
+body.scene-hud{height:100dvh;min-height:0;overflow:hidden}
+body.scene-hud [hidden]{display:none!important}
+body.scene-hud header{height:54px;min-height:54px;padding:5px 14px;gap:12px;position:relative;z-index:60}
+body.scene-hud header .logo{width:104px;height:42px}
+body.scene-hud .brand{display:block;margin-right:auto;min-width:0}
+body.scene-hud .brand strong{font-size:18px;white-space:nowrap}
+body.scene-hud .brand span,body.scene-hud #mission-button{display:none}
+body.scene-hud header button{min-height:34px;font-size:12px}
+body.scene-hud #workspace-menu{position:relative}
+body.scene-hud #workspace-menu>summary{list-style:none;font-size:25px;cursor:pointer;text-align:center;width:36px;line-height:34px;border-radius:7px}
+body.scene-hud #workspace-menu>summary::-webkit-details-marker{display:none}
+body.scene-hud .workspace-menu-items{position:absolute;right:0;top:40px;width:215px;padding:8px;display:grid;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 30px #0003}
+body.scene-hud .workspace-menu-items button{text-align:left}
+body.scene-hud #journey-nav{height:40px;min-height:40px;margin:0;padding:3px 12px;overflow:hidden;flex-shrink:0}
+body.scene-hud #journey-steps{display:flex;align-items:center;width:100%;height:100%;scrollbar-width:none;gap:5px}
+body.scene-hud #journey-steps button{min-height:32px;font-size:11px;padding:4px 8px}
+body.scene-hud main{display:flex;flex:1;min-height:0;min-width:0;padding:8px;gap:0;overflow:hidden}
+body.scene-hud .workspace,body.scene-hud .scene-stage{display:block;position:relative;width:100%;height:100%;min-height:0;min-width:0;max-width:none;margin:0;overflow:hidden;flex:1;aspect-ratio:auto}
+body.scene-hud #viewport{position:relative;width:100%;height:100%;min-height:0;max-width:none;aspect-ratio:auto;overflow:hidden}
+body.scene-hud #viewport>canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;z-index:0}
+body.scene-hud #controls,body.scene-hud #program-panel{position:absolute;inset:auto;top:130px;bottom:auto;z-index:20;width:250px;max-height:calc(100% - 180px);min-width:0;min-height:0;padding:12px;display:flex;flex-direction:column;gap:9px;border:1px solid var(--line);border-radius:14px;background:color-mix(in srgb,var(--panel) 94%,transparent);backdrop-filter:blur(14px);box-shadow:0 5px 20px #0002;overflow:auto;scrollbar-width:thin;scrollbar-gutter:auto;overscroll-behavior:contain}
+body.scene-hud #controls{left:14px}
+body.scene-hud #program-panel{right:14px;width:210px}
+body.scene-hud .hud-card-heading{display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:13px;flex-shrink:0;min-height:23px}
+body.scene-hud #collapse-controls{min-height:24px;width:28px;padding:0;background:transparent;border:0;font-size:19px}
+body.scene-hud #controls-body{min-height:0}
+body.scene-hud .mode-select{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;margin-bottom:9px}
+body.scene-hud .mode-select select{min-width:0;width:155px;height:33px;font-size:12px;padding:4px}
+body.scene-hud .dock-heading,body.scene-hud .dock-note{display:none}
+body.scene-hud #movement{min-height:0;margin:0}
+body.scene-hud .coordinate-grid,body.scene-hud .joint-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:6px}
+body.scene-hud .axis-control{display:grid;grid-template-columns:24px minmax(0,1fr) 56px;align-items:center;gap:6px;min-height:32px;margin:0}
+body.scene-hud .axis-control label{font-size:12px;margin:0;grid-column:1;grid-row:1}
+body.scene-hud .axis-control input[type=range]{grid-column:2;grid-row:1;width:100%;height:28px;margin:0;min-width:0;touch-action:pan-y}
+body.scene-hud .axis-control input[type=number]{grid-column:3;grid-row:1;width:56px;height:32px;padding:3px;font-size:13px;text-align:center}
+body.scene-hud .axis-control output{grid-column:3;grid-row:1;text-align:right;font:12px Consolas,monospace}
+body.scene-hud #move{width:100%;margin:8px 0 0;min-height:36px;font-size:12px}
+body.scene-hud .grip{display:grid;grid-template-columns:1fr 1fr;width:100%;margin:9px 0 0;gap:5px;align-items:center}
+body.scene-hud #sensor{grid-column:1/-1;min-width:0;font-size:10px;margin:0;line-height:1.4}
+body.scene-hud .grip button{font-size:11px;min-height:34px;padding:4px}
+body.scene-hud #control-extras{font-size:11px;margin:8px 0 0}
+body.scene-hud #control-extras>summary{cursor:pointer;color:var(--muted);padding:4px 0;min-height:26px}
+body.scene-hud .jog-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+body.scene-hud .jog-axis{display:flex;gap:4px;align-items:center;justify-content:space-between}
+body.scene-hud .jog-axis button{width:34px;min-height:34px;padding:3px}
+body.scene-hud .jog-grid>label{grid-column:1/-1;font-size:11px}
+body.scene-hud #jog-step{height:30px;font-size:13px;width:50px}
+body.scene-hud #program-count{font-size:10px;color:var(--muted);white-space:nowrap}
+body.scene-hud .program-tabs{display:flex;padding:0;gap:4px;flex-shrink:0}
+body.scene-hud .program-tabs button{min-height:32px;font-size:11px;padding:4px;flex:1}
+body.scene-hud .program-tabs button[aria-selected=true]{background:var(--text);color:var(--bg);border-color:var(--text)}
+body.scene-hud .command-box{padding:0;margin:0;border:0;background:none;display:grid;gap:7px;flex-shrink:0}
+body.scene-hud #record{width:100%;min-height:42px;font-size:12px;padding:6px}
+body.scene-hud #capture-commands>summary{min-height:34px;cursor:pointer;font-size:11px;padding:8px;border:1px solid var(--line);border-radius:7px;list-style:none;text-align:center}
+body.scene-hud .command-row{display:grid;grid-template-columns:1fr;gap:4px;margin-top:6px}
+body.scene-hud .command-row button{min-height:34px;font-size:11px;padding:4px}
+body.scene-hud #capture-feedback{font-size:10px;color:var(--muted);min-height:0;line-height:1.4}
+body.scene-hud #capture-feedback:empty{display:none}
+body.scene-hud .program-bottom{padding:0;margin:0;border:0;background:none;flex-shrink:0}
+body.scene-hud #program-panel[data-program-tab=record] .program-bottom{display:none}
+body.scene-hud.hud-review #program-panel{width:320px;max-height:calc(100% - 180px)}
+body.scene-hud #steps{padding:0;margin:0;min-height:0;overflow-y:auto;flex:1;max-height:none;list-style:none}
+body.scene-hud #steps li{display:grid;grid-template-columns:22px minmax(0,1fr);gap:4px;padding:6px;margin:0 0 6px;align-items:start;border:1px solid var(--line);border-radius:8px}
+body.scene-hud #steps li.selected{border:2px solid #008bff;background:color-mix(in srgb,#008bff 12%,var(--panel))}
+body.scene-hud #steps .step-number{font-size:11px;padding:6px 0 0}
+body.scene-hud #steps .step-description{min-width:0;text-align:left;padding:4px;background:none;border:0;font-size:12px;white-space:normal;overflow-wrap:anywhere;min-height:36px}
+body.scene-hud #steps .step-description small{font-size:10px}
+body.scene-hud #steps .step-actions{display:none}
+body.scene-hud #steps li.selected .step-actions{display:flex;grid-column:2;gap:5px;flex-wrap:wrap}
+body.scene-hud #steps .step-actions button{min-height:32px;min-width:32px;padding:4px}
+body.scene-hud #review-selection{display:flex;flex-wrap:wrap;gap:5px;flex-shrink:0;padding:7px;border:1px solid #008bff;border-radius:8px;font-size:11px}
+body.scene-hud #selected-summary{flex-basis:100%;font-size:10px;color:var(--muted)}
+body.scene-hud #review-selection button{font-size:11px;min-height:32px;padding:4px 7px}
+body.scene-hud .review-tools{display:flex;gap:5px;margin-bottom:6px}
+body.scene-hud .review-tools button{width:auto;flex:1;margin:0;font-size:11px;min-height:32px;padding:4px}
+body.scene-hud .run-row{display:flex;gap:5px}
+body.scene-hud .run-row button{flex:1;min-height:36px;font-size:11px;padding:4px}
+body.scene-hud .metrics{font-size:10px;margin-top:5px}
+body.scene-hud #task-goal{position:absolute;z-index:10;top:84px;left:14px;right:130px;padding:0;border:0;background:none;font-size:11px;justify-content:flex-start;gap:6px;flex-wrap:wrap;pointer-events:none}
+body.scene-hud #task-goal-text{flex:0 1 auto;max-width:500px;text-shadow:0 1px 6px var(--bg)}
+body.scene-hud #task-goal button{pointer-events:auto;font-size:10px;min-height:28px;padding:3px 6px}
+body.scene-hud #viewport .telemetry{top:12px;left:14px;right:auto;max-width:calc(100% - 110px);padding:7px 9px;border-radius:9px;background:color-mix(in srgb,var(--panel) 85%,transparent);z-index:10}
+body.scene-hud #position{display:flex;gap:10px;font-size:14px;margin:3px 0}
+body.scene-hud #position b{font-size:15px}
+body.scene-hud #position-frame,body.scene-hud #orientation{font-size:10px}
+body.scene-hud #viewport #work-reference{font-size:10px;margin-top:4px;padding-top:4px}
+body.scene-hud #viewport #view-cube{top:10px;right:10px;width:65px;height:65px;z-index:11}
+body.scene-hud #viewport .camera-views{top:79px;right:10px;max-width:120px;gap:3px;z-index:11}
+body.scene-hud .camera-views button{font-size:10px;min-height:28px;padding:3px 5px}
+body.scene-hud .scene-options{position:absolute;top:111px;right:12px;z-index:25;font-size:10px;text-align:right}
+body.scene-hud .scene-options>summary{cursor:pointer;padding:3px 5px;min-height:24px;border-radius:5px;background:var(--panel)}
+body.scene-hud #viewport .view-actions{position:static;display:flex;flex-direction:column;align-items:start;background:var(--panel);padding:7px;border:1px solid var(--line);border-radius:7px;max-width:150px;gap:6px;margin-top:4px}
+body.scene-hud .scene-caption,body.scene-hud #viewport>#path-legend,body.scene-hud #target-readout{display:none!important}
+body.scene-hud #viewport .path-hud{top:auto;bottom:45px;right:14px;max-width:300px;width:auto;z-index:12}
+body.scene-hud #path-feedback:not(.blocked){display:none}
+body.scene-hud #status{position:absolute;left:0;right:0;bottom:0;z-index:30;min-height:36px;max-height:62px;overflow:auto;padding:9px 12px;font-size:11px;line-height:1.4;border-top:1px solid var(--line);background:var(--panel)}
+body.scene-hud footer{flex-shrink:0;min-height:24px;font-size:9px;padding:3px 12px;gap:5px}
+body.scene-hud footer img{height:18px;width:auto}
+body.scene-hud.hud-adjusting #program-panel{width:230px}
+body.scene-hud.hud-adjusting #steps{max-height:130px}
+@media(max-width:900px){
+ body.scene-hud header{height:46px;min-height:46px;padding:4px 9px;gap:7px}
+ body.scene-hud header .logo{display:none}
+ body.scene-hud .brand strong{font-size:17px}
+ body.scene-hud #journey-nav{height:40px;min-height:40px;padding:3px 6px}
+ body.scene-hud main{padding:0}
+ body.scene-hud .workspace{border:0;border-radius:0}
+ body.scene-hud #controls{left:8px;top:auto;bottom:48px;width:calc(100% - 140px);max-height:53%;padding:9px;gap:5px}
+ body.scene-hud #program-panel{right:8px;top:auto;bottom:48px;width:116px;max-height:53%;padding:8px;gap:7px}
+ body.scene-hud .hud-card-heading{font-size:12px;flex-wrap:wrap;gap:2px}
+ body.scene-hud #program-count{font-size:9px}
+ body.scene-hud .mode-select{margin-bottom:5px}
+ body.scene-hud .mode-select>span{display:none}
+ body.scene-hud .mode-select select{width:100%;font-size:13px}
+ body.scene-hud .axis-control{grid-template-columns:20px minmax(0,1fr) 53px;gap:4px;min-height:32px}
+ body.scene-hud .axis-control input[type=number]{width:53px;font-size:16px}
+ body.scene-hud .coordinate-grid,body.scene-hud .joint-grid{gap:3px}
+ body.scene-hud #control-extras{margin-top:4px}
+ body.scene-hud .grip{margin-top:6px}
+ body.scene-hud .program-tabs{gap:2px}
+ body.scene-hud .program-tabs button{font-size:10px;padding:3px 1px}
+ body.scene-hud #record{font-size:11px;min-height:44px}
+ body.scene-hud #capture-commands>summary{font-size:10px;padding:8px 2px}
+ body.scene-hud.hud-review #program-panel{left:8px;right:8px;top:auto;bottom:48px;width:auto;max-height:48%;padding:10px}
+ body.scene-hud.hud-review #steps{min-height:44px}
+ body.scene-hud.hud-adjusting #program-panel{left:auto;right:8px;width:116px;max-height:53%;padding:8px}
+ body.scene-hud.hud-adjusting #steps,body.scene-hud.hud-adjusting .metrics,body.scene-hud.hud-adjusting .attempt-bar,body.scene-hud.hud-adjusting .run-row,body.scene-hud.hud-adjusting #preview-program{display:none}
+ body.scene-hud #viewport .telemetry{left:8px;top:9px;max-width:calc(100% - 90px);padding:6px 8px}
+ body.scene-hud #position{gap:8px;font-size:12px}
+ body.scene-hud #position b{font-size:14px}
+ body.scene-hud #viewport .destination-values{flex-direction:row;gap:5px 10px}
+ body.scene-hud #task-goal{top:86px;left:8px;right:115px;font-size:10px;max-height:58px;overflow:auto}
+ body.scene-hud #task-goal button{min-height:28px;font-size:10px}
+ body.scene-hud #viewport .path-hud{display:none}
+ body.scene-hud #status{min-height:40px;padding:7px 8px;font-size:10px;max-height:44px}
+ body.scene-hud footer{font-size:8px;min-height:20px;max-height:28px;padding:3px 8px;overflow:hidden}
+ body.scene-hud footer img{display:none}
+}
+@media(max-height:500px) and (min-width:600px){
+ body.scene-hud header{height:40px;min-height:40px}
+ body.scene-hud #journey-nav{height:35px;min-height:35px}
+ body.scene-hud #controls{top:66px;bottom:auto;width:215px;max-height:calc(100% - 107px);padding:8px}
+ body.scene-hud #program-panel,body.scene-hud.hud-review #program-panel{top:66px;bottom:auto;width:220px;max-height:calc(100% - 107px);padding:8px}
+ body.scene-hud #task-goal{display:none}
+ body.scene-hud #viewport .telemetry{top:6px}
+ body.scene-hud #viewport .camera-views{top:8px;right:85px}
+ body.scene-hud .scene-options{top:39px;right:87px}
+}
+
+/* Override legacy row and footer rules without changing the public colour theme. */
+body.scene-hud .axis-control label small{display:none}
+body.scene-hud #movement #move{height:36px}
+body.scene-hud #program-panel #steps li.selected .step-actions{display:flex}
+body.scene-hud footer.public-credit{display:flex;flex-wrap:nowrap;align-items:center;white-space:nowrap;overflow:hidden}
+body.scene-hud footer.public-credit span{flex:0 0 auto}
+body.scene-hud footer.public-credit span:last-child{margin-left:auto}
+@media(max-width:900px){body.scene-hud footer.public-credit span:nth-of-type(2){display:none}body.scene-hud footer.public-credit span:last-child{font-size:0}body.scene-hud footer.public-credit span:last-child a{font-size:8px}body.scene-hud footer.public-credit span:last-child a:last-child{display:none}}
+
+body.scene-hud #viewport .telemetry #position{display:flex;flex-direction:row;gap:10px}
+body.scene-hud #controls .hud-card-heading{position:absolute;right:9px;top:10px;min-height:24px}
+body.scene-hud #controls .hud-card-heading strong{display:none}
+body.scene-hud .mode-select{padding-right:32px;margin:0 0 7px}
+body.scene-hud .mode-select>span{display:none}
+body.scene-hud .mode-select select{width:100%;height:34px}
+body.scene-hud #sensor{max-width:none}
+@media(min-width:701px) and (max-width:900px) and (min-height:501px){body.scene-hud #controls{width:280px}body.scene-hud #program-panel{width:210px}body.scene-hud.hud-review #program-panel{width:320px;left:auto}body.scene-hud.hud-adjusting #program-panel{width:210px}}
+
+body.scene-hud #controls[data-collapsed=true] .hud-card-heading{position:static;min-height:26px}
+body.scene-hud #controls[data-collapsed=true] .hud-card-heading strong{display:inline}
+@media(max-width:900px) and (min-height:501px){body.scene-hud.hud-review #program-panel{max-height:54%}}
+
+body.scene-hud #task-goal{left:280px;right:240px;top:12px}
+@media(max-width:900px){body.scene-hud #task-goal{left:8px;right:130px;top:110px}body.scene-hud #task-goal-text{display:none}}
+
+/* Compact scene references, direct overlay toggles, and list/detail review. */
+body.scene-hud #journey-nav{height:36px;min-height:36px;padding:0 10px;background:var(--bg)}
+body.scene-hud #journey-steps{gap:2px;align-items:stretch}
+body.scene-hud #journey-steps button{border:0;border-radius:0;box-shadow:none;background:transparent;color:var(--muted);font-size:12px;padding:6px 12px;min-height:34px;gap:4px}
+body.scene-hud #journey-steps button+button:before{display:none}
+body.scene-hud #journey-steps button>span{display:none}
+body.scene-hud #journey-steps button.completed{color:#168046;background:transparent}
+body.scene-hud #journey-steps button.completed>span{display:inline;border:0;width:auto;height:auto;font-size:10px}
+body.scene-hud #journey-steps button.current{color:var(--text);background:transparent;box-shadow:inset 0 -2px #168bff;font-weight:650}
+body.scene-hud #viewport .telemetry{padding:5px 7px;background:color-mix(in srgb,var(--panel) 68%,transparent);border:0;box-shadow:none;border-radius:6px;max-width:calc(100% - 170px);text-shadow:none}
+body.scene-hud #viewport .telemetry #position{margin:2px 0;gap:8px}
+body.scene-hud #viewport .telemetry #position b{font-size:12px}
+body.scene-hud #position-frame,body.scene-hud #orientation{font-size:9px;line-height:1.25}
+body.scene-hud #viewport #work-reference{font-size:9px;line-height:1.2;margin-top:3px;padding-top:3px}
+body.scene-hud #viewport .scene-options{top:15px;right:82px;z-index:20;font-size:10px}
+body.scene-hud #viewport .scene-options .view-actions{border:0;background:transparent;margin:0;padding:0;display:flex;flex-direction:column;gap:3px;align-items:flex-start}
+body.scene-hud #viewport .view-actions label{min-height:26px;gap:4px;font-size:10px;cursor:pointer}
+body.scene-hud #viewport .view-actions input{width:14px;height:14px;margin:0;accent-color:#168bff}
+body.scene-hud.hud-review #program-panel{width:440px}
+body.scene-hud #review-layout{display:grid;grid-template-columns:minmax(90px, .85fr) minmax(160px,1.5fr);gap:12px;min-height:100px;flex:1;overflow:hidden}
+body.scene-hud #review-layout #steps{min-height:0;max-height:none;overflow:auto;border-right:1px solid var(--line);padding:0 8px 0 0;margin:0}
+body.scene-hud #review-layout #steps li{display:block;border:0;margin:0 0 3px;padding:0;border-radius:6px;background:transparent}
+body.scene-hud #review-layout #steps li.selected{background:color-mix(in srgb,#168bff 13%,var(--panel));box-shadow:inset 3px 0 #168bff}
+body.scene-hud #review-layout #steps li.playing{background:color-mix(in srgb,#168bff 18%,var(--panel));outline:1px solid #168bff}
+body.scene-hud #review-layout #steps li.failed-step{background:#ffe0e5;box-shadow:inset 3px 0 #d52142}
+body.scene-hud #review-layout #steps .step-description{width:100%;min-height:36px;padding:8px 9px;font-size:12px;text-align:left}
+body.scene-hud .review-detail-column{min-width:0;overflow:auto}
+body.scene-hud #review-selection{display:flex;flex-wrap:wrap;gap:7px;border:0;border-radius:0;padding:0;min-width:0}
+body.scene-hud #selected-summary{font-size:12px;color:var(--text);font-weight:650}
+body.scene-hud #selected-details{width:100%;font-size:11px;min-width:0}
+body.scene-hud .selected-coordinates{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:3px 0 8px}
+body.scene-hud .selected-coordinates>div{display:flex;gap:5px;align-items:baseline}
+body.scene-hud .selected-coordinates dt{color:var(--muted);font-size:10px}
+body.scene-hud .selected-coordinates dd{margin:0;font:12px Consolas,monospace}
+body.scene-hud .selected-coordinates small{font-size:9px;color:var(--muted)}
+body.scene-hud .selected-motion{font-size:10px;margin:5px 0 9px;line-height:1.4}
+body.scene-hud #selected-details .step-actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
+body.scene-hud #selected-details .step-actions button{min-width:0;min-height:32px;padding:4px}
+body.scene-hud #review-empty{margin:0;font-size:11px;line-height:1.5;color:var(--muted)}
+body.scene-hud #steps .empty{padding:7px;font-size:11px;height:auto}
+body.scene-hud #steps .empty h2{font-size:12px}
+body.scene-hud #steps .empty>span,body.scene-hud #steps .empty>p{display:none}
+body.scene-hud.hud-adjusting #program-panel{width:230px}
+body.scene-hud.hud-adjusting #review-layout{grid-template-columns:1fr;min-height:0;flex:0 1 auto}
+body.scene-hud.hud-adjusting #steps,body.scene-hud.hud-adjusting #selected-details{display:none}
+body.scene-hud #task-goal{top:85px;left:14px;right:180px}
+@media(max-width:900px){
+ body.scene-hud #journey-nav{padding:0 5px;height:34px;min-height:34px}
+ body.scene-hud #journey-steps button{font-size:11px;padding:6px 9px}
+ body.scene-hud #viewport .telemetry{left:8px;top:10px;max-width:calc(100% - 154px)}
+ body.scene-hud #viewport #view-cube{width:56px;height:56px;right:7px;top:9px}
+ body.scene-hud #viewport .scene-options{right:68px;top:11px}
+ body.scene-hud #orientation{font-size:8px}
+ body.scene-hud #viewport .telemetry #position{gap:7px}
+ body.scene-hud #viewport .telemetry #position b{font-size:11px}
+ body.scene-hud.hud-review #program-panel{width:auto;left:8px;right:8px}
+ body.scene-hud #review-layout{grid-template-columns:minmax(80px,.7fr) minmax(150px,1.3fr);gap:9px;min-height:85px}
+ body.scene-hud #review-layout #steps .step-description{font-size:11px;padding:7px;min-height:36px}
+ body.scene-hud.hud-adjusting #program-panel{left:auto;width:116px}
+ body.scene-hud.hud-adjusting #review-layout{grid-template-columns:1fr}
+ body.scene-hud #task-goal{top:80px;right:110px}
+}
+@media(min-width:701px) and (max-width:900px) and (min-height:501px){body.scene-hud.hud-review #program-panel{left:auto;width:430px}body.scene-hud.hud-adjusting #program-panel{width:210px}}
+@media(max-height:500px) and (min-width:600px){body.scene-hud.hud-review #program-panel{left:auto;width:410px}body.scene-hud.hud-adjusting #program-panel{width:220px}}
 
 .public-credit{flex-shrink:0;display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 16px;padding:7px 16px;margin:0;border-top:1px solid var(--line);background:var(--bg);font-size:10px;line-height:1.5;color:var(--muted)}.public-credit strong{font-weight:500;color:var(--gold)}.public-credit a{text-underline-offset:2px}@media(max-width:720px){.public-credit{font-size:9px;padding:8px 12px}}
 
