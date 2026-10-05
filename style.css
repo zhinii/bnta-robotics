@@ -591,6 +591,200 @@ body.scene-hud #controls{container-type:inline-size}
 }
 .robot-introduction #intro-scene{width:100%}
 body[data-interface-step] #task-goal{display:none}
+/* Touch-first shell: the scene and one contextual drawer share the screen. */
+body.touch-workspace{--focus:#155eef;background:var(--bg);height:100dvh;overflow:hidden}
+body.touch-workspace>header{height:50px;min-height:50px;padding:5px 16px}
+body.touch-workspace #workspace-tabs{display:flex;justify-content:center;gap:4px;flex-shrink:0;padding:4px 12px;border-bottom:1px solid var(--line);background:var(--panel)}
+body.touch-workspace #workspace-tabs button{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;min-width:118px;border:0;background:transparent;color:var(--muted);font-size:13px}
+body.touch-workspace #workspace-tabs button[aria-pressed=true]{background:#eaf1ff;color:#155eef;font-weight:650;box-shadow:inset 0 -3px #155eef}
+body.touch-workspace #workspace-tabs button>span:first-child{font-size:20px;line-height:1}
+body.touch-workspace #nav-program-count{border-radius:10px;padding:1px 6px;background:var(--bg);font-size:10px}
+body.touch-workspace main{padding:0;display:flex;overflow:hidden}
+body.touch-workspace .workspace{display:flex;flex-direction:column;min-height:0;height:100%;border:0;border-radius:0;overflow:hidden}
+body.touch-workspace .scene-stage{position:relative;flex:1;min-height:170px;height:auto;overflow:hidden;border-radius:0}
+body.touch-workspace #viewport{height:100%;min-height:0;border-radius:0;border:0}
+body.touch-workspace #context-drawer{flex:0 0 auto;display:flex;flex-direction:column;max-height:46dvh;width:100%;min-height:0;background:var(--panel);border-top:1px solid var(--line);box-shadow:0 -5px 24px #00000008;z-index:25;overflow:auto;overscroll-behavior:contain}
+body.touch-workspace .drawer-bar{display:flex;justify-content:space-between;align-items:center;padding:4px 18px;min-height:36px;flex-shrink:0;gap:10px}
+body.touch-workspace .drawer-bar h2{font-size:12px;letter-spacing:.02em;margin:0;color:var(--muted);font-weight:600}
+body.touch-workspace #drawer-toggle{min-height:32px;font-size:11px;border:0;background:transparent;padding:4px 8px}
+body.touch-workspace #drawer-body{min-height:0;overflow:auto;max-width:1000px;width:100%;margin:0 auto;padding:0 18px 8px}
+body.touch-workspace #context-drawer #controls,body.touch-workspace #context-drawer #program-panel{position:static;inset:auto;max-height:none;width:100%;min-width:0;min-height:0;border:0;border-radius:0;padding:0;background:transparent;box-shadow:none;backdrop-filter:none;overflow:visible;container-type:normal;gap:8px}
+body.touch-workspace #controls .hud-card-heading,body.touch-workspace #program-panel>.hud-card-heading{display:none!important}
+body.touch-workspace #controls-body{display:block}
+body.touch-workspace #controls .motion-toolbar{display:flex;gap:8px;margin-bottom:8px;align-items:center}
+body.touch-workspace #controls .mode-select{max-width:180px;flex:1}
+body.touch-workspace #controls .mode-select select{font-size:13px;height:40px;min-height:40px;padding:5px 10px}
+body.touch-workspace #controls #move,body.touch-workspace #controls #grip-toggle,body.touch-workspace #robot-home{min-height:40px;height:40px;min-width:64px;width:auto;margin:0;padding:5px 12px;font-size:12px}
+body.touch-workspace #controls #grip-toggle{flex:0 0 82px}
+body.touch-workspace #grip-toggle b{font-size:11px}
+body.touch-workspace #grip-toggle span{font-size:10px}
+body.touch-workspace #controls #sensor{font-size:11px;margin:0 0 6px}
+body.touch-workspace .coordinate-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+body.touch-workspace .axis-control{grid-template-columns:24px minmax(45px,1fr) 58px;gap:6px;min-height:40px}
+body.touch-workspace .axis-control input[type=range]{height:38px;min-height:38px}
+body.touch-workspace .axis-control input[type=number]{height:38px;width:58px;font-size:14px}
+body.touch-workspace #control-extras{margin:4px 0 0;font-size:11px}
+body.touch-workspace #control-extras>summary{min-height:30px;padding:5px 0;cursor:pointer}
+body.touch-workspace #control-extras[open]{padding-bottom:8px}
+body.touch-workspace .joint-picker{display:flex;gap:6px;margin:2px 0 10px}
+body.touch-workspace .joint-picker button{flex:1;min-height:42px;max-width:84px;background:var(--bg);border-color:transparent}
+body.touch-workspace .joint-picker button[aria-pressed=true]{color:#155eef;background:#eaf1ff;border-color:#155eef}
+body.touch-workspace .selected-joint{display:flex;gap:20px;align-items:center}
+body.touch-workspace .selected-joint>strong{font-size:13px;min-width:150px}
+body.touch-workspace .selected-joint .axis-control{display:flex;flex:1;gap:12px;max-width:550px}
+body.touch-workspace .selected-joint input[type=range]{flex:1;min-width:50px}
+body.touch-workspace .selected-joint output{min-width:42px;font-size:14px;text-align:center}
+body.touch-workspace .selected-joint button{min-width:42px;min-height:42px;padding:5px}
+body.touch-workspace .drawer-note{font-size:11px;color:var(--muted);line-height:1.5;margin:6px 0}
+body.touch-workspace .drawer-intro{font-size:15px;color:var(--text);font-weight:600;margin:0 0 10px}
+body.touch-workspace .jog-grid{grid-template-columns:repeat(4,1fr) auto;gap:12px}
+body.touch-workspace .jog-axis button{min-width:40px;min-height:40px}
+body.touch-workspace #teach-bridge{display:flex;align-items:center;gap:8px;padding:6px 18px 10px;width:100%;max-width:1036px;margin:auto;flex-shrink:0;border-top:1px solid var(--line)}
+body.touch-workspace #teach-bridge button{min-height:40px;font-size:12px}
+body.touch-workspace #quick-feedback{font-size:11px;color:var(--muted);margin-left:auto}
+body.touch-workspace #adjust-actions{display:flex;gap:8px}
+body.touch-workspace #journey-nav{display:block;height:auto;min-height:0;overflow:visible;padding:0;margin:0;border:0;background:none}
+body.touch-workspace #journey-steps{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;height:auto;overflow:visible}
+body.touch-workspace #journey-steps button{min-height:54px;padding:10px;text-align:left;justify-content:flex-start;font-size:13px;border:1px solid var(--line);border-radius:10px}
+body.touch-workspace #journey-steps button.completed,body.touch-workspace .challenge-choices button.completed{border-color:#128354;background:#edfaf2;color:#075d3a}
+body.touch-workspace .challenge-choices{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+body.touch-workspace .challenge-choices button{text-align:left;min-height:80px;padding:12px;border-radius:10px;display:flex;flex-direction:column;gap:6px}
+body.touch-workspace .challenge-choices span{font-size:12px;line-height:1.4;color:var(--muted)}
+body.touch-workspace #program-panel{display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:8px 18px}
+body.touch-workspace #program-panel .program-tabs{grid-column:1/-1;max-width:340px;display:flex;gap:4px;margin:0}
+body.touch-workspace #program-panel .program-tabs button{min-height:38px;flex:1}
+body.touch-workspace #record-panel{grid-column:1/-1;display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap}
+body.touch-workspace #record-panel>button{width:auto;min-height:42px;margin:0}
+body.touch-workspace #capture-commands{margin:0;flex:1;min-width:250px}
+body.touch-workspace #capture-commands summary{font-size:11px;min-height:24px;padding:0 0 4px}
+body.touch-workspace .command-row{display:flex;gap:6px;flex-wrap:wrap}
+body.touch-workspace .command-row button{min-height:38px;font-size:12px}
+body.touch-workspace #capture-feedback{width:100%;margin:0;font-size:11px}
+body.touch-workspace #review-layout{grid-column:1;display:grid;grid-template-columns:minmax(150px,1fr) minmax(160px,1fr);gap:12px;min-height:135px;max-height:190px}
+body.touch-workspace #steps{margin:0;padding:0 6px 0 0;max-height:none;overflow:auto;min-height:0;counter-reset:block;display:block}
+body.touch-workspace #steps li{position:relative;margin:0 0 5px;border:1px solid #bed2ff;border-left:5px solid #155eef;background:#f1f6ff;border-radius:8px;min-height:42px;padding:0;display:flex;align-items:stretch;counter-increment:block}
+body.touch-workspace #steps li:before{content:counter(block);font-size:10px;min-width:22px;display:flex;align-items:center;justify-content:center;color:#4d607b}
+body.touch-workspace #steps li[data-kind=grip]{border-color:#bcded2;border-left-color:#087c58;background:#edf8f2}
+body.touch-workspace #steps li[data-kind=wait]{border-color:#d9cbff;border-left-color:#7447d5;background:#f5f0ff}
+body.touch-workspace #steps li[data-kind=delay]{border-color:#f1d6a3;border-left-color:#bc790b;background:#fff8e9}
+body.touch-workspace #steps li.selected{outline:2px solid #155eef;outline-offset:-2px}
+body.touch-workspace #steps li.playing{outline:3px solid #06a66b;outline-offset:-3px}
+body.touch-workspace #steps li.failed-step{outline:3px solid #e23948;outline-offset:-3px}
+body.touch-workspace #steps .step-description{display:block;min-height:42px;width:100%;padding:8px 6px;text-align:left;font-size:12px;background:transparent;color:#25364c;border:0;white-space:normal}
+body.touch-workspace .review-detail-column{overflow:auto;padding:5px 0 5px 12px;border-left:1px solid var(--line);font-size:11px}
+body.touch-workspace #review-empty{font-size:12px;line-height:1.5;margin:4px 0}
+body.touch-workspace #selected-details .step-actions{display:flex;gap:4px}
+body.touch-workspace .step-actions button{min-height:36px;min-width:34px;padding:4px}
+body.touch-workspace .program-bottom{grid-column:2;grid-row:2;min-height:0}
+body.touch-workspace #program-panel[data-program-tab=record] .program-bottom{display:none}
+body.touch-workspace .repeat-setting{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;margin:8px 0}
+body.touch-workspace .repeat-setting select{height:34px;width:70px}
+body.touch-workspace .run-row{display:flex;gap:5px}
+body.touch-workspace .run-row button{min-height:40px;flex:1;font-size:12px}
+body.touch-workspace .metrics{font-size:10px;margin:6px 0 0}
+body.touch-workspace #status{position:static;inset:auto;flex-shrink:0;min-height:28px;max-height:58px;overflow:auto;font-size:11px;line-height:1.45;padding:6px 16px;border-top:1px solid var(--line);border-radius:0}
+body.touch-workspace #viewport .telemetry{top:12px;left:12px;padding:6px 8px;max-width:210px;border:0;background:#ffffffd9;backdrop-filter:blur(6px)}
+body.touch-workspace #position{margin:3px 0;gap:10px}
+body.touch-workspace #position b{font-size:12px}
+body.touch-workspace #orientation{font-size:9px}
+body.touch-workspace #view-cube{top:8px;right:8px;width:76px;height:76px}
+body.touch-workspace .scene-options{position:absolute;top:88px;right:12px;width:auto;padding:0;background:transparent}
+body.touch-workspace .view-actions{position:static;display:flex;gap:8px;font-size:10px}
+body.touch-workspace .view-actions label{padding:4px;background:#ffffffb3;border-radius:5px;min-height:28px}
+body.touch-workspace #task-goal{position:absolute;left:12px;right:110px;top:auto;bottom:10px;max-width:700px;padding:6px 8px;font-size:11px;background:#ffffffd9;border-radius:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+body.touch-workspace #task-goal button{min-height:30px;font-size:10px}
+body.touch-workspace #path-legend,body.touch-workspace .scene-caption{display:none}
+body.touch-workspace .path-hud{position:absolute;top:105px;left:12px;right:auto;max-width:min(350px,65%);font-size:10px}
+body.touch-workspace #lesson-strip{flex-shrink:0;width:100%;max-width:1000px;margin:auto;max-height:130px;overflow:auto}
+body.touch-workspace #lesson-strip:has(>#guide[hidden]):not(:has(#demo-tour:not([hidden]))){display:none}
+body.touch-workspace #guide{position:static!important;width:auto!important;max-width:none;max-height:none!important;visibility:visible!important;margin:0 12px 8px;padding:8px 10px;border:1px solid #f0cd67;border-left:4px solid #e8ad24;border-radius:8px;background:#fff8df;color:#25364c;box-shadow:none;font-size:12px}
+body.touch-workspace #guide .guide-heading{font-size:12px;margin:0;display:flex;justify-content:space-between}
+body.touch-workspace #guide .guide-heading strong{cursor:default}
+body.touch-workspace #guide p{font-size:12px;line-height:1.45;margin:5px 0;color:#25364c}
+body.touch-workspace #guide .guide-body{padding-top:4px}
+body.touch-workspace #guide .action-checks{display:flex;flex-wrap:wrap;gap:5px 16px;margin:6px 0;padding:0;list-style:none;font-size:11px}
+body.touch-workspace #guide button{min-height:30px;font-size:11px;padding:4px 8px;color:#25364c;background:white}
+body.touch-workspace #demo-tour.interactive-tour{position:static;inset:auto;pointer-events:auto;margin:0 12px 8px;z-index:auto}
+body.touch-workspace #demo-tour.interactive-tour .tour-card{position:static!important;inset:auto!important;width:100%!important;max-height:none!important;padding:8px 12px;border:1px solid #a8c6ff;border-left:4px solid #155eef;border-radius:8px;background:#eef4ff;color:#25364c;box-shadow:none;display:grid;grid-template-columns:1fr auto;gap:3px 14px}
+body.touch-workspace #demo-tour .tour-card h2{font-size:13px;margin:0}
+body.touch-workspace #demo-tour .tour-card p{font-size:12px;line-height:1.4;margin:2px 0}
+body.touch-workspace #demo-tour .tour-card .eyebrow{font-size:9px}
+body.touch-workspace #demo-tour .tour-card .actions{grid-column:2;grid-row:1/5;align-self:center;display:flex;gap:5px}
+body.touch-workspace #demo-tour .tour-card button{min-height:36px}
+body.touch-workspace #demo-tour .tour-focus{z-index:80;border-width:2px;box-shadow:none;pointer-events:none}
+body.touch-workspace .public-credit{padding:4px 12px;font-size:9px}
+@media(max-width:700px){
+ body.touch-workspace #workspace-tabs{padding:2px 6px;gap:2px}
+ body.touch-workspace #workspace-tabs button{min-width:0;flex:1;font-size:12px;padding:5px;gap:5px}
+ body.touch-workspace #workspace-tabs button>span:first-child{font-size:18px}
+ body.touch-workspace #context-drawer{max-height:47dvh}
+ body.touch-workspace #drawer-body{padding:0 12px 6px}
+ body.touch-workspace .drawer-bar{padding:2px 12px;min-height:32px}
+ body.touch-workspace .coordinate-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:3px 12px}
+ body.touch-workspace .axis-control{grid-template-columns:20px minmax(26px,1fr) 52px;gap:4px}
+ body.touch-workspace .axis-control input[type=number]{width:52px}
+ body.touch-workspace #controls .motion-toolbar{gap:5px;margin-bottom:4px}
+ body.touch-workspace #controls .mode-select{max-width:130px}
+ body.touch-workspace #controls #move,body.touch-workspace #robot-home{padding:5px 9px;min-width:48px}
+ body.touch-workspace #controls #grip-toggle{flex-basis:72px;padding:4px}
+ body.touch-workspace #controls #sensor{font-size:10px;margin:0 0 2px}
+ body.touch-workspace #teach-bridge{padding:5px 12px 8px;gap:6px}
+ body.touch-workspace #teach-bridge button{font-size:11px}
+ body.touch-workspace #quick-feedback{font-size:10px}
+ body.touch-workspace .selected-joint{display:block}
+ body.touch-workspace .selected-joint>strong{display:block;margin:4px 0;font-size:12px}
+ body.touch-workspace .joint-picker{margin:0 0 5px;gap:4px}
+ body.touch-workspace .joint-picker button{min-height:36px;font-size:12px;padding:5px}
+ body.touch-workspace .jog-grid{grid-template-columns:1fr 1fr;gap:5px 12px}
+ body.touch-workspace .jog-grid>label{grid-column:1/-1;font-size:11px}
+ body.touch-workspace .jog-grid>label input{height:30px}
+ body.touch-workspace #journey-steps{grid-template-columns:repeat(2,1fr);gap:6px}
+ body.touch-workspace #journey-steps button{min-height:42px;font-size:12px;padding:6px}
+ body.touch-workspace .challenge-choices{grid-template-columns:1fr;gap:6px}
+ body.touch-workspace .challenge-choices button{min-height:58px;padding:8px;gap:3px}
+ body.touch-workspace #context-drawer #program-panel{display:flex;flex-direction:column;gap:6px}
+ body.touch-workspace #review-layout{grid-template-columns:minmax(125px,1fr) minmax(135px,1fr);min-height:120px;max-height:150px;gap:8px}
+ body.touch-workspace #record-panel{gap:6px}
+ body.touch-workspace #record-panel>button{min-height:38px;font-size:12px}
+ body.touch-workspace #capture-commands{min-width:100%;width:100%}
+ body.touch-workspace .command-row button{flex:1;font-size:11px;padding:6px;min-height:36px}
+ body.touch-workspace #program-panel .review-tools{display:flex;gap:4px}
+ body.touch-workspace #run-panel{display:grid;grid-template-columns:90px 1fr;gap:6px}
+ body.touch-workspace .repeat-setting{margin:0;display:block;font-size:9px}
+ body.touch-workspace .repeat-setting select{width:75px;height:30px;display:block}
+ body.touch-workspace .run-row{align-self:center}
+ body.touch-workspace .run-row button{font-size:11px;min-height:38px;padding:5px}
+ body.touch-workspace .attempt-bar{grid-column:1/-1;margin:0}
+ body.touch-workspace .metrics{display:none}
+ body.touch-workspace #lesson-strip{max-height:112px}
+ body.touch-workspace #demo-tour.interactive-tour .tour-card{grid-template-columns:1fr;gap:2px}
+ body.touch-workspace #demo-tour .tour-card .actions{grid-column:1;grid-row:auto;justify-content:flex-end}
+ body.touch-workspace #demo-tour .tour-card p{font-size:11px}
+ body.touch-workspace #status{font-size:10px;max-height:44px;padding:5px 12px}
+ body.touch-workspace .public-credit{font-size:8px;line-height:1.3;padding:3px 10px}
+ body.touch-workspace .public-credit>span:nth-child(2){display:none}
+}
+@media(max-height:550px) and (min-width:700px){body.touch-workspace #context-drawer{max-height:48dvh}body.touch-workspace .scene-stage{min-height:140px}body.touch-workspace>header{height:42px;min-height:42px}body.touch-workspace #workspace-tabs button{min-height:36px}}
+/* In a short landscape window, a side drawer preserves useful scene height. */
+@media (min-width:700px) and (max-height:600px) and (orientation:landscape){
+ body.touch-workspace>header{height:38px;min-height:38px}
+ body.touch-workspace #workspace-tabs{padding:2px 8px}
+ body.touch-workspace #workspace-tabs button{min-height:38px}
+ body.touch-workspace .workspace{display:grid;grid-template-columns:minmax(0,1fr) minmax(290px,36%);grid-template-rows:minmax(0,1fr) auto}
+ body.touch-workspace .scene-stage{grid-column:1;grid-row:1;min-height:0}
+ body.touch-workspace #context-drawer{grid-column:2;grid-row:1;max-height:100%;height:100%;border-top:0;border-left:1px solid var(--line)}
+ body.touch-workspace #status{grid-column:1/-1;grid-row:2}
+ body.touch-workspace .selected-joint{display:block}
+ body.touch-workspace .selected-joint>strong{display:block;margin-bottom:4px}
+ body.touch-workspace .coordinate-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:4px}
+ body.touch-workspace #program-panel{display:flex;flex-direction:column}
+ body.touch-workspace #review-layout{min-height:100px;max-height:130px;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+ body.touch-workspace #journey-steps,body.touch-workspace .challenge-choices{grid-template-columns:1fr}
+ body.touch-workspace #teach-bridge{flex-wrap:wrap;padding:4px 10px}
+ body.touch-workspace #quick-feedback{display:none}
+ body.touch-workspace .jog-grid{grid-template-columns:repeat(2,1fr)}
+ body.touch-workspace #lesson-strip{max-height:100px;flex-shrink:0}
+}
 
 .public-credit{flex-shrink:0;display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 16px;padding:7px 16px;margin:0;border-top:1px solid var(--line);background:var(--bg);font-size:10px;line-height:1.5;color:var(--muted)}.public-credit strong{font-weight:500;color:var(--gold)}.public-credit a{text-underline-offset:2px}@media(max-width:720px){.public-credit{font-size:9px;padding:8px 12px}}
 
