@@ -2,21 +2,22 @@
 
 **Developed by Christopher Hansen.**
 
-A bilingual robotics learning environment that helps students gain confidence with robot control, build a movement program, and test a solution to a practical loading problem. Designed around lower-secondary learners, including Grade 7 students, as preparation for work with physical robots.
+A bilingual robotics learning environment that helps students gain confidence with robot control, build a movement program, and test a waypoint route before solving a practical loading problem. Designed around lower-secondary learners, including Grade 7 students, as preparation for work with physical robots.
 
 [Open Robot Lab](https://zhinii.github.io/bnta-robotics/) · [GitHub repository](https://github.com/zhinii/bnta-robotics) · [MIT license](LICENSE)
 
-The public edition uses a neutral whitebox interface, a gray 3D environment, and compact author attribution in the footer. Blue marks selected controls and guided highlights; orange shows actual movement and red flags blocked movement. Box colors and letter labels connect the placement plan to the scene.
+The public edition uses a neutral whitebox interface, a gray 3D environment, and compact author attribution in the footer. Blue marks selected controls and pose previews; a thick green outline marks the current lesson action. Orange shows actual movement and red flags blocked movement. Box colors and letter labels connect the placement plan to the scene.
 
 ## Introductory learning sequence
 
-**Robotics 101 → Interface → Practice → Task → Quiz.** English and 简体中文 are available throughout. First opening asks only for language; the activity bar starts the lessons. All five stages remain selectable so learners can revisit ideas. Completion adds a checkmark. Explore and the stacking extension are available separately in the ⋯ menu.
+**Robotics 101 → Interface → Practice → TCP waypoints → Box pickup task → Quiz.** English and 简体中文 are available throughout. The first opening asks for language. Learn, Control, Program and Challenge provide the main navigation. Students can revisit lessons; completion adds a checkmark. The waypoint program must succeed before the pickup and stacking challenges unlock. Explore remains available for independent experimentation.
 
 | Stage | What students do | Evidence of understanding |
 | --- | --- | --- |
 | Robotics 101 | Five short interactive sections: useful robotic tasks; links, joints, motors and gripper; position versus orientation; feedback, gravity and limits. Students try two joints, identify parts, manipulate height/orientation, compare empty closure with a real grasp, and predict/test an unsupported release in an isolated model. | Explain an actuator versus a sensor, compare shoulder/wrist movement, and identify a useful task plus a limitation. |
-| Interface | Six verified actions in a temporary workspace: camera, a reached XYZ move, DO1/DI1, Capture, selecting a ghost, and running a prepared sequence. Closing restores the student session. | Distinguish moving now from recording for later; locate feedback and export progress. |
-| Practice | Watch an optional, repeatable one-box simulation, then build and run the transfer using contextual guidance. | Approach, grip/check, lift, transfer, lower, release and retreat in the right sequence. |
+| Interface | Six verified actions in a temporary workspace: camera, a reached XYZ move, DO1/DI1, saved positions, selecting a ghost, and running a prepared sequence. Closing restores the student session. | Distinguish moving now from recording for later; locate feedback and export progress. |
+| Practice | Watch an optional, repeatable one-box simulation, then build and run the transfer using contextual guidance. | Approach, grip with DI1 feedback, lift, transfer, lower, release and retreat in the right sequence. |
+| TCP waypoints | Move the TCP to P1 → P2 → P3, using intermediate poses to avoid two 135 mm obstacles. Record the route and Run from reset; each saved checkpoint allows 8 mm position tolerance. | Reach all three targets in order through a collision-free program; then unlock pickup. |
 | Task | Independently transfer assigned boxes A → B → C; write a brief approach, test the recorded program and reflect on a revision. | A working sequence, position accuracy, a height calculation and an explanation based on feedback. |
 | Quiz | Eight questions covering robotics, feedback, control and the maths used in the activity. Explanations and unlimited retries are provided. | First checked answers and corrections are saved separately; completing the simulator is not physical-robot operating certification. |
 

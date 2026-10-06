@@ -785,6 +785,96 @@ body.touch-workspace .public-credit{padding:4px 12px;font-size:9px}
  body.touch-workspace .jog-grid{grid-template-columns:repeat(2,1fr)}
  body.touch-workspace #lesson-strip{max-height:100px;flex-shrink:0}
 }
+/* Guidance takes the readout's place, without changing the scene or drawer size. */
+body.touch-workspace #viewport #lesson-strip{position:absolute;inset:12px auto auto 12px;width:min(300px,calc(100% - 118px));max-width:none;max-height:min(300px,calc(100% - 60px));overflow:auto;margin:0;z-index:32;pointer-events:auto;overscroll-behavior:contain}
+body.touch-workspace #viewport #lesson-strip[data-active=false]{display:none}
+body.touch-workspace #lesson-strip[data-active=true][data-compact=false]~.telemetry{visibility:hidden}
+body.touch-workspace #lesson-strip[data-active=true][data-compact=true]~.telemetry{top:60px}
+body.touch-workspace #viewport #guide{margin:0;padding:9px;border:2px solid #f0b722;border-radius:9px;background:#fff3c4;box-shadow:0 3px 16px #0002}
+body.touch-workspace #guide.guide-collapsed{padding:4px 7px}
+body.touch-workspace #guide.guide-collapsed .guide-body{display:none}
+body.touch-workspace #guide .guide-heading{align-items:center;gap:5px}
+body.touch-workspace #guide .guide-heading strong{font-size:11px;line-height:1.3}
+body.touch-workspace #guide-collapse{flex:0 0 32px;min-width:32px}
+body.touch-workspace #viewport #demo-tour{margin:0;position:static;pointer-events:auto}
+body.touch-workspace #viewport #demo-tour .tour-card{display:block;margin:0;padding:9px;border:2px solid #f0b722;background:#fff3c4;border-radius:9px;box-shadow:0 3px 16px #0002;width:100%!important}
+body.touch-workspace #demo-tour .tour-heading{display:flex;gap:5px;align-items:center;justify-content:space-between}
+body.touch-workspace #demo-tour .tour-heading h2{font-size:12px;line-height:1.3;margin:0}
+body.touch-workspace #demo-tour .tour-card p{margin:6px 0;font-size:12px;line-height:1.45}
+body.touch-workspace #demo-tour .eyebrow{display:block;font-size:9px;margin-bottom:4px}
+body.touch-workspace #tour-collapse{min-height:32px;min-width:32px;padding:4px;flex-shrink:0}
+body.touch-workspace #demo-tour.tour-collapsed .tour-body,body.touch-workspace #demo-tour.tour-collapsed .eyebrow{display:none}
+body.touch-workspace #demo-tour.tour-collapsed .tour-card{padding:4px 7px}
+body.touch-workspace #demo-tour .tour-card .actions{display:flex;gap:6px;margin-top:7px}
+body.touch-workspace #demo-tour .actions button{min-height:32px;font-size:11px}
+body.touch-workspace #record-panel{display:none!important}
+body.touch-workspace #review-layout{max-height:none;min-height:0;align-items:start}
+body.touch-workspace #review-selection{max-height:none;overflow:visible}
+body.touch-workspace #selected-details .edit-coordinates{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin:6px 0}
+body.touch-workspace #selected-details .edit-coordinates label{font-size:11px;min-width:0}
+body.touch-workspace #selected-details .edit-coordinates input{width:100%;min-width:0;height:38px;padding:5px;font-size:14px}
+body.touch-workspace .edit-note,body.touch-workspace #edit-feedback{font-size:10px;line-height:1.4;margin:5px 0}
+body.touch-workspace .edit-actions{display:flex;gap:5px}
+body.touch-workspace .edit-actions button{min-height:36px;font-size:12px;padding:5px 8px}
+body.touch-workspace #steps{max-height:180px}
+@media(max-width:600px){
+ body.touch-workspace #viewport #lesson-strip{width:calc(100% - 118px);max-height:calc(100% - 55px)}
+ body.touch-workspace #review-layout{grid-template-columns:minmax(0,1fr) minmax(0,1fr);max-height:none;min-height:100px}
+ body.touch-workspace #steps{max-height:190px}
+ body.touch-workspace #selected-details .step-actions button{min-height:36px;min-width:30px;padding:4px;flex:1}
+ body.touch-workspace #program-panel .program-bottom{margin-top:4px}
+}
+body.touch-workspace #viewport #lesson-strip{width:min(300px,calc(100% - 136px))}
+body.touch-workspace #lesson-strip[data-active=true][data-compact=true]~.telemetry{top:68px}
+body.touch-workspace #selected-details .edit-coordinates input[type=number]{appearance:textfield;-moz-appearance:textfield}
+body.touch-workspace #selected-details .edit-coordinates input::-webkit-inner-spin-button,body.touch-workspace #selected-details .edit-coordinates input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+@media(max-width:600px){body.touch-workspace #viewport #lesson-strip{width:calc(100% - 136px)}}
+
+/* Bright, substantial lesson focus remains distinct from blue pose previews. */
+body.touch-workspace #demo-tour.interactive-tour .tour-focus{border:5px solid #00a854;box-shadow:0 0 0 2px #fff,0 0 0 3px #006b38;border-radius:10px}
+body.touch-workspace #journey-steps{grid-template-columns:repeat(6,minmax(0,1fr))}
+body.touch-workspace .challenge-choices{grid-template-columns:repeat(4,minmax(0,1fr))}
+body.touch-workspace .challenge-choices button.locked{background:#eee;color:#666;border-style:dashed;opacity:.75}
+body.touch-workspace #waypoint-reference{display:block;max-width:215px;font-size:10px;line-height:1.4;margin-top:4px;color:#155eef}
+.waypoint-table{width:100%;border-collapse:collapse;margin:12px 0;font-variant-numeric:tabular-nums}
+.waypoint-table th,.waypoint-table td{padding:7px;text-align:left;border-bottom:1px solid var(--line)}
+@media(max-width:600px){body.touch-workspace #journey-steps{grid-template-columns:repeat(2,minmax(0,1fr))}body.touch-workspace .challenge-choices{grid-template-columns:1fr}}
+@media(min-width:700px) and (max-height:600px) and (orientation:landscape){body.touch-workspace #journey-steps,body.touch-workspace .challenge-choices{grid-template-columns:1fr}}
+/* Keep recorded moves legible against the whitebox scene on a narrow screen. */
+body.touch-workspace #program-panel #review-layout #steps li{display:flex;margin:0 0 5px;padding:0;min-height:42px;border:1px solid #bed2ff;border-left:5px solid #155eef;background:#f1f6ff;border-radius:8px;align-items:stretch}
+body.touch-workspace #program-panel #review-layout #steps li[data-kind=grip]{border-color:#bcded2;border-left-color:#087c58;background:#edf8f2}
+body.touch-workspace #program-panel #review-layout #steps .step-description{padding:7px 6px;font-size:12px;min-height:40px;text-align:left;width:100%;border:0;background:transparent;white-space:normal}
+body.touch-workspace #program-panel #review-layout #steps{max-height:190px;overflow:auto}
+
+/* Keep workspace navigation between the title and language in one header row. */
+body.touch-workspace>header{flex-wrap:nowrap;gap:10px}
+body.touch-workspace>header .brand{flex:0 0 auto;margin-right:0}
+body.touch-workspace>header #workspace-tabs{flex:1 1 auto;min-width:0;align-self:stretch;align-items:center;justify-content:center;padding:0;gap:4px;border:0;background:transparent}
+body.touch-workspace>header #workspace-tabs button{flex:0 1 118px;min-width:0;min-height:40px;padding:5px 10px;white-space:nowrap}
+body.touch-workspace>header #language,body.touch-workspace>header #workspace-menu{flex:0 0 auto}
+@media(max-width:900px){
+ body.touch-workspace>header{padding:3px 10px;gap:6px}
+ body.touch-workspace>header .brand strong{font-size:16px}
+ body.touch-workspace>header #workspace-tabs button{flex:0 1 96px;gap:4px;font-size:12px;padding:5px 7px}
+ body.touch-workspace>header #workspace-tabs button>span:first-child{display:none}
+ body.touch-workspace>header #nav-program-count{display:none}
+}
+@media(max-width:600px){
+ body.touch-workspace>header{padding:3px 6px;gap:4px}
+ body.touch-workspace>header .brand strong{font-size:13px;letter-spacing:-.4px}
+ body.touch-workspace>header #workspace-tabs{gap:0;justify-content:flex-start;overflow-x:auto;scrollbar-width:none}
+ body.touch-workspace>header #workspace-tabs::-webkit-scrollbar{display:none}
+ body.touch-workspace>header #workspace-tabs button{flex:1 0 auto;font-size:11px;padding:4px;min-height:44px}
+ body.touch-workspace>header #language{font-size:11px;min-width:36px;min-height:44px;padding:4px}
+ body.touch-workspace>header #workspace-menu>summary{width:24px;line-height:44px}
+}
+@media(min-width:700px) and (max-height:600px) and (orientation:landscape){
+ body.touch-workspace>header #workspace-tabs button{min-height:32px}
+}
+@media(max-width:360px){
+ body.touch-workspace>header .brand strong{font-size:12px}
+ body.touch-workspace>header #workspace-tabs button{font-size:10px;padding:4px 3px}
+}
 
 .public-credit{flex-shrink:0;display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 16px;padding:7px 16px;margin:0;border-top:1px solid var(--line);background:var(--bg);font-size:10px;line-height:1.5;color:var(--muted)}.public-credit strong{font-weight:500;color:var(--gold)}.public-credit a{text-underline-offset:2px}@media(max-width:720px){.public-credit{font-size:9px;padding:8px 12px}}
 
@@ -840,7 +930,7 @@ dialog::backdrop{background:#16161666}
 #path-feedback.blocked{border-color:#e42646;background:#fff0f2f5;color:#a5142b}
 #preview-program{border-color:#155eef;color:#164fc2;background:#f7faff}
 #steps li.preview-blocked{border-color:#e42646;background:#fff0f2}
-.pulse{box-shadow:0 0 0 3px #155eef!important}
+.pulse{box-shadow:0 0 0 5px #00a854,0 0 0 7px #fff!important}
 .tour-focus{border-color:#155eef;box-shadow:0 0 0 9999px #1118,0 0 0 6px #fff,0 0 22px #155eef99}
 .tour-card{background:#fff;border-color:#155eef;box-shadow:0 14px 50px #0004}
 .tour-card p{color:#444}.tour-progress i{background:#ddd}.tour-progress i.done{background:#92b5ff}.tour-progress i.current{background:#155eef}
