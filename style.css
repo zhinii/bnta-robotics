@@ -885,6 +885,29 @@ body.touch-workspace>header #language,body.touch-workspace>header #workspace-men
 .intro-vocabulary dd{font-size:12px;line-height:1.45;margin:2px 0 0;color:var(--muted)}
 .intro-explanation .intro-mode-note{font-size:12px;border-left:3px solid #00a854;padding-left:9px}
 
+/* One-line challenge status and reference action along the viewport bottom. */
+body.touch-workspace #viewport #lesson-strip[data-kind=challenge]{inset:auto 10px 8px 10px;width:auto;max-height:none;overflow:visible}
+body.touch-workspace #lesson-strip[data-kind=challenge][data-active=true]~.telemetry{visibility:visible;top:12px}
+body.touch-workspace #viewport #guide[data-kind=challenge]{display:flex;align-items:center;gap:12px;padding:4px 8px;min-height:44px;border-radius:7px}
+body.touch-workspace .challenge-line{display:flex;flex:1;min-width:0;align-items:center;gap:14px;white-space:nowrap;overflow-x:auto;scrollbar-width:none}
+body.touch-workspace .challenge-line::-webkit-scrollbar{display:none}
+body.touch-workspace .challenge-name{flex-shrink:0;font-size:12px}
+body.touch-workspace .challenge-phase{flex-shrink:0;font-size:11px;color:#65521f}
+body.touch-workspace #guide[data-kind=challenge] .guide-coordinates{display:flex;flex:0 0 auto;flex-wrap:nowrap;align-items:baseline;gap:8px;font-size:12px;margin:0;color:#332907}
+body.touch-workspace #guide[data-kind=challenge] .guide-coordinates span{white-space:nowrap}
+body.touch-workspace #guide[data-kind=challenge] .guide-coordinates small{font-size:10px}
+body.touch-workspace #guide[data-kind=challenge] #task-goal-details{flex:0 0 auto;min-height:34px;padding:4px 9px;font-size:11px;white-space:nowrap;background:#fff9e5;color:#4f3c0a;border-color:#b88912}
+@media(max-width:600px){
+ body.touch-workspace #viewport #lesson-strip[data-kind=challenge]{left:6px;right:6px;bottom:6px}
+ body.touch-workspace #viewport #guide[data-kind=challenge]{gap:5px;padding:3px 5px}
+ body.touch-workspace .challenge-line{gap:7px}
+ body.touch-workspace .challenge-name,body.touch-workspace .challenge-phase,body.touch-workspace #guide[data-kind=challenge] .guide-coordinates{font-size:10px}
+ body.touch-workspace #guide[data-kind=challenge] .guide-coordinates{gap:4px}
+ body.touch-workspace #guide[data-kind=challenge] #task-goal-details{font-size:10px;padding:3px 5px}
+}
+.challenge-help-content{max-width:640px;line-height:1.6}
+.challenge-help-content li{margin:10px 0}
+
 .public-credit{flex-shrink:0;display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 16px;padding:7px 16px;margin:0;border-top:1px solid var(--line);background:var(--bg);font-size:10px;line-height:1.5;color:var(--muted)}.public-credit strong{font-weight:500;color:var(--gold)}.public-credit a{text-underline-offset:2px}@media(max-width:720px){.public-credit{font-size:9px;padding:8px 12px}}
 
 /* Public edition only: neutral surfaces, color reserved for information. */
