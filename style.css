@@ -954,6 +954,17 @@ body.touch-workspace #workspace-tabs button[aria-pressed=false]:not(:disabled):h
  .chunked-introduction .lesson-navigation{bottom:-15px}
 }
 
+/* Playback is a sibling of the scrolling content, so it stays reachable. */
+body.touch-workspace #context-drawer{overflow:hidden}
+body.touch-workspace #drawer-body{flex:1 1 auto;min-height:0}
+body.touch-workspace #playback-dock{flex:0 0 auto;padding:5px 12px 8px;border-top:1px solid var(--line);background:var(--panel);width:100%}
+body.touch-workspace #playback-state{display:block;font-size:11px;line-height:1.4;margin-bottom:4px;color:var(--muted)}
+body.touch-workspace #playback-dock .run-row{display:flex;gap:6px;max-width:600px;margin:auto}
+body.touch-workspace #playback-dock button{min-height:40px;flex:1}
+.chunked-introduction .lesson-navigation{position:static;padding-bottom:0}
+.practice-reference{width:100%;border-collapse:collapse;font-size:14px}
+.practice-reference th,.practice-reference td{padding:10px 6px;border-bottom:1px solid var(--line);text-align:left}
+
 .public-credit{flex-shrink:0;display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 16px;padding:7px 16px;margin:0;border-top:1px solid var(--line);background:var(--bg);font-size:10px;line-height:1.5;color:var(--muted)}.public-credit strong{font-weight:500;color:var(--gold)}.public-credit a{text-underline-offset:2px}@media(max-width:720px){.public-credit{font-size:9px;padding:8px 12px}}
 
 /* Public edition only: neutral surfaces, color reserved for information. */
