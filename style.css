@@ -939,8 +939,8 @@ body.touch-workspace #workspace-tabs button[aria-pressed=false]:not(:disabled):h
 .chunked-introduction #intro-feedback:empty{display:none}
 .chunked-introduction .lesson-navigation{display:flex;justify-content:space-between;gap:10px;margin-top:22px;padding-top:14px;border-top:1px solid var(--line);position:sticky;bottom:-22px;background:var(--panel);padding-bottom:10px}
 .chunked-introduction button{min-height:40px}
-.robot-introduction.chunked-introduction[data-phase="3"]{width:min(1000px,calc(100vw - 24px))}
-.chunked-introduction[data-phase="3"] .intro-layout{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(200px,1fr);gap:18px}
+.robot-introduction.chunked-introduction[data-phase="2"]{width:min(1000px,calc(100vw - 24px))}
+.chunked-introduction[data-phase="2"] .intro-layout{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(200px,1fr);gap:18px}
 .chunked-introduction #intro-readout,.chunked-introduction #intro-io{font:600 12px/1.6 monospace;background:var(--bg);padding:10px;border-radius:6px}
 @media(max-width:720px){
  .robot-introduction.chunked-introduction{padding:15px}
@@ -949,7 +949,7 @@ body.touch-workspace #workspace-tabs button[aria-pressed=false]:not(:disabled):h
  .chunked-introduction .intro-phases li{font-size:10px;padding:7px 2px}
  .chunked-introduction .intro-word-list{gap:10px}
  .chunked-introduction .intro-word-list>div{padding-bottom:10px}
- .chunked-introduction[data-phase="3"] .intro-layout{grid-template-columns:1fr;gap:10px}
+ .chunked-introduction[data-phase="2"] .intro-layout{grid-template-columns:1fr;gap:10px}
  .chunked-introduction .intro-layout #intro-scene{height:240px;max-height:34dvh}
  .chunked-introduction .lesson-navigation{bottom:-15px}
 }
