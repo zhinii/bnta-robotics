@@ -876,6 +876,15 @@ body.touch-workspace>header #language,body.touch-workspace>header #workspace-men
  body.touch-workspace>header #workspace-tabs button{font-size:10px;padding:4px 3px}
 }
 
+/* Short vocabulary is introduced beside the activity where it is used. */
+.intro-vocabulary{margin:12px 0;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.intro-vocabulary summary{font-size:12px;font-weight:650;cursor:pointer;min-height:28px;line-height:28px;color:var(--text)}
+.intro-vocabulary[open] summary{margin-bottom:7px}
+.intro-vocabulary dl{margin:0;display:grid;gap:8px}
+.intro-vocabulary dt{font-size:12px;font-weight:650;color:var(--text)}
+.intro-vocabulary dd{font-size:12px;line-height:1.45;margin:2px 0 0;color:var(--muted)}
+.intro-explanation .intro-mode-note{font-size:12px;border-left:3px solid #00a854;padding-left:9px}
+
 .public-credit{flex-shrink:0;display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 16px;padding:7px 16px;margin:0;border-top:1px solid var(--line);background:var(--bg);font-size:10px;line-height:1.5;color:var(--muted)}.public-credit strong{font-weight:500;color:var(--gold)}.public-credit a{text-underline-offset:2px}@media(max-width:720px){.public-credit{font-size:9px;padding:8px 12px}}
 
 /* Public edition only: neutral surfaces, color reserved for information. */

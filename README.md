@@ -52,23 +52,24 @@ Trail and path visibility can be toggled. Joint sliders and XYZ/jog controls off
 
 ## Choose orientation and movement
 
-- **Keep current:** the default when switching from joints to coordinates; preserves current roll and pitch. Rz remains an explicit editable target.
-- **Allow rotation:** position-only solving; the robot may rotate the gripper to reach the target. Rz input is disabled. Inspect the ghost tool before moving.
-- **Point downward:** an optional pickup aid. Practice uses this pickup orientation.
-- **Direct tool movement:** follows the requested tool path in small Cartesian segments. Placement assistance may add a final alignment.
+- **Tool down:** the gripper points vertically down; roll and pitch are zero in the simulator, while yaw (Rz) sets the jaw direction. This is the starting and practice mode.
+- **Free orientation:** the solver may rotate the gripper to reach the TCP target. Rz is automatic and its input is disabled. Inspect the ghost pose before moving.
+- **Direct TCP movement:** follows the requested TCP path in small Cartesian segments. Placement assistance may add a final alignment.
 - **Joint movement to target:** solves the destination pose, then turns the joints together. The tool can follow a curved path.
 
 Collision checks and joint limits remain active for every choice. Feedback distinguishes a constrained-orientation failure from a solver failure and detected collisions. Position, orientation, path and successful grip are separate conditions.
 
-Recorded moves retain their path and orientation settings; the step editor exposes both. New progress exports use version 4 for the eight-question final quiz. Existing version 2/3 project files and legacy cargo programs remain importable with their original downward/direct settings. Older app versions may reject new exports rather than silently lose these settings. Older three-question answers are retained, but do not count as completion of the expanded final quiz.
+Recorded moves retain their saved orientation and path. The pencil editor changes XYZ only and updates the ghost preview. Switching from a tilted joint pose to coordinates selects Free orientation without moving the robot. Old “Keep current” progress files map to Tool down for a downward pose or Free orientation for a tilted pose; existing saved robot poses and program instructions are preserved. Progress exports use version 5; version 2–5 files and legacy cargo programs remain importable. Older quiz answers are retained, but the expanded final quiz requires all eight answers.
+
+Robotics 101 introduces bilingual vocabulary in the section where students use it: robot, program, joint, link, gripper/end effector, TCP, position, orientation, pose, actuator, sensor, DO1, DI1, waypoint, reach and collision/clearance. Control uses TCP · XYZ and Joint angles. Save position records a pose (position and orientation); DO1 operates the gripper and records that command.
 
 Stacking includes synchronized plan/front/side diagrams and a scale standing person within the existing finite collision volume (80 × 32 × 85 mm). The diagram's Z = 0 is the bed surface. This is a simulated obstacle, not a human safety separation model.
 
 ## Save student progress
 
-The full-width 3D canvas is the workspace. Movement and Capture are compact overlay cards; portrait devices place them near the bottom and frame the robot above them. Choose XYZ, joint sliders or jog from the compact movement selector. XYZ has a small Move button beside it; joints and jog move immediately. Click DO1 beside the selector to toggle OFF (Open) / ON (Close). DI1 is a separate read-only held-object indicator. Collapse movement for a larger view. View settings and workspace utilities stay in small menus.
+The full-width 3D canvas sits below a compact header with Learn, Control, Program and Challenge. A contextual panel shows the current activity. Choose TCP · XYZ, Joint angles or Jog in Control. XYZ uses Move; joints and jog move immediately. Click DO1 beside the selector to toggle OFF (open) / ON (close), adding that command to the sequence. DI1 reports whether an object is held.
 
-**Capture** adds a position or a gripper/check command without showing the entire sequence. **Review** hides movement controls and shows the program. Selecting a saved position displays its blue ghost without moving the robot. Use **Adjust position** to show controls, move the arm, and replace that saved pose. Selected steps can also be renamed, reordered or deleted. **Step** executes one instruction at a time and opens movement controls; **Run** executes from reset. Manual movement or program edits restart the next single-step run from the beginning. On very small or short screens, cards scroll internally while the scene remains visible.
+**Save position** records the current robot pose from Control. **View program** opens the sequence. Select a saved position to see its blue ghost; use the pencil to edit XYZ and update that preview in real time. Steps can be reordered or deleted. **Step** executes one instruction; **Run** executes from reset. **Add blocks** returns to Control to record movements and gripper commands.
 
 Use **Export progress** to download a JSON file containing the current task, robot and objects, program, placement plan, learning progress, explanation, timing and assessment state. **Import progress** restores a stopped session. Resume a saved timed attempt explicitly; time away from the saved session is excluded.
 
@@ -104,7 +105,7 @@ Visible project credit is requested; it adds no restriction to the MIT license. 
 
 ## Program editing and contextual help
 
-Capture appends a position or command without showing the full sequence. Review shows two columns: a compact list (Pos 1, Pos 2, and command names), and details for the selected instruction. Coordinates appear only after selection, together with edit, move up/down and delete. Selecting a position shows its ghost without executing it. Undo restores program edits. Run and single-step playback retain collision checks.
+Save position appends a pose; clicking DO1 records a gripper command. Program shows two columns: a compact list (Pos 1, Pos 2, and command names), and details for the selected instruction. Coordinates appear only after selection, together with edit, move up/down and delete. Selecting a position shows its ghost without executing it. Undo restores program edits. Run and single-step playback retain collision checks.
 
 The task reminder stays visible, while full lesson stages collapse. Failed playback instructions retain their number and explanation. The read-only position reference shows the held box’s assigned destination below the tool coordinates. A teaching demonstration restores the learner’s task state; the separate anatomy scene never changes it. Reduced-motion preferences disable automatic anatomy animation; replay and the joint slider remain available.
 
