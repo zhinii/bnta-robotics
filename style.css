@@ -965,6 +965,8 @@ body.touch-workspace #playback-dock button{min-height:40px;flex:1}
 .practice-reference{width:100%;border-collapse:collapse;font-size:14px}
 .practice-reference th,.practice-reference td{padding:10px 6px;border-bottom:1px solid var(--line);text-align:left}
 
+.selected-step-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}.selected-step-heading #play-position{flex:none;min-width:36px;min-height:36px;padding:5px 9px}
+
 .public-credit{flex-shrink:0;display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 16px;padding:7px 16px;margin:0;border-top:1px solid var(--line);background:var(--bg);font-size:10px;line-height:1.5;color:var(--muted)}.public-credit strong{font-weight:500;color:var(--gold)}.public-credit a{text-underline-offset:2px}@media(max-width:720px){.public-credit{font-size:9px;padding:8px 12px}}
 
 /* Public edition only: neutral surfaces, color reserved for information. */

@@ -105,7 +105,7 @@ Visible project credit is requested; it adds no restriction to the MIT license. 
 
 ## Program editing and contextual help
 
-Save position appends a pose; clicking DO1 records a gripper command. Program shows two columns: a compact list (Pos 1, Pos 2, and command names), and details for the selected instruction. Coordinates appear only after selection, together with edit, move up/down and delete. Selecting a position shows its ghost without executing it. Undo restores program edits. Run and single-step playback retain collision checks.
+Save position appends a pose; clicking DO1 records a gripper command. Program shows two columns: a compact list (Position 1, Position 2, and command names), and details for the selected instruction. Coordinates appear only after selection, together with edit, move up/down and delete. Selecting a position shows its ghost without executing it. Undo restores program edits. The play button beside the selected step moves to that position from the current pose while keeping the full list visible. It does not reset the scene, run intervening instructions, or complete a challenge. Run and selected-position playback retain collision checks.
 
 The task reminder stays visible, while full lesson stages collapse. Failed playback instructions retain their number and explanation. The read-only position reference shows the held box’s assigned destination below the tool coordinates. A teaching demonstration restores the learner’s task state; the separate anatomy scene never changes it. Reduced-motion preferences disable automatic anatomy animation; replay and the joint slider remain available.
 
