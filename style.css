@@ -912,6 +912,48 @@ body.touch-workspace #guide[data-kind=challenge] #task-goal-details{flex:0 0 34p
 
 body.touch-workspace #workspace-tabs button[aria-pressed=false]:not(:disabled):hover{background:#dde3e9;border-color:#aab5c0;color:#263441}
 
+/* One idea at a time: reading and checks have no empty simulation column. */
+.robot-introduction.chunked-introduction{width:min(650px,calc(100vw - 24px));max-height:calc(100dvh - 24px);padding:22px;overflow:auto}
+.chunked-introduction .intro-heading h2{font-size:23px;line-height:1.25}
+.chunked-introduction #intro-close{min-width:40px;min-height:40px;flex:none}
+.chunked-introduction #intro-progress{font-size:12px;color:var(--muted);margin:8px 0 14px}
+.chunked-introduction .intro-phases{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;list-style:none;padding:0;margin:0 0 22px}
+.chunked-introduction .intro-phases li{font-size:11px;line-height:1.4;padding:8px 4px;border-bottom:3px solid var(--line);color:var(--muted);text-align:center;overflow-wrap:anywhere}
+.chunked-introduction .intro-phases [aria-current=step]{color:#1250b0;border-color:#155eef;background:#eaf1ff;font-weight:700;border-radius:5px 5px 0 0}
+.chunked-introduction .intro-phases .visited{border-color:#16824b;color:#166b40}
+.chunked-introduction .intro-layout{display:block}
+.chunked-introduction .intro-word-list{margin:0;display:grid;gap:14px}
+.chunked-introduction .intro-word-list>div{padding:0 0 14px;border-bottom:1px solid var(--line)}
+.chunked-introduction .intro-word-list>div:last-child{border-bottom:0;padding-bottom:0}
+.chunked-introduction .intro-word-list dt{font-size:15px;font-weight:700;margin-bottom:4px}
+.chunked-introduction .intro-word-list dd{margin:0;font-size:14px;line-height:1.55;color:var(--muted)}
+.chunked-introduction .intro-concept p{font-size:16px;line-height:1.65;margin:0 0 18px}
+.chunked-introduction .intro-question{border:0;padding:0;margin:0 0 16px;min-width:0}
+.chunked-introduction .intro-question legend{font-size:14px;font-weight:650;line-height:1.5;margin-bottom:6px}
+.chunked-introduction .intro-question label{display:flex;align-items:center;gap:9px;min-height:40px;font-size:14px;line-height:1.4;padding:6px 8px;cursor:pointer;border-radius:6px}
+.chunked-introduction .intro-question label:has(input:checked){background:#eaf1ff;color:#164491}
+.chunked-introduction .intro-question input{width:17px;height:17px;flex:none;margin:0;accent-color:#155eef}
+.chunked-introduction .intro-question .intro-answer{font-size:12px;border-left:3px solid #16824b;padding-left:8px;margin:8px 0}
+.chunked-introduction .lesson-diagram{display:block;width:100%;height:120px;margin:0 0 14px}
+.chunked-introduction #intro-feedback{font-size:13px;line-height:1.5;margin:14px 0 0}
+.chunked-introduction #intro-feedback:empty{display:none}
+.chunked-introduction .lesson-navigation{display:flex;justify-content:space-between;gap:10px;margin-top:22px;padding-top:14px;border-top:1px solid var(--line);position:sticky;bottom:-22px;background:var(--panel);padding-bottom:10px}
+.chunked-introduction button{min-height:40px}
+.robot-introduction.chunked-introduction[data-phase="3"]{width:min(1000px,calc(100vw - 24px))}
+.chunked-introduction[data-phase="3"] .intro-layout{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(200px,1fr);gap:18px}
+.chunked-introduction #intro-readout,.chunked-introduction #intro-io{font:600 12px/1.6 monospace;background:var(--bg);padding:10px;border-radius:6px}
+@media(max-width:720px){
+ .robot-introduction.chunked-introduction{padding:15px}
+ .chunked-introduction .intro-heading h2{font-size:20px}
+ .chunked-introduction .intro-phases{gap:3px;margin-bottom:16px}
+ .chunked-introduction .intro-phases li{font-size:10px;padding:7px 2px}
+ .chunked-introduction .intro-word-list{gap:10px}
+ .chunked-introduction .intro-word-list>div{padding-bottom:10px}
+ .chunked-introduction[data-phase="3"] .intro-layout{grid-template-columns:1fr;gap:10px}
+ .chunked-introduction .intro-layout #intro-scene{height:240px;max-height:34dvh}
+ .chunked-introduction .lesson-navigation{bottom:-15px}
+}
+
 .public-credit{flex-shrink:0;display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 16px;padding:7px 16px;margin:0;border-top:1px solid var(--line);background:var(--bg);font-size:10px;line-height:1.5;color:var(--muted)}.public-credit strong{font-weight:500;color:var(--gold)}.public-credit a{text-underline-offset:2px}@media(max-width:720px){.public-credit{font-size:9px;padding:8px 12px}}
 
 /* Public edition only: neutral surfaces, color reserved for information. */
