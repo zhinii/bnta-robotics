@@ -966,6 +966,72 @@ body.touch-workspace #playback-dock button{min-height:40px;flex:1}
 .practice-reference th,.practice-reference td{padding:10px 6px;border-bottom:1px solid var(--line);text-align:left}
 
 .selected-step-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}.selected-step-heading #play-position{flex:none;min-width:36px;min-height:36px;padding:5px 9px}
+/* Adapt to available workspace shape, not a device name. */
+@media (min-width:1000px) and (min-aspect-ratio:6/5){
+ body.touch-workspace .workspace{display:grid;grid-template-columns:minmax(0,1fr) clamp(340px,28vw,480px);grid-template-rows:minmax(0,1fr) auto}
+ body.touch-workspace .scene-stage{grid-column:1;grid-row:1;min-width:0;min-height:0}
+ body.touch-workspace #context-drawer{grid-column:2;grid-row:1;width:100%;height:100%;max-height:100%;border-top:0;border-left:1px solid var(--line);box-shadow:-4px 0 20px #00000005}
+ body.touch-workspace #status{grid-column:1/-1;grid-row:2;font-size:12px;min-height:30px}
+ body.touch-workspace .drawer-bar{padding:12px 16px;min-height:48px}
+ body.touch-workspace .drawer-bar h2{font-size:14px;color:var(--text)}
+ body.touch-workspace #drawer-body{padding:0 16px 12px;max-width:none}
+ body.touch-workspace[data-workspace=control] #drawer-body{flex:0 1 auto}
+ body.touch-workspace #controls .motion-toolbar{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:6px;margin:0 0 12px}
+ body.touch-workspace #controls .mode-select{max-width:none;grid-column:1/-1}
+ body.touch-workspace #controls .mode-select select{width:100%;font-size:14px;height:42px}
+ body.touch-workspace #controls #move,body.touch-workspace #controls #grip-toggle,body.touch-workspace #robot-home{width:100%;min-height:42px;font-size:13px;min-width:68px}
+ body.touch-workspace #controls #grip-toggle{min-width:90px}
+ body.touch-workspace #controls #sensor{font-size:12px;margin-bottom:12px}
+ body.touch-workspace .coordinate-grid{grid-template-columns:1fr;gap:12px}
+ body.touch-workspace .axis-control{grid-template-columns:26px minmax(80px,1fr) 70px;gap:12px;min-height:44px;font-size:14px}
+ body.touch-workspace .axis-control input[type=number]{width:70px;height:42px;font-size:15px}
+ body.touch-workspace .axis-control input[type=range]{height:42px}
+ body.touch-workspace .joint-picker{gap:5px;flex-wrap:nowrap}
+ body.touch-workspace .joint-picker button{min-width:0;min-height:42px;font-size:13px}
+ body.touch-workspace .selected-joint{display:block}
+ body.touch-workspace .selected-joint>strong{display:block;font-size:14px;margin:10px 0}
+ body.touch-workspace .selected-joint .axis-control{gap:8px}
+ body.touch-workspace .jog-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+ body.touch-workspace .jog-grid>label{grid-column:1/-1}
+ body.touch-workspace #control-extras{font-size:12px;margin-top:12px}
+ body.touch-workspace #control-extras>summary{min-height:36px}
+ body.touch-workspace #teach-bridge{margin:0;padding:12px 16px;flex-wrap:wrap;gap:8px}
+ body.touch-workspace #teach-bridge button{font-size:13px;min-height:42px}
+ body.touch-workspace #quick-feedback{width:100%;margin:0;font-size:12px}
+ body.touch-workspace #journey-steps,body.touch-workspace .challenge-choices{grid-template-columns:1fr;gap:8px}
+ body.touch-workspace #journey-steps button{font-size:14px;min-height:48px}
+ body.touch-workspace .drawer-intro{font-size:16px;line-height:1.5}
+ body.touch-workspace .drawer-note,body.touch-workspace .challenge-choices span{font-size:13px;line-height:1.5}
+ /* Program gets the available height, not a phone-sized list in a tall panel. */
+ body.touch-workspace[data-workspace=program] #drawer-body{display:flex;flex-direction:column;overflow:hidden}
+ body.touch-workspace #context-drawer #program-panel{display:flex;flex:1;flex-direction:column;min-height:0;gap:12px}
+ body.touch-workspace #program-panel .program-tabs{max-width:none;flex:none}
+ body.touch-workspace #program-panel .program-tabs button{font-size:13px;min-height:42px}
+ body.touch-workspace #program-panel #review-layout{display:grid;flex:1;min-height:0;max-height:none;grid-template-columns:minmax(115px,.9fr) minmax(145px,1.1fr);align-items:stretch;gap:10px;overflow:hidden}
+ body.touch-workspace #program-panel #review-layout #steps{height:100%;min-height:0;max-height:none;overflow:auto;padding-right:4px}
+ body.touch-workspace #program-panel #review-layout #steps .step-description{font-size:13px;min-height:44px}
+ body.touch-workspace .review-detail-column{min-height:0;overflow:auto;padding:4px 0 8px 10px;font-size:13px}
+ body.touch-workspace #program-panel .program-bottom{flex:none;background:transparent}
+ body.touch-workspace #program-panel .review-tools{display:flex}
+ body.touch-workspace #playback-dock{padding:10px 16px 14px}
+ body.touch-workspace #playback-dock button{font-size:14px;min-height:44px}
+ body.touch-workspace #playback-state{font-size:12px;margin-bottom:6px}
+ body.touch-workspace #viewport .telemetry{padding:9px 11px;max-width:230px}
+ body.touch-workspace #position b{font-size:14px}
+ body.touch-workspace #orientation{font-size:10px}
+ /* Collapsing tools returns their space to the scene. */
+ body.touch-workspace .workspace:has(#context-drawer[data-collapsed=true]){grid-template-columns:minmax(0,1fr)}
+ body.touch-workspace #context-drawer[data-collapsed=true]{grid-column:1;justify-self:end;align-self:start;height:auto;width:240px;margin:12px;border:1px solid var(--line);border-radius:8px}
+}
+@media (min-width:1000px) and (min-aspect-ratio:6/5){
+ body.touch-workspace #selected-details .step-actions{display:grid;grid-template-columns:repeat(2,minmax(36px,1fr));gap:6px;max-width:180px}
+ body.touch-workspace #selected-details .step-actions button{min-height:38px;min-width:36px;font-size:14px}
+ body.touch-workspace #selected-details .selected-coordinates{grid-template-columns:1fr;gap:7px}
+ body.touch-workspace #selected-details .selected-coordinates dt{font-size:12px;min-width:20px}
+ body.touch-workspace #selected-details .selected-coordinates dd{font-size:14px}
+ body.touch-workspace #selected-details .edit-note,body.touch-workspace #selected-details #edit-feedback{font-size:12px;line-height:1.5}
+ body.touch-workspace #review-empty{font-size:13px}
+}
 
 .public-credit{flex-shrink:0;display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 16px;padding:7px 16px;margin:0;border-top:1px solid var(--line);background:var(--bg);font-size:10px;line-height:1.5;color:var(--muted)}.public-credit strong{font-weight:500;color:var(--gold)}.public-credit a{text-underline-offset:2px}@media(max-width:720px){.public-credit{font-size:9px;padding:8px 12px}}
 
