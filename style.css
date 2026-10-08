@@ -1033,6 +1033,80 @@ body.touch-workspace #playback-dock button{min-height:40px;flex:1}
  body.touch-workspace #review-empty{font-size:13px}
 }
 
+/* Guidance must never obscure the robot during a hands-on lesson. */
+body.touch-workspace #context-drawer>#lesson-strip{position:static;inset:auto;flex:0 1 auto;min-height:0;width:auto;max-width:none;max-height:190px;margin:0 10px 8px;overflow:auto;z-index:auto}
+body.touch-workspace #context-drawer>#lesson-strip[data-active=false]{display:none}
+body.touch-workspace #context-drawer #demo-tour{position:static;margin:0}
+body.touch-workspace #context-drawer #demo-tour .tour-card{display:block;width:100%!important;padding:8px 10px!important;margin:0;border:2px solid #f0b722;background:#fff3c4;color:#332907;border-radius:8px;box-shadow:none}
+body.touch-workspace #context-drawer #demo-tour .tour-heading{display:flex;align-items:center;justify-content:space-between;gap:8px}
+body.touch-workspace #context-drawer #demo-tour .tour-heading h2{font-size:13px;line-height:1.35;margin:0}
+body.touch-workspace #context-drawer #demo-tour .tour-body{display:block}
+body.touch-workspace #context-drawer #demo-tour.tour-collapsed .tour-explanation{display:none}
+body.touch-workspace #context-drawer #demo-tour .tour-body p{font-size:12px;line-height:1.4;margin:5px 0}
+body.touch-workspace #context-drawer #demo-tour .actions{display:flex;justify-content:flex-end;gap:6px;margin-top:5px}
+body.touch-workspace #context-drawer #demo-tour .actions button,body.touch-workspace #context-drawer #tour-collapse{min-height:32px;font-size:11px;padding:4px 8px}
+body.touch-workspace[data-lesson-docked=true] #context-drawer{max-height:62dvh}
+body.touch-workspace[data-lesson-docked=true] #drawer-body{flex:1 1 auto;min-height:90px}
+body.touch-workspace[data-lesson-docked=true] .scene-stage{min-height:170px}
+body.touch-workspace #context-drawer #guide{margin:0;border:2px solid #f0b722;background:#fff3c4;box-shadow:none}
+@media (min-width:1000px) and (min-aspect-ratio:6/5), (min-width:700px) and (max-height:600px) and (orientation:landscape){
+ body.touch-workspace[data-lesson-docked=true] #context-drawer{max-height:100%}
+ body.touch-workspace[data-lesson-docked=true] .scene-stage{min-height:0}
+ body.touch-workspace #context-drawer>#lesson-strip{max-height:25dvh}
+}
+
+/* Compact chrome; names and instructions remain available to assistive tools. */
+body.touch-workspace .drawer-bar{min-height:30px;padding:2px 10px}
+body.touch-workspace #drawer-toggle{min-width:36px;min-height:32px;padding:2px 8px;font-size:18px}
+body.touch-workspace #drawer-body{padding:0 10px 6px}
+body.touch-workspace #controls .motion-toolbar{gap:5px;margin-bottom:4px}
+body.touch-workspace #controls .mode-select{max-width:110px}
+body.touch-workspace #robot-home{display:inline-flex;align-items:center;justify-content:center;min-width:36px;padding:5px}
+body.touch-workspace #control-extras{margin-top:4px}
+body.touch-workspace #teach-bridge{padding:5px 10px;gap:6px}
+body.touch-workspace #teach-bridge button{min-height:36px;padding:5px 10px}
+body.touch-workspace #quick-feedback{white-space:nowrap}
+body.touch-workspace #program-panel .program-tabs button{min-height:36px;padding:5px 10px}
+body.touch-workspace #task-goal-details{min-width:32px;min-height:32px;padding:3px 9px;font-size:15px;border-radius:50%}
+body.touch-workspace[data-interface-step] #task-goal{display:none}
+body.touch-workspace[data-lesson-docked=true] .drawer-bar{display:none}
+body.touch-workspace #context-drawer>#lesson-strip{margin:6px 6px 4px}
+body.touch-workspace #context-drawer #demo-tour .tour-card{padding:6px 8px!important}
+body.touch-workspace #context-drawer #demo-tour .tour-heading{gap:5px}
+body.touch-workspace #context-drawer #demo-tour .tour-body p{margin:3px 0}
+body.touch-workspace #context-drawer #demo-tour .actions{margin-top:2px;gap:4px}
+body.touch-workspace #context-drawer #tour-exit{min-width:32px;font-size:18px}
+body.touch-workspace[data-lesson-docked=true] #context-drawer{max-height:56dvh}
+@media (min-width:1000px) and (min-aspect-ratio:6/5), (min-width:700px) and (max-height:600px) and (orientation:landscape){
+ body.touch-workspace[data-lesson-docked=true] #context-drawer{max-height:100%}
+ body.touch-workspace #controls .mode-select{max-width:none}
+ body.touch-workspace .drawer-bar{min-height:36px;padding:4px 10px}
+ body.touch-workspace .coordinate-grid{gap:6px}
+ body.touch-workspace #controls #sensor{margin-bottom:5px}
+ body.touch-workspace #control-extras{margin-top:6px}
+ body.touch-workspace #context-drawer #program-panel{gap:8px}
+ body.touch-workspace #teach-bridge button{min-height:38px}
+ body.touch-workspace #quick-feedback{width:auto;margin-left:auto}
+ body.touch-workspace #playback-dock{padding:6px 10px 8px}
+}
+@media (pointer:coarse){
+ body.touch-workspace #teach-bridge button,body.touch-workspace #program-panel .program-tabs button{min-height:40px}
+ body.touch-workspace #context-drawer #demo-tour .actions button,body.touch-workspace #context-drawer #tour-collapse{min-height:40px}
+}
+body.touch-workspace #context-drawer #demo-tour .tour-body{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 8px;align-items:center}
+body.touch-workspace #context-drawer #demo-tour .tour-explanation{grid-column:1/-1}
+body.touch-workspace #context-drawer #demo-tour .actions{grid-column:2;grid-row:auto;margin:0}
+body.touch-workspace #context-drawer #demo-tour .tour-body button{color:#332907}
+@media(max-width:700px){
+ body.touch-workspace #viewport .telemetry{padding:5px 7px;max-width:150px}
+ body.touch-workspace #position{gap:6px;margin:2px 0}
+}
+body.touch-workspace #context-drawer #guide{padding:6px 8px}
+body.touch-workspace #context-drawer #guide .guide-body{padding-top:2px}
+body.touch-workspace #context-drawer #guide .actions{display:flex;gap:5px;flex-wrap:wrap;margin-top:4px}
+body.touch-workspace #context-drawer #guide .action-checks{gap:4px 10px;margin:4px 0}
+body.touch-workspace #context-drawer #guide .guide-why{margin-top:4px}
+
 .public-credit{flex-shrink:0;display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 16px;padding:7px 16px;margin:0;border-top:1px solid var(--line);background:var(--bg);font-size:10px;line-height:1.5;color:var(--muted)}.public-credit strong{font-weight:500;color:var(--gold)}.public-credit a{text-underline-offset:2px}@media(max-width:720px){.public-credit{font-size:9px;padding:8px 12px}}
 
 /* Public edition only: neutral surfaces, color reserved for information. */
