@@ -1106,6 +1106,43 @@ body.touch-workspace #context-drawer #guide .guide-body{padding-top:2px}
 body.touch-workspace #context-drawer #guide .actions{display:flex;gap:5px;flex-wrap:wrap;margin-top:4px}
 body.touch-workspace #context-drawer #guide .action-checks{gap:4px 10px;margin:4px 0}
 body.touch-workspace #context-drawer #guide .guide-why{margin-top:4px}
+/* Brief examples and accessible help stay in the drawer, never over the robot. */
+body.touch-workspace #context-drawer #demo-tour .tour-example{grid-column:1/-1;margin:3px 0;font-size:12px;line-height:1.4}
+body.touch-workspace .control-glossary{font-size:12px;margin:5px 0 0}
+body.touch-workspace .control-glossary summary{cursor:pointer;color:#475569;padding:5px 0}
+body.touch-workspace .control-glossary p{font-size:12px;line-height:1.5;margin:4px 0}
+body.touch-workspace #grip-toggle #output-action{font-size:13px;font-weight:700}
+body.touch-workspace #grip-toggle #output-value{font-size:10px;font-weight:400}
+body.touch-workspace #first-lesson-cue{display:flex;flex-wrap:wrap;align-items:center;gap:5px;background:#ecfdf5;border:1px solid #16a34a;padding:6px;border-radius:7px;margin-bottom:8px;font-size:12px}
+body.touch-workspace #first-lesson-cue[hidden]{display:none}
+.portfolio-field{display:grid;gap:5px;margin:12px 0;font-size:14px}
+.portfolio-field textarea,.portfolio-field select{width:100%;box-sizing:border-box}
+.intro-topic-picker{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}
+.intro-topic-picker button{min-height:36px;padding:5px 8px;font-size:12px}
+.intro-topic-picker [aria-current=step]{border:2px solid #16a34a}
+.intro-example{padding:8px;border-left:3px solid #16a34a;background:#f0fdf4;font-size:13px;line-height:1.5}
+body.touch-workspace .practice-equation{font-size:12px}
+body.touch-workspace #teach-bridge{flex-wrap:wrap}
+body.touch-workspace .capture-receipt{flex-basis:100%;display:flex;align-items:center;gap:8px;font-size:12px;min-height:0}
+body.touch-workspace .capture-receipt:has(#capture-feedback:empty){display:none}
+body.touch-workspace #teach-bridge #capture-undo{min-height:30px;padding:3px 8px;font-size:12px}
+.scene-target-coordinate{position:absolute;left:0;top:0;z-index:12;pointer-events:none;display:flex;flex-direction:column;gap:2px;max-width:calc(100% - 16px);font:600 12px/1.25 ui-monospace,Consolas,monospace;color:#1551a7;text-shadow:0 1px 2px #fff,0 -1px 2px #fff,1px 0 2px #fff,-1px 0 2px #fff}
+.scene-target-coordinate strong{font:600 11px/1.25 system-ui,sans-serif}
+.scene-target-coordinate span{white-space:nowrap}
+.scene-target-leader{position:absolute;left:0;top:0;z-index:11;height:1px;background:#1551a7;opacity:.55;transform-origin:0 50%;pointer-events:none}
+.scene-target-dot{position:absolute;left:0;top:0;z-index:11;width:6px;height:6px;border-radius:50%;background:#1551a7;box-shadow:0 0 0 1px #fff;pointer-events:none}
+.scene-target-coordinate[hidden],.scene-target-leader[hidden],.scene-target-dot[hidden]{display:none}
+html:not([data-edition="public"]) .scene-target-coordinate{color:#e2edff;text-shadow:0 1px 2px #143451,0 -1px 2px #143451,1px 0 2px #143451,-1px 0 2px #143451}
+html:not([data-edition="public"]) .scene-target-leader{background:#b8d3ff}
+.intro-demo-explanation{font-size:13px;margin:8px 0 12px}
+.intro-demo-explanation summary{cursor:pointer;min-height:28px}
+@media(max-width:720px){
+ .chunked-introduction .intro-layout #intro-scene{height:280px;max-height:36dvh}
+ .chunked-introduction .intro-phases{margin-bottom:10px}
+}
+@media(pointer:coarse){
+ body.touch-workspace .motion-toolbar button,body.touch-workspace .control-glossary summary,body.touch-workspace #tour-example-watch,.intro-topic-picker button{min-height:40px}
+}
 
 .public-credit{flex-shrink:0;display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 16px;padding:7px 16px;margin:0;border-top:1px solid var(--line);background:var(--bg);font-size:10px;line-height:1.5;color:var(--muted)}.public-credit strong{font-weight:500;color:var(--gold)}.public-credit a{text-underline-offset:2px}@media(max-width:720px){.public-credit{font-size:9px;padding:8px 12px}}
 
