@@ -78,3 +78,7 @@ The CSS declares minimum 44px controls, responsive single/two-column layouts and
 Educational three-axis model only. Fixed tool orientation follows the arm. Virtual support fixtures; no gravity/free dropping, calibrated dynamics, forces, payload, friction or hardware safety system. Conservative capsule/sphere and expanded-box geometry may over-reject corners. Intended mechanical connections and identified finger/held-part contacts are documented in README. Browser/classroom acceptance is incomplete.
 
 Next action after review: run the outstanding browser acceptance in a WebGL2-capable environment. Merge, root-navigation integration and live deployment require separate approval.
+
+## Publication result
+
+The verified feature branch is committed locally. Shell `git push -u origin feat/three-axis-learning-lab` failed because HTTPS GitHub credentials are unavailable. The connected GitHub integration then rejected the first blob publication with HTTP 403, `Resource not accessible by integration`. No remote branch or pull request was created. Further remote mutations stopped at that permission boundary. A write-authorized connection or an authenticated checkout is required to finish publication; no merge or deployment was attempted.
