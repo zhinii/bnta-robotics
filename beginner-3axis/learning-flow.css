@@ -1,0 +1,788 @@
+/* Layout contract: a visible scene and a scrollable lesson/operation rail.
+   Instructions never occupy the robot canvas. Phone uses the same DOM order. */
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(330px, 390px);
+  align-items: stretch;
+  gap: 0;
+  height: calc(100dvh - 155px);
+  min-height: 490px;
+  overflow: hidden;
+}
+.scene-column {
+  display: contents;
+}
+.scene-card {
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  border: 0;
+  overflow: hidden;
+}
+#scene {
+  height: auto;
+  flex: 1;
+  min-height: 240px;
+}
+.scene-card > .section-head {
+  flex: none;
+}
+.current-readout {
+  position: static;
+  box-shadow: none;
+  backdrop-filter: none;
+  border: 0;
+  border-radius: 0;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  max-width: none;
+  padding: 6px 12px;
+  font-size: 11px;
+  background: #fff;
+}
+#current {
+  font-size: 13px;
+}
+.scene-key {
+  flex: none;
+}
+.path-key {
+  font-size: 10px;
+  line-height: 1.3;
+  color: #58697e;
+  padding: 4px 12px;
+  margin: 0;
+  flex: none;
+  background: #fff;
+}
+.view-tools {
+  flex-wrap: wrap;
+  gap: 3px;
+  justify-content: flex-end;
+}
+.view-tools button {
+  font-size: 11px;
+  padding: 4px 6px;
+}
+.view-more {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.view-more summary {
+  list-style: none;
+  min-height: 36px;
+  min-width: 36px;
+  text-align: center;
+  padding: 7px;
+  cursor: pointer;
+}
+.view-more[open] {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.view-more[open] > button {
+  display: inline-block;
+}
+.scene-card > .section-head h2 {
+  font-size: 12px;
+}
+#fixture-reference {
+  font-size: 11px;
+  max-height: none;
+  flex: none;
+  white-space: normal;
+  overflow: visible;
+  padding: 7px 12px;
+}
+.scene-anatomy-legend {
+  font-size: 11px !important;
+  padding: 4px 10px;
+  flex: none;
+}
+.inspector {
+  grid-column: 2;
+  grid-row: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  border-left: 1px solid var(--line);
+  background: #fff;
+}
+.inspector > .card {
+  position: static;
+  border-radius: 0;
+  border: 0;
+  box-shadow: none;
+  margin: 0;
+  padding: 14px;
+}
+.inspector .control-card {
+  padding: 14px;
+  border-top: 1px solid var(--line);
+}
+.learning {
+  scroll-margin: 0;
+  font-size: 13px;
+}
+.learning > .section-head {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+}
+.learning > .section-head select {
+  width: auto;
+  flex: 1;
+  min-width: 0;
+  font-weight: 650;
+}
+#new-attempt {
+  font-size: 11px;
+  white-space: normal;
+  max-width: 82px;
+  padding: 5px;
+}
+.phase-nav {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 3px;
+  margin: 12px 0;
+}
+.phase-nav button {
+  font-size: 12px;
+  min-width: 0;
+  padding: 5px 3px;
+  border-color: transparent;
+  background: #eef1f5;
+  color: #536175;
+  min-height: 40px;
+}
+.phase-nav button[aria-current="true"] {
+  background: #245de8;
+  color: white;
+}
+.learning h1 {
+  font-size: 20px;
+  line-height: 1.25;
+  margin: 10px 0 4px;
+}
+.lesson-goal {
+  font-size: 13px;
+  color: #56667a;
+  margin: 0 0 12px !important;
+}
+.learning p {
+  line-height: 1.55;
+}
+#lesson-content {
+  display: block;
+}
+#lesson-content > p {
+  display: none;
+}
+#lesson-content details {
+  margin: 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  padding: 0;
+}
+#lesson-content summary {
+  font-size: 13px;
+  padding: 10px 0;
+}
+#lesson-content details p {
+  padding: 0 0 0 8px;
+  font-size: 12px;
+}
+.lesson-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  border-top: 1px solid var(--line);
+  padding: 10px 0;
+  margin-top: 14px;
+  position: sticky;
+  bottom: -14px;
+  background: #fff;
+  z-index: 1;
+}
+.body-plan-drawing {
+  display: block;
+  width: 100%;
+  height: 92px;
+  background: #f3f6fa;
+  border-radius: 6px;
+  margin: 6px 0;
+}
+.lesson-footer button {
+  font-size: 12px;
+  min-height: 42px;
+}
+.predict-row {
+  display: block;
+}
+.predict-row button {
+  margin-top: 5px;
+}
+#prediction-note {
+  font-size: 11px;
+}
+.next-evidence {
+  border-left: 3px solid #31ae67;
+  background: #eefaf2;
+  padding: 8px;
+  font-size: 12px;
+}
+.practice-route {
+  padding: 0;
+  list-style: none;
+  counter-reset: route;
+  margin: 10px 0;
+}
+.practice-route li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 8px;
+  border-top: 1px solid var(--line);
+  padding: 9px 0;
+  counter-increment: route;
+}
+.practice-route li strong {
+  font-size: 12px;
+}
+.practice-route li strong:before {
+  content: counter(route) ". ";
+  color: #6e7a8b;
+}
+.practice-route li.done strong:before {
+  content: "✓ ";
+  color: #138344;
+}
+.practice-route li small {
+  grid-column: 1;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+}
+.practice-route button {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  font-size: 11px;
+  min-width: 0;
+  min-height: 40px;
+  padding: 5px 7px;
+}
+.practice-current {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  background: #edf8f0;
+  border-left: 3px solid #20a35d;
+  border-radius: 6px;
+  padding: 8px;
+  margin-bottom: 10px;
+  font-size: 12px;
+}
+.practice-current small {
+  display: block;
+  font-family: ui-monospace, monospace;
+  font-size: 10px;
+  margin-top: 4px;
+}
+.practice-current button {
+  font-size: 11px;
+  min-height: 44px;
+  padding: 4px 8px;
+  flex: none;
+}
+#answer-form {
+  display: block;
+}
+#answer-form label {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 8px;
+  margin: 8px 0;
+  font-size: 12px;
+}
+#answer-form button {
+  margin-top: 10px;
+}
+#lesson-status {
+  font-size: 11px;
+  line-height: 1.8;
+  border: 0;
+  white-space: normal;
+  background: #f2f5f9;
+  display: block;
+}
+.math-pane {
+  border: 1px solid #bdcee7;
+  border-radius: 8px;
+  background: #f6f9ff;
+  padding: 12px;
+  margin: 14px 0;
+}
+.math-pane h3 {
+  margin: 0;
+  font-size: 14px;
+}
+.math-pane p {
+  font-size: 12px;
+}
+.math-pane label {
+  display: grid;
+  grid-template-columns: 1fr 100px;
+  gap: 8px;
+  font-size: 12px;
+  margin: 6px 0;
+}
+.math-pane input {
+  width: 100%;
+  min-height: 40px;
+}
+#reflection-pane {
+  border: 0;
+  padding: 0;
+  margin-top: 12px;
+}
+#reflection-pane > summary {
+  font-weight: 650;
+}
+.inline-actions {
+  display: flex;
+  gap: 6px;
+}
+.demo-caption {
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  min-height: 40px;
+  color: #2457be;
+}
+.demo-badge {
+  position: absolute;
+  top: 94px;
+  left: 12px;
+  right: 12px;
+  text-align: center;
+  z-index: 1;
+  background: #e8f0ff;
+  border: 1px solid #9bbaf7;
+  border-radius: 6px;
+  padding: 6px;
+  font-size: 11px;
+  pointer-events: none;
+}
+.lesson-ribbon {
+  flex: none;
+  font-size: 12px;
+  line-height: 1.35;
+  margin: 0 !important;
+  padding: 9px 12px;
+  background: #fff3c4;
+  border-top: 1px solid #dec26e;
+}
+body[data-mode="learn"]:not([data-phase="try"]) .control-card {
+  display: none;
+}
+body[data-mode="learn"] .route-card {
+  display: none;
+}
+body[data-mode="learn"][data-phase="try"] .learning {
+  padding-bottom: 10px;
+}
+.record-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.record-bar .switch-label {
+  margin-right: auto;
+}
+#quick-reset {
+  font-size: 12px;
+}
+.control-card #joint-readout {
+  font-size: 12px;
+  color: #465771;
+}
+.control-card .held {
+  font-size: 12px;
+}
+.control-card .next-action {
+  font-size: 12px;
+}
+.portfolio-content {
+  flex-wrap: wrap;
+}
+.portfolio-content > p {
+  flex-basis: 100%;
+}
+.portfolio {
+  margin-top: 8px;
+}
+body[data-panel="program"] .inspector > .card {
+  display: none;
+}
+#steps-dialog {
+  margin: 0;
+  padding: 14px;
+  position: static;
+  width: 100%;
+  max-width: none;
+  max-height: none;
+  border: 0;
+  box-shadow: none;
+  overflow: visible;
+  background: white;
+}
+#steps-dialog .dialog-footer {
+  position: static;
+  background: #fff;
+  flex-wrap: wrap;
+  padding: 8px 0;
+  border: 0;
+}
+#steps-dialog .drawer-playback {
+  display: none;
+}
+#program-list {
+  margin: 10px 0;
+  padding: 0;
+  list-style: none;
+  max-height: none;
+  overflow: visible;
+}
+#program-list li {
+  display: block;
+  padding: 5px 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+}
+.step-select {
+  width: 100%;
+  text-align: left;
+  min-height: 44px;
+}
+.step-select[aria-expanded="true"] {
+  background: #eaf0ff;
+  border-color: #7f9ee6;
+}
+.step-expanded {
+  padding: 8px;
+  background: #f4f6fa;
+}
+.step-expanded input {
+  width: 100%;
+}
+.step-expanded .step-actions {
+  display: flex;
+  margin-top: 8px;
+  gap: 5px;
+}
+body[data-panel="program"] .inspector #steps-dialog[open] {
+  display: block;
+}
+[hidden] {
+  display: none !important;
+}
+button:focus-visible,
+select:focus-visible,
+input:focus-visible {
+  outline: 3px solid #16a45d;
+  outline-offset: 2px;
+}
+@media (min-width: 1500px) {
+  .workspace {
+    grid-template-columns: minmax(0, 1fr) 420px;
+  }
+  .learning {
+    font-size: 14px;
+  }
+}
+@media (max-width: 899px) {
+  header {
+    padding: 8px 12px;
+    min-height: 54px;
+    gap: 8px;
+    flex-wrap: nowrap;
+  }
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    background: white;
+  }
+  header .edition,
+  .language > span {
+    display: none;
+  }
+  header nav {
+    margin-left: auto;
+  }
+  .brand {
+    font-size: 15px;
+    gap: 5px;
+  }
+  header button,
+  header select {
+    font-size: 12px;
+    padding: 5px 7px;
+    min-height: 40px;
+  }
+  main {
+    padding: 6px 6px 0;
+  }
+  .workspace {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+  .scene-card {
+    position: sticky;
+    top: 54px;
+    z-index: 3;
+    display: flex;
+    width: 100%;
+    order: 0;
+    border-bottom: 1px solid var(--line);
+    background: #f1f3f6;
+  }
+  #scene {
+    flex: none;
+    height: clamp(180px, 25dvh, 270px);
+    min-height: 180px;
+  }
+  .robot-scene-renderer {
+    min-height: 180px !important;
+  }
+  .scene-card > .section-head {
+    min-height: 36px;
+    padding: 2px 8px;
+  }
+  .scene-card > .section-head h2 {
+    font-size: 11px;
+  }
+  .scene-card > .section-head h2 {
+    display: none;
+  }
+  .scene-card > .section-head {
+    justify-content: flex-end;
+  }
+  .view-tools {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .view-tools > button {
+    min-height: 40px;
+  }
+  html {
+    scroll-padding-top: calc(25dvh + 190px);
+    scroll-padding-bottom: 100px;
+  }
+  .scene-card .view-tools button {
+    min-height: 32px;
+    font-size: 11px;
+  }
+  .current-readout {
+    font-size: 10px;
+    padding: 4px 8px;
+    gap: 5px;
+  }
+  #current {
+    font-size: 12px;
+  }
+  .scene-key {
+    display: none;
+  }
+  .path-key {
+    display: none;
+  }
+  #fixture-reference {
+    font-size: 10px;
+    padding: 4px 8px;
+    line-height: 1.4;
+  }
+  .scene-anatomy-legend {
+    display: none !important;
+  }
+  .lesson-ribbon {
+    font-size: 11px;
+    padding: 6px 8px;
+  }
+  .inspector {
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+    border-left: 0;
+    min-height: 0;
+    order: 1;
+  }
+  .inspector > .card {
+    width: 100%;
+    padding: 12px;
+  }
+  .learning {
+    order: 0;
+  }
+  .control-card {
+    order: 1;
+  }
+  .route-card {
+    order: 2;
+  }
+  .coach-card {
+    order: 3;
+  }
+  #six-axis,
+  .portfolio,
+  .attribution {
+    order: 4;
+  }
+  .learning h1 {
+    font-size: 18px;
+  }
+  .phase-nav {
+    margin: 8px 0;
+  }
+  .phase-nav button,
+  .lesson-footer button {
+    min-height: 44px;
+  }
+  body[data-mode="learn"][data-phase="try"] .learning h1,
+  body[data-mode="learn"][data-phase="try"] .lesson-goal {
+    display: none;
+  }
+  body[data-mode="learn"][data-phase="try"] .learning .section-head {
+    display: none;
+  }
+  .practice-route {
+    max-height: 176px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  #task-description {
+    font-size: 12px;
+    margin: 5px 0;
+  }
+  .coordinate-row input {
+    font-size: 16px;
+  }
+  .coordinate-row button,
+  .motion-actions button,
+  #move,
+  #steps,
+  #quick-reset {
+    min-height: 44px;
+  }
+  .demo-badge {
+    top: 72px;
+    font-size: 10px;
+  }
+  .playback {
+    min-height: 64px;
+  }
+  .playback p {
+    font-size: 11px;
+  }
+}
+@media (max-width: 480px) {
+  .brand-mark {
+    display: none;
+  }
+  header {
+    gap: 4px;
+    padding: 5px 7px;
+  }
+  .language select {
+    max-width: 79px;
+  }
+  .learning > .section-head select {
+    font-size: 12px;
+  }
+  .scene-card > .section-head {
+    min-height: 32px;
+  }
+}
+@media (max-height: 600px) and (max-width: 899px) and (min-aspect-ratio: 6/5) {
+  .workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(290px, 43%);
+    height: calc(100dvh - 145px);
+    min-height: 260px;
+    overflow: hidden;
+  }
+  .scene-card {
+    position: relative;
+    top: 0;
+  }
+  .inspector {
+    grid-column: 2;
+    overflow-y: auto;
+    display: block;
+  }
+  #scene {
+    height: auto;
+    flex: 1;
+    min-height: 160px;
+  }
+  .robot-scene-renderer {
+    min-height: 160px !important;
+  }
+  #fixture-reference {
+    display: none;
+  }
+}
+/* Wide workspaces scroll the inspector, never the robot out of view. */
+@media (min-width: 900px), (max-height: 600px) and (min-aspect-ratio: 6/5) {
+  html,
+  body {
+    height: 100%;
+    overflow: hidden;
+    scroll-padding: 0;
+  }
+  body {
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 0;
+  }
+  header {
+    flex: none;
+  }
+  main {
+    min-height: 0;
+    flex: 1;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 6px;
+  }
+  .workspace {
+    height: auto;
+    min-height: 0;
+    flex: 1;
+  }
+  .playback {
+    position: static;
+    flex: none;
+    min-height: 54px;
+  }
+  #scene,
+  .robot-scene-renderer {
+    min-height: 100px !important;
+  }
+}

@@ -11,6 +11,7 @@ import {
   length,
   degreesToRadians,
 } from "./model.mjs";
+import { moveMeasurement, checkCalculation } from "./curriculum.mjs";
 
 export const LEARNING_VERSION = 1;
 export const MAX_TEXT_LENGTH = 1200;
@@ -434,6 +435,19 @@ export function evaluateLesson(state, id = state.currentLessonId) {
       checks.jointDistinctFromLink = Boolean(
         answer && answer.answers.joint !== answer.answers.link,
       );
+    if (id === "anatomy" && attempt.curriculumVersion >= 2)
+      checks.jointOperated = take(
+        scored.find(
+          (e) =>
+            e.type === "JOINT_DEMO_COMPLETED" &&
+            verified(e) &&
+            e.source === "manual" &&
+            sceneOf(e, "before").actualJoints.some(
+              (q, i) =>
+                Math.abs(q - sceneOf(e, "after").actualJoints[i]) > 1e-6,
+            ),
+        ),
+      );
   }
   if (id === "coordinates") {
     const move = scored.find(
@@ -458,6 +472,16 @@ export function evaluateLesson(state, id = state.currentLessonId) {
           (e.moveEventId === move.id || e.moveEventId == null),
       );
     checks.multipleJointsInspected = take(inspected);
+    if (attempt.curriculumVersion >= 2)
+      checks.calculationVerified = take(
+        move &&
+          scored.find(
+            (e) =>
+              e.type === "CALCULATION_SUBMITTED" &&
+              e.moveEventId === move.id &&
+              checkCalculation(moveMeasurement(move), e.answers),
+          ),
+      );
     if (move) {
       const a = fk(sceneOf(move, "before").actualJoints).C,
         b = fk(sceneOf(move, "after").actualJoints).C;

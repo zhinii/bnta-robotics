@@ -159,6 +159,58 @@ test("P3-04 exactly three positioning joints and fixed e/u/n tool tilt", () => {
   disposeObject(graph.scene);
 });
 
+test("Target ghost and planned path never move the robot or add a false actual trail", () => {
+  const graph = buildSceneGraph(),
+    state = initialScene();
+  const before = structuredClone(state),
+    current = fk(state.actualJoints).C;
+  const target = { parsed: { ...current, z: current.z + 10 }, valid: true };
+  updateSceneGraph(graph, state, target);
+  assert.equal(graph.ghost.visible, true);
+  assert.equal(graph.targetPath.visible, true);
+  assert.equal(graph.trailPoints.length, 1);
+  near(plain(graph.current.position), current);
+  assert.deepEqual(state, before);
+  updateSceneGraph(graph, state, { ...target, valid: false });
+  assert.equal(
+    graph.ghost.visible,
+    true,
+    "blocked target still has a visible warning ghost",
+  );
+  assert.equal(graph.trailPoints.length, 1);
+  updateSceneGraph(graph, state, target, {
+    ghost: false,
+    path: false,
+    trail: false,
+  });
+  assert.equal(graph.ghost.visible, false);
+  assert.equal(graph.targetPath.visible, false);
+  assert.equal(graph.trail.visible, false);
+  disposeObject(graph.scene);
+});
+
+test("Worked example trails remain separate from the learner's actual movement trail", () => {
+  const graph = buildSceneGraph(),
+    state = initialScene();
+  updateSceneGraph(graph, state, fk(state.actualJoints).C);
+  state.actualJoints[0] += rad(10);
+  updateSceneGraph(graph, state, fk(state.actualJoints).C);
+  const learnerTrail = graph.trailPoints.map(plain);
+  assert.equal(learnerTrail.length, 2);
+  const demonstration = initialScene();
+  updateSceneGraph(graph, demonstration, fk(demonstration.actualJoints).C, {
+    demonstration: true,
+  });
+  demonstration.actualJoints[0] -= rad(15);
+  updateSceneGraph(graph, demonstration, fk(demonstration.actualJoints).C, {
+    demonstration: true,
+  });
+  assert.notDeepEqual(graph.trailPoints.map(plain), learnerTrail);
+  updateSceneGraph(graph, state, fk(state.actualJoints).C);
+  assert.deepEqual(graph.trailPoints.map(plain), learnerTrail);
+  disposeObject(graph.scene);
+});
+
 test("P3-02/03 camera orbit, Home fit, toggles and target preview do not mutate scene", () => {
   const graph = buildSceneGraph(),
     state = initialScene({ obstacle: true });

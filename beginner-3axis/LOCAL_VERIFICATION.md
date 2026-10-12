@@ -1,5 +1,75 @@
 # Local integration verification — 12 October 2026
 
+## Latest learner-brief revision — 12 October 2026
+
+This section supersedes the older UI/learning limitations below where explicitly
+verified. Work remains isolated to `beginner-3axis` on
+`feat/three-axis-learning-lab`; no root app changes or public deployment.
+
+Local preview: **http://127.0.0.1:4204/beginner-3axis/**, bound to localhost and
+left running. The existing port-4203 server was not stopped.
+
+### Regression results
+
+- **80 Node tests passed**, zero failures. Includes all supplied model tests plus
+  bilingual lesson structure, seven real-model demonstrations, connecting gripper
+  bridge geometry, actual-motion calculations, validated file restore, nonmutating
+  ghost/path previews and separation of example/learner trails.
+- **Seven-lesson DOM journey passed**, including obstacle rejection, independent
+  destination-B recording and replay, preservation of a completed program when
+  entering design reflection, export actions and restored prediction fields.
+- `git diff --check` passed. No tracked root application file changed.
+
+### Browser learner checks
+
+Performed using visible controls in the in-app browser, without injecting learner
+state or marking completion through private APIs:
+
+- Robot-type diagrams and matching; anatomy joint operation and part matching.
+- Coordinate prediction, actual +10 mm Z movement, joint-change inspection,
+  displacement/distance/speed calculation and reflection.
+- Approach, actual grasp and 10 mm object lift; no success on preview alone.
+- Nine-action manual program recording, reset/replay, pause/resume, stop/reset;
+  paused pose stayed unchanged while toggling the trail.
+- Saved position selection shows a ghost and planned route without moving the
+  robot; actual replay produces an orange trail. Record OFF prevents program bloat.
+- Direct carrying route rejected with actual pose unchanged; red target preview
+  and contextual scripted guidance; completed the clearance detour.
+- Independently typed the **rounded coordinates shown in the interface**, recorded
+  nine actions for destination B, reset/replayed and obtained the changed-target
+  pass with no hints. Reflection had to be saved after replay completion.
+- Interest/design proposal and reflection; changing to design retained the tested
+  program and scene. Reloaded fields show the saved writing and answers.
+- Downloaded project JSON, reopened it through the file picker, and confirmed it
+  replaced a deliberately edited test learner-name field and retained the nine-step
+  program, actual scene and learning evidence. Downloaded PNG scene image after
+  changing the image download to a Blob URL for browser compatibility.
+- No errors/warnings in the final browser console check.
+
+Responsive interactions checked at 1365×900 desktop, 768×1024 tablet, 390×844
+phone, 844×390 landscape and 320×568 narrow phone (including Chinese and an actual
+Move). Landscape initially cut off the scene after rotation; fixed by constraining
+the workspace and scrolling the inspector. Portrait keeps the scene/readout sticky
+while the controls scroll. No horizontal overflow in the checked narrow view.
+
+Screenshots in the parent project's `test-artifacts/`:
+`three-axis-learning-desktop.png` and `three-axis-learning-phone.png`.
+
+### Honest boundaries
+
+- These are browser viewport checks, **not physical phone/tablet or touchscreen
+  acceptance**. Full keyboard/screen-reader traversal and 200% text zoom remain
+  to be evaluated with learners and teachers.
+- The guide is state-aware scripted guidance, **not a live AI teaching agent**.
+  No external AI service, API key or student database was introduced.
+- Collision/kinematics/grasp rules are simulated. Gravity, friction, payload,
+  impact and electrical behaviour are explained only. Decorative covers are not
+  calibrated industrial contact meshes.
+- Automatic checks establish actions/results and checked calculations, not the
+  quality of open-ended reasoning. A teacher must review the portfolio.
+- A feature branch/local preview is not a public website deployment. The existing
+  main app and GitHub Pages site remain unchanged by this revision.
+
 Imported the supplied two-commit patch on `feat/three-axis-learning-lab` from
 `25a1cd43c393ad16fa570529efe4ee97daf62035`. The imported tree matched
 `a98920a684c20138bd3364e79ac7baae276821a2` before this verification note and the

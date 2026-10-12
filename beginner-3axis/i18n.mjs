@@ -3,6 +3,22 @@
  * to a different language. t() returns plain text, never HTML or executable code.
  */
 const entries = [
+  ["program.position", "Position", "位置"],
+  ["control.ghost", "Ghost", "虚影"],
+  ["control.path", "Preview path", "预览路径"],
+  ["control.trail", "Trail", "轨迹"],
+  ["control.clearTrail", "Clear trail", "清除轨迹"],
+  [
+    "scene.pathKey",
+    "Orange: actual trail · Blue dashed: planned TCP line · Red: blocked preview · Ghost: target arm pose",
+    "橙色：实际轨迹 · 蓝虚线：计划TCP直线 · 红色：预览受阻 · 虚影：目标姿态",
+  ],
+  ["checks.jointOperated", "One joint actually moved", "已实际移动一个关节"],
+  [
+    "checks.calculationVerified",
+    "Displacement, distance and speed calculated",
+    "已计算位移、路程和速度",
+  ],
   ["app.title", "Three-axis robot lab", "三轴机械臂实验室"],
   [
     "app.subtitle",
@@ -58,7 +74,7 @@ const entries = [
   ["control.exportJson", "Download JSON", "下载 JSON"],
   ["control.exportText", "Download text summary", "下载文字摘要"],
   ["control.startDemo", "Start joint demo", "开始关节演示"],
-  ["control.endDemo", "End joint demo", "结束关节演示"],
+  ["control.endDemo", "Use XYZ controls", "使用XYZ控制"],
   ["control.newAttempt", "Start a new attempt", "开始新的尝试"],
   ["control.transfer", "Try destination B", "尝试目标位置 B"],
   ["control.obstacle", "Show obstacle", "显示障碍物"],
@@ -239,7 +255,7 @@ const entries = [
   ["route.destinationApproach", "Destination approach", "接近目标位置"],
   ["route.place", "Place position", "放置位置"],
   ["route.retreat", "Retreat", "退出"],
-  ["demo.title", "Joint demo", "关节演示"],
+  ["demo.title", "Joint controls · degrees", "关节控制 · 度"],
   [
     "demo.explanation",
     "J1, J2, and J3 are joint angles. XYZ locates the tool centre point. Several joints can change during one Z move.",

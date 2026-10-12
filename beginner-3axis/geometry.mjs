@@ -75,6 +75,14 @@ export function proxies(joints, gripper = "open", c = CONFIG) {
       capsule("upper", p.S, p.E, 5),
       capsule("forearm", p.E, p.F, 4),
       capsule("palm", p.F, add(p.C, scale(p.e, -14)), 5),
+      // The fixed slide housing joins the wrist mount to BOTH moving fingers.
+      // Include it in swept collision checks, not only in the illustration.
+      capsule(
+        "jawBridge",
+        add(add(p.C, scale(p.e, -14)), scale(p.u, -11)),
+        add(add(p.C, scale(p.e, -14)), scale(p.u, 11)),
+        3,
+      ),
     ];
   for (const sign of [-1, 1])
     points.push(

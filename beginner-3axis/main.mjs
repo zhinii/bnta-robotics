@@ -35,6 +35,9 @@ import {
   portfolioBlobs,
 } from "./storage.mjs";
 import { t } from "./i18n.mjs";
+import { createLearningFlow, word } from "./learning-flow.mjs";
+import { parseProgressFile } from "./storage.mjs";
+import { bodyPlanDrawing } from "./body-plan-drawings.mjs";
 const $ = (id) => document.getElementById(id),
   el = (tag, text, cls) => {
     const e = document.createElement(tag);
@@ -44,13 +47,23 @@ const $ = (id) => document.getElementById(id),
   };
 let learning = createLearningState(),
   language = "en",
-  mode = "explore",
+  mode = "learn",
   demo = false,
-  view = { grid: true, axes: true, labels: false, proxies: false },
+  view = {
+    grid: true,
+    axes: true,
+    labels: false,
+    proxies: false,
+    ghost: true,
+    trail: true,
+    path: true,
+  },
   renderer,
+  journey,
   uiReady = false,
   lastRevision = -1,
   lastProgramLanguage = "",
+  selectedProgram = -1,
   lastFrame = null,
   frame,
   storageWarning = null,
@@ -59,6 +72,8 @@ let learning = createLearningState(),
   coachKey = "coach.preview.question";
 const c = new Controller({
   onEvent: (event) => {
+    if (["SCENE_RESET", "SCENE_CHANGED"].includes(event.type))
+      renderer?.clearTrail();
     if (mode === "learn") learning = recordLearningEvent(learning, event);
     const map = {
       MOVE_COMPLETED: "status.moveComplete",
@@ -83,6 +98,29 @@ function report(result) {
       result?.error?.messageKey ||
       `error.${result?.error?.code || "INVALID_INPUT"}`;
     feedbackParams = result?.error?.details || {};
+    // Honest state-triggered guidance, never a fabricated account of a move.
+    if (uiReady && mode === "learn" && !currentAttempt(learning)?.transfer) {
+      const hint = coachHint({
+        telemetry: {
+          verified: true,
+          current: fk(c.state.scene.actualJoints).C,
+          target: c.state.target.parsed,
+          objectHeld: c.state.scene.objects.some((o) => o.heldByGripper),
+          gripperState: c.state.scene.gripperState,
+        },
+        errorCode: result?.error?.code,
+        priorHintLevel: 0,
+        evidence: {
+          eventIds: currentAttempt(learning)?.evidenceEventIds || [],
+        },
+      });
+      $("coach-text").textContent = tr(hint.textKey);
+      document.querySelector(".coach-card").open = true;
+      learning = noteHint(learning, {
+        textKey: hint.textKey,
+        hintLevel: hint.hintLevel,
+      });
+    }
   } else if (result.value?.noop) feedbackKey = "status.noop";
   render();
   if (uiReady && result?.ok && !c.busy) persist();
@@ -225,8 +263,9 @@ function render() {
           `J${i + 1}: ${radiansToDegrees(lastMove.before.actualJoints[i]).toFixed(2)}° → ${radiansToDegrees(q).toFixed(2)}°`,
       )
       .join(" · ");
-  $("fixture-reference").textContent = s.scene.fixtures
-    .filter((f) => f.id === "source" || f.id === s.scene.destination)
+  const displayedScene = journey?.demo?.controller.state.scene || s.scene;
+  $("fixture-reference").textContent = displayedScene.fixtures
+    .filter((f) => f.id === "source" || f.id === displayedScene.destination)
     .map(
       (f) => `${tr(`scene.${f.id}`)}: ${formatPosition(f.targetPosition)} mm`,
     )
@@ -294,6 +333,7 @@ function render() {
   $("feedback").textContent = busy
     ? `${tr(`status.${s.execution.status === "movingManual" ? "moving" : s.execution.status}`)} · ${tr("status.step", { current: s.execution.stepIndex + 1, total: s.execution.status === "movingManual" ? 1 : s.program.steps.length })}`
     : tr(feedbackKey, feedbackParams);
+  if (journey?.demo) $("feedback").textContent = word("demoOnly", language);
   $("six-axis").hidden = ![...learning.evidenceEvents, ...s.events].some(
     (e) => e.type === "RUN_COMPLETED" && e.verified,
   );
@@ -302,11 +342,33 @@ function render() {
   $("explore").setAttribute("aria-pressed", String(mode === "explore"));
   if (renderer)
     renderer.update(
-      s.scene,
-      target
-        ? { parsed: target, valid: !s.target.error, error: s.target.error }
-        : null,
-      { ...view, language },
+      journey?.demo?.controller.state.scene || s.scene,
+      journey?.demo
+        ? {
+            parsed: fk(journey.demo.controller.state.scene.actualJoints).C,
+            valid: true,
+          }
+        : target
+          ? { parsed: target, valid: !s.target.error, error: s.target.error }
+          : null,
+      {
+        ...view,
+        language,
+        demonstration: !!journey?.demo,
+        focusJoint:
+          journey?.demo?.commands[journey.demo.index]?.jointIndex ??
+          view.focusJoint,
+        programPoints:
+          $("steps-dialog").open && s.program.startScene
+            ? [
+                fk(s.program.startScene.actualJoints).C,
+                ...s.program.steps
+                  .filter((step) => step.type === "move")
+                  .map((step) => step.targetMm),
+              ]
+            : [],
+        programValid: s.program.validationStatus !== "invalid",
+      },
     );
   if (s.program.revision !== lastRevision || lastProgramLanguage !== language) {
     renderProgram();
@@ -348,12 +410,66 @@ function render() {
   $("storage-status").textContent = tr(
     storageWarning ? "status.storageWarning" : "status.saved",
   );
+  journey?.render();
+  for (const id of [
+    "export-json",
+    "export-text",
+    "capture-scene",
+    "import-project",
+  ])
+    if ($(id)) $(id).disabled = busy || !!journey?.demo;
+  if (journey?.demo) {
+    for (const id of [
+      "move",
+      "open",
+      "close",
+      "record",
+      "run",
+      "drawer-run",
+      "demo-toggle",
+      "new-attempt",
+      "lesson-select",
+      "steps",
+    ])
+      $(id).disabled = true;
+    document
+      .querySelectorAll("#coordinates input,#coordinates button")
+      .forEach((e) => (e.disabled = true));
+    $("current").textContent = formatPosition(
+      fk(journey.demo.controller.state.scene.actualJoints).C,
+    );
+    $("joint-readout").textContent =
+      journey.demo.controller.state.scene.actualJoints
+        .map((q, i) => `J${i + 1} ${radiansToDegrees(q).toFixed(1)}°`)
+        .join(" · ");
+  } else {
+    $("new-attempt").disabled = busy;
+    $("lesson-select").disabled = busy;
+    $("steps").disabled = false;
+  }
 }
 function renderProgram() {
   $("program-list").replaceChildren();
   c.state.program.steps.forEach((step, i) => {
     const li = el("li"),
       input = el("input");
+    const select = el(
+      "button",
+      step.type === "move"
+        ? `${tr("program.position")} ${i + 1}`
+        : `${i + 1}. ${tr(step.gripperState === "open" ? "control.open" : "control.close")}`,
+      "step-select",
+    );
+    select.setAttribute("aria-expanded", String(selectedProgram === i));
+    select.addEventListener("click", () => {
+      selectedProgram = i;
+      renderProgram();
+      if (step.type === "move" && !c.busy) {
+        for (const axis of ["x", "y", "z"])
+          c.editTarget(axis, step.targetMm[axis]);
+        preview();
+      }
+    });
     input.value = step.nameIsDefault
       ? `${tr(step.type === "move" ? "control.move" : step.gripperState === "open" ? "control.open" : "control.close")} ${i + 1}`
       : step.name;
@@ -378,7 +494,10 @@ function renderProgram() {
       });
       actions.append(b);
     }
-    li.append(input, detail, actions);
+    const expanded = el("div", undefined, "step-expanded");
+    expanded.hidden = selectedProgram !== i;
+    expanded.append(input, detail, actions);
+    li.append(select, expanded);
     $("program-list").append(li);
   });
 }
@@ -409,6 +528,7 @@ function renderTeaching(id) {
         heading = el("summary", tr(`bodyPlans.${type}.title`));
       item.append(
         heading,
+        bodyPlanDrawing(type, tr(`bodyPlans.${type}.title`)),
         ...["description", "job", "tradeoff"].map((k) =>
           el("p", tr(`bodyPlans.${type}.${k}`)),
         ),
@@ -519,21 +639,33 @@ function renderAnswers() {
     });
     root.append(b);
   }
+  const savedAnswers =
+    currentAttempt(learning)?.[id === "design" ? "design" : "answers"];
+  if (savedAnswers)
+    for (const field of root.querySelectorAll("input,select")) {
+      if (typeof savedAnswers[field.name] === "string")
+        field.value = savedAnswers[field.name];
+    }
 }
 function setMode(value) {
+  if ($("steps-dialog").open) $("steps-dialog").close();
+  journey?.endDemo(false);
   if (c.busy) c.stop();
   c.setRecording(false);
   mode = value;
   c.state.mode = value;
-  if (mode === "learn" && !currentAttempt(learning))
+  if (mode === "learn" && !currentAttempt(learning)) {
     learning = beginLessonAttempt(learning, learning.currentLessonId);
+    currentAttempt(learning).curriculumVersion = 2;
+  }
   render();
-  $(mode === "learn" ? "learning" : "scene").scrollIntoView?.({
-    block: "start",
-  });
+  document.querySelector("header").scrollIntoView?.({ block: "start" });
 }
 function startLesson(id, { transfer = false } = {}) {
+  journey?.endDemo(false);
+  const resetsScene = !["types", "design"].includes(id);
   if (
+    resetsScene &&
     c.state.program.steps.length &&
     !window.confirm(
       tr("clear.question", { count: c.state.program.steps.length }),
@@ -543,17 +675,29 @@ function startLesson(id, { transfer = false } = {}) {
     return;
   }
   c.stop();
-  if (c.state.program.steps.length) c.clearProgram(true);
-  c.changeScene(
-    initialScene({
-      obstacle: id === "obstacle",
-      destination: transfer ? "destinationB" : "destinationA",
-    }),
-  );
+  c.setRecording(false);
+  if (resetsScene) {
+    if (c.state.program.steps.length) c.clearProgram(true);
+    c.changeScene(
+      initialScene({
+        obstacle: id === "obstacle",
+        destination: transfer ? "destinationB" : "destinationA",
+      }),
+    );
+    renderer?.clearTrail();
+  }
+  view.focusJoint = undefined;
   learning = beginLessonAttempt(learning, id, {
     transfer,
     programRevision: c.state.program.revision,
   });
+  currentAttempt(learning).curriculumVersion = 2;
+  learning.presentation = {
+    phase: transfer ? "try" : "understand",
+    lessonId: id,
+  };
+  view.labels = id === "anatomy";
+  $("labels").checked = view.labels;
   $("prediction").value = "";
   $("reflection").value = "";
   $("coach-text").textContent = transfer
@@ -658,7 +802,7 @@ $("hint").addEventListener("click", () => {
   persist();
   render();
 });
-for (const key of ["grid", "axes"])
+for (const key of ["grid", "axes", "ghost", "trail", "path"])
   $(key).addEventListener("click", () => {
     view[key] = !view[key];
     $(key).setAttribute("aria-pressed", String(view[key]));
@@ -670,12 +814,19 @@ for (const key of ["labels", "proxies"])
     render();
   });
 $("home").addEventListener("click", () => renderer?.home());
+$("clear-trail").addEventListener("click", () => renderer?.clearTrail());
 $("steps").addEventListener("click", () => {
-  $("steps-dialog").showModal();
+  $("steps-dialog").setAttribute("open", "");
+  document.body.dataset.panel = "program";
+  render();
   $("close-steps").focus();
 });
 $("close-steps").addEventListener("click", () => $("steps-dialog").close());
-$("steps-dialog").addEventListener("close", () => $("steps").focus());
+$("steps-dialog").addEventListener("close", () => {
+  document.body.dataset.panel = "";
+  render();
+  $("steps").focus();
+});
 $("clear").addEventListener("click", () => {
   $("confirm-text").textContent = tr("clear.question", {
     count: c.state.program.steps.length,
@@ -731,6 +882,7 @@ function renderJointControls() {
     range.addEventListener("input", () => (number.value = range.value));
     number.addEventListener("input", () => (range.value = number.value));
     button.addEventListener("click", () => {
+      view.focusJoint = i;
       if (number.value.trim() === "")
         return report({ ok: false, error: { code: "INVALID_INPUT" } });
       report(
@@ -752,6 +904,7 @@ function download(kind) {
       learning,
       language,
       learnerName: $("learner-name").value,
+      scene: c.state.scene,
     }),
   );
   if (!r.ok) return report(r);
@@ -768,14 +921,149 @@ $("export-json").addEventListener("click", () => download("json"));
 $("export-text").addEventListener("click", () => download("text"));
 $("learner-name").addEventListener("change", persist);
 renderer = createScene($("scene"));
+if (!currentAttempt(learning)) {
+  learning = beginLessonAttempt(learning, learning.currentLessonId);
+  currentAttempt(learning).curriculumVersion = 2;
+}
+journey = createLearningFlow({
+  get: () => ({ c, learning, language, mode, tr }),
+  setLearning: (value) => (learning = value),
+  startLesson,
+  report,
+  persist,
+  render,
+  preview,
+});
+document.querySelector(".attribution").before($("steps-dialog"));
+$("program-validation").before(
+  $("steps-dialog").querySelector(".dialog-footer"),
+);
+const viewMore = el("details", undefined, "view-more"),
+  viewSummary = el("summary", "⋯");
+viewSummary.setAttribute("aria-label", "View options / 视图选项");
+viewMore.append(viewSummary, $("grid"), $("axes"), $("clear-trail"));
+document.querySelector(".view-tools").append(viewMore);
+// File-based progress and image evidence; no service or student database.
+const importButton = el("button"),
+  fileInput = el("input"),
+  imageButton = el("button"),
+  fileNote = el("p", undefined, "subtle");
+importButton.id = "import-project";
+imageButton.id = "capture-scene";
+fileInput.id = "project-file";
+fileInput.type = "file";
+fileInput.accept = ".json,application/json";
+fileInput.hidden = true;
+document
+  .querySelector(".portfolio-content")
+  .append(importButton, fileInput, imageButton, fileNote);
+const translateFiles = () => {
+  importButton.textContent = word("restore", language);
+  imageButton.textContent = word("screenshot", language);
+  fileNote.textContent = word("fileNote", language);
+  $("export-json").textContent = word("save", language);
+};
+$("language").addEventListener("change", translateFiles);
+importButton.onclick = () => {
+  if (!c.busy) fileInput.click();
+};
+fileInput.onchange = async () => {
+  const file = fileInput.files[0];
+  if (!file) return;
+  if (c.busy || file.size > 12000000) {
+    $("storage-status").textContent = tr("error.INVALID_INPUT");
+    return;
+  }
+  const result = parseProgressFile(await file.text());
+  if (!result.ok) {
+    $("storage-status").textContent =
+      language === "zh"
+        ? "文件无效或版本不受支持。当前工作未改变。"
+        : "Invalid or unsupported project file. Your current work is unchanged.";
+    fileInput.value = "";
+    return;
+  }
+  if (
+    (c.state.program.steps.length || learning.evidenceEvents.length) &&
+    !window.confirm(
+      language === "zh"
+        ? "打开此文件将替换当前工作，请先导出需要保留的项目。继续？"
+        : "Opening this file replaces current work. Export anything you want to keep first. Continue?",
+    )
+  )
+    return;
+  journey.endDemo(false);
+  c.stop();
+  if (c.state.program.steps.length) c.clearProgram(true);
+  const data = result.value;
+  renderer.clearTrail();
+  c.changeScene(data.scene || initialScene());
+  c.initialScene = initialScene({
+    obstacle: !!data.scene?.obstacles.length,
+    destination: data.scene?.destination || "destinationA",
+  });
+  if (data.program) c.state.program = revalidateProgram(data.program);
+  learning = data.learning;
+  language = data.language;
+  $("learner-name").value = data.learnerName;
+  c.sequence = Math.max(
+    c.sequence,
+    ...learning.evidenceEvents.map(
+      (e) => Number(String(e.id).replace("event-", "")) || 0,
+    ),
+  );
+  c.setRecording(false);
+  c.syncTarget();
+  lastRevision = -1;
+  demo = false;
+  $("joint-controls").hidden = true;
+  $("prediction").value = currentAttempt(learning)?.prediction || "";
+  $("reflection").value = currentAttempt(learning)?.reflection || "";
+  translate();
+  translateFiles();
+  persist();
+  fileInput.value = "";
+};
+imageButton.onclick = () => {
+  const image = renderer.capture();
+  if (!image) {
+    $("storage-status").textContent = word("captureFailed", language);
+    return;
+  }
+  const filename = `robot-lab-${learning.currentLessonId}-${Date.now()}.png`,
+    a = el("a");
+  const bytes = Uint8Array.from(atob(image.split(",")[1]), (character) =>
+    character.charCodeAt(0),
+  );
+  const imageUrl = URL.createObjectURL(
+    new Blob([bytes], { type: "image/png" }),
+  );
+  a.href = imageUrl;
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(imageUrl), 1000);
+  if (mode === "learn" && !journey.demo)
+    learning = recordLearningEvent(learning, {
+      type: "IMAGE_CAPTURED",
+      filename,
+      actualScene: clone(c.state.scene),
+      note: "Scene image download requested; keep the separate PNG file. Not an assessment of understanding.",
+    });
+  persist();
+  render();
+};
 uiReady = true;
+$("prediction").value = currentAttempt(learning)?.prediction || "";
+$("reflection").value = currentAttempt(learning)?.reflection || "";
 translate();
-$("coach-text").textContent = tr("lessons.coordinates.hint");
+translateFiles();
+$("coach-text").textContent = tr(`lessons.${learning.currentLessonId}.hint`);
 render();
 const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 function animate(now) {
   const delta = lastFrame === null ? 0 : Math.min(now - lastFrame, 100);
   lastFrame = now;
+  journey?.tick(delta);
   if (c.operation && c.state.execution.status !== "paused") {
     c.tick(reduced ? 1e9 : delta);
     if (!c.busy) persist();

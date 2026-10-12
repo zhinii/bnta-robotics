@@ -155,6 +155,7 @@ const chooseLesson = (id) => {
   $("lesson-select").dispatchEvent(new w.Event("change"));
 };
 const predict = () => {
+  click("phase-try");
   change(
     "prediction",
     "I predict the requested movement and will check actual feedback.",
@@ -162,6 +163,7 @@ const predict = () => {
   click("save-prediction");
 };
 const reflect = () => {
+  click("phase-review");
   change(
     "reflection",
     "I compared the actual result with my prediction and revised the sequence.",
@@ -191,6 +193,30 @@ for (const [id, answers] of [
   for (const details of $("lesson-content").querySelectorAll("details"))
     details.open = true;
   predict();
+  click("phase-watch");
+  const exampleBefore = structuredClone(saved());
+  click("watch-example");
+  advance(120000);
+  assert.deepEqual(
+    saved().program,
+    exampleBefore.program,
+    "demonstrations must not write learner programs",
+  );
+  assert.deepEqual(
+    saved().scene,
+    exampleBefore.scene,
+    "demonstrations must not move learner robot",
+  );
+  click("phase-try");
+  if (id === "anatomy") {
+    click("demo-toggle");
+    const row = $("joint-controls").querySelector(".joint-row");
+    row.querySelector('input[type="number"]').value = "10";
+    row.querySelector("button").click();
+    advance(5000);
+    click("demo-toggle");
+  }
+  click("phase-review");
   for (const [key, value] of Object.entries(answers))
     $("answer-form").querySelector(`[name="${key}"]`).value = value;
   $("answer-form").querySelector("button").click();
@@ -203,6 +229,14 @@ click("plus-z");
 click("move");
 advance(5000);
 click("inspect-joints");
+click("phase-review");
+const measurementMove = saved()
+  .learning.evidenceEvents.filter((e) => e.type === "MOVE_COMPLETED")
+  .at(-1);
+change("calc-displacement", "10");
+change("calc-distance", "10");
+change("calc-speed", String(10 / (measurementMove.simulatedDurationMs / 1000)));
+click("check-calculation");
 reflect();
 done("coordinates");
 chooseLesson("grip");
@@ -306,8 +340,21 @@ advance(120000);
 reflect();
 assert.equal(saved().learning.lessons.obstacle.status, "transferPassed");
 assert.equal(saved().scene.objects[0].supportedByFixtureId, "destinationB");
+const completedProgram = saved().program;
+const completedScene = saved().scene;
 chooseLesson("design");
+assert.deepEqual(
+  saved().program,
+  completedProgram,
+  "design reflection retains the tested program",
+);
+assert.deepEqual(
+  saved().scene,
+  completedScene,
+  "design reflection retains the actual result",
+);
 predict();
+click("phase-review");
 const proposal = {
   interest: "making",
   bodyPlan: "articulated",
@@ -379,6 +426,10 @@ for (const k of [
   globalThis[k] = k === "window" ? rw : rw[k];
 await import("../main.mjs?restore-case=1");
 const r$ = (id) => rw.document.getElementById(id);
+assert.equal(
+  r$("prediction").value,
+  JSON.parse(restoreRaw).learning.lessons.obstacle.attempts.at(-1).prediction,
+);
 r$("learn").click();
 r$("steps").click();
 r$("reset").click();

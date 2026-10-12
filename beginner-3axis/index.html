@@ -6,6 +6,7 @@
     <meta name="color-scheme" content="light" />
     <title>Robot Lab · Three-axis learning lab</title>
     <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./learning-flow.css" />
     <script type="importmap">
       { "imports": { "three": "./vendor/three/build/three.module.js" } }
     </script>
@@ -51,6 +52,25 @@
               <h2 data-i18n="scene.title"></h2>
               <div class="view-tools">
                 <button
+                  id="ghost"
+                  aria-pressed="true"
+                  data-i18n="control.ghost"
+                ></button>
+                <button
+                  id="path"
+                  aria-pressed="true"
+                  data-i18n="control.path"
+                ></button>
+                <button
+                  id="trail"
+                  aria-pressed="true"
+                  data-i18n="control.trail"
+                ></button>
+                <button
+                  id="clear-trail"
+                  data-i18n="control.clearTrail"
+                ></button>
+                <button
                   id="grid"
                   aria-pressed="true"
                   data-i18n="control.grid"
@@ -75,6 +95,7 @@
               ><span data-i18n="control.target"></span
               ><span class="model-badge">3R · J1 / J2 / J3</span>
             </div>
+            <p class="path-key" data-i18n="scene.pathKey"></p>
             <p id="fixture-reference" class="subtle"></p>
           </div>
           <details class="card route-card">

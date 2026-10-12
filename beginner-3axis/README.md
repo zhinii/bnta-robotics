@@ -67,7 +67,7 @@ Wireframe markers are abstract support/capture fixtures. Pickup requires the act
 - When ON, a successfully completed manual move or state-changing gripper action adds one named step. Preview, view controls, playback, failures, no-ops and interrupted motion do not record.
 - Run checks the actual scene against the captured program start, preflights the full program, and does not silently reset. Reset deliberately restores the captured start and keeps steps/evidence.
 - Pause freezes the exact timeline; Run becomes Resume. Stop invalidates the operation and preserves its partial scene. After an interrupted recording, reset/replay to the known end, or explicitly clear and start again.
-- Steps opens a native modal editor with rename/reorder/delete, playback, Reset and separately confirmed Clear. Editing revalidates the complete sequence without moving the live robot.
+- Steps opens a compact side-panel list while the robot stays visible. Select a position for its target ghost and details; rename/reorder/delete revalidates the full sequence. Reset and separately confirmed Clear are visible at the top. The common Run/Pause/Stop bar remains available.
 - Joint demo previews a single joint angle; **Move joint** uses a checked joint-linear path, with other joints fixed. It never records; XYZ controls are disabled while it is active. A nonempty program must be cleared deliberately before entering the separate demo.
 - Camera Orbit, Grid, Axes and Home view never change the robot frame or program.
 
@@ -77,11 +77,17 @@ Seven short lessons introduce body plans, anatomy, joint-vs-XYZ movement, actual
 
 The changed-target attempt uses destination B, a new/edited recorded program and actual replay release evidence. Hints and worked examples are tracked; the independent attempt hides them and clears prior coaching. Fixture goal coordinates remain available as task information.
 
-English and 简体中文 use one central dictionary. Learner-written names and reflections are preserved as authored. Significant errors/completions use a polite status region. The app uses semantic controls, native dialogs, focus styling, reduced-motion support, and responsive CSS, but real accessibility/device acceptance is still pending.
+English and 简体中文 use paired offline dictionaries, including the lesson framework. Learner-written names and reflections are preserved as authored. Significant errors/completions use a polite status region. The app uses semantic controls, confirmation dialogs, focus styling, reduced-motion support and responsive CSS. See LOCAL_VERIFICATION.md for measured browser checks; physical-device and full assistive-technology acceptance remain separate.
 
-Only the new local key `bnta3axis:v1` is used. The old application's data is never read, migrated or cleared. Recording never restores ON. Bad/stale stored data is retained and blocks overwrite; quota/privacy failures keep the current session usable and visibly request an export. The UI does not currently provide an import or a destructive storage-repair flow; export the in-memory work before deliberately clearing this site's new key in browser settings.
+Only the new local key `bnta3axis:v1` is used as a convenience copy. The old application's data is never read, migrated or cleared. Recording never restores ON. Bad/stale stored data is retained and blocks overwrite; quota/privacy failures keep the current session usable and visibly request an export. Save project JSON includes a validated resume payload, and Open project JSON validates before confirming replacement of current work. No server database is used.
 
-Evidence history is capped at 2,000 events: the app warns and stops adding evidence rather than silently deleting it. Text fields are length-limited. Names are optional and blank by default. JSON and readable text portfolio exports are generated locally; they include actual evidence and limitations, not a screenshot. No analytics, AI calls, student-data upload, API keys or hardware connection is present. `coach.mjs` exposes a bounded future-adapter schema only.
+Evidence history is capped at 2,000 events: the app warns and stops adding evidence rather than silently deleting it. Text fields are length-limited. Names are optional and blank by default. JSON and readable text exports include actual events, predictions, calculations, reflections and limitations. Save scene image creates a separate PNG; retain it with the project. No analytics, AI calls, student-data upload, API keys or hardware connection is present. The guide is honestly labelled scripted. `coach.mjs` exposes a bounded future-adapter schema only.
+
+## Brief revision and reusable teaching framework
+
+Read [BRIEF_REVIEW.md](BRIEF_REVIEW.md) for the pre-change learner audit and [TEACHING_FRAMEWORK.md](TEACHING_FRAMEWORK.md) for lesson outcomes, evidence and teacher review. Each lesson has Understand, Watch, Try and Review phases. Examples use an isolated controller and never contribute student completion evidence. A new anatomy attempt requires actual joint operation; a new coordinate attempt also requires a calculation checked against the actual movement and model time. Earlier stored attempts remain compatible.
+
+Ghost shows the target arm pose. A dashed blue line shows expected TCP travel; the program panel shows the whole saved route. Red indicates an invalid move/program, not simulated impact. The orange trail follows actual movement and can be hidden or cleared. These overlays do not move the robot or change a program. The gripper now has a connecting slide bridge included in collision checks.
 
 ## Dependencies and attribution
 

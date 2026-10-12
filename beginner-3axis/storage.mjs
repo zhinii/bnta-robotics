@@ -427,6 +427,21 @@ function parseRaw(raw) {
     return problem("unsupportedOrInvalidPayload");
   return success(parsed);
 }
+/** File import is validated fully before the UI replaces any current work. */
+export function parseProgressFile(raw) {
+  if (typeof raw !== "string" || raw.length > MAX_STORAGE_CHARACTERS)
+    return problem("payloadTooLarge");
+  try {
+    const value = JSON.parse(raw);
+    return parseRaw(
+      JSON.stringify(
+        value.kind === "bnta-3axis-portfolio" ? value.resume : value,
+      ),
+    );
+  } catch {
+    return problem("malformedJson");
+  }
+}
 /** An absent argument resolves browser storage inside try/catch, including its
  * privacy-mode getter. Dependency injection permits deterministic Node tests. */
 export function loadProgress(storage) {
@@ -518,6 +533,7 @@ export function exportPortfolio(
     learning = createLearningState(),
     learnerName = "",
     language = "en",
+    scene = null,
   } = {},
   now = new Date().toISOString(),
 ) {
@@ -557,6 +573,10 @@ export function exportPortfolio(
     program: clone(program),
     lessonEvidence,
     evidenceEvents: clone(learning.evidenceEvents),
+    resume: createProgressPayload(
+      { program, learning, learnerName, language, scene },
+      now,
+    ),
     verification,
   };
   const line = (key, value) => `${textKey(key)}: ${value}`;
@@ -584,6 +604,12 @@ export function exportPortfolio(
         `  ${line("reflection", a.reflection || textKey("notSupplied"))}`,
       );
       if (a.design) lines.push(`  ${line("design", JSON.stringify(a.design))}`);
+      for (const event of learning.evidenceEvents.filter(
+        (e) =>
+          e.attemptId === a.id &&
+          ["CALCULATION_SUBMITTED", "IMAGE_CAPTURED"].includes(e.type),
+      ))
+        lines.push(`  ${event.type}: ${JSON.stringify(event)}`);
       if (a.transferResult)
         lines.push(
           `  ${line("changedTarget", JSON.stringify(a.transferResult))}`,

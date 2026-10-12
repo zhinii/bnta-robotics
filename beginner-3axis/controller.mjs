@@ -272,7 +272,18 @@ export class Controller {
       if (plan.kind === "move" && !plan.noop)
         event = this.emit(
           plan.demo ? "JOINT_DEMO_COMPLETED" : "MOVE_COMPLETED",
-          { before, after: this.state.scene, targetMm: plan.target },
+          {
+            before,
+            after: this.state.scene,
+            targetMm: plan.target,
+            simulatedDurationMs: plan.durationMs,
+            pathDistanceMm: plan.samples
+              .slice(1)
+              .reduce(
+                (sum, q, i) => sum + distance(fk(plan.samples[i]).C, fk(q).C),
+                0,
+              ),
+          },
         );
       else
         for (const e of plan.events || []) {

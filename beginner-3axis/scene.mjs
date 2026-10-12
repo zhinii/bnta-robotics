@@ -1,7 +1,7 @@
 /** Read-only, Z-up millimetre rendering of the verified educational model. */
 import * as THREE from "three";
 import { OrbitControls } from "./vendor/three/examples/jsm/controls/OrbitControls.js";
-import { CONFIG, fk, finiteVec, add, scale } from "./model.mjs";
+import { CONFIG, fk, solveIk, finiteVec, add, scale } from "./model.mjs";
 import { BASE, proxies as robotProxies } from "./geometry.mjs";
 import { t } from "./i18n.mjs";
 
@@ -307,6 +307,16 @@ export function buildSceneGraph() {
   }
   joints[0].quaternion.setFromUnitVectors(Y, Z);
   joints[0].position.set(0, 0, 66);
+  // A continuous turret neck connects the base swivel to the shoulder bearing.
+  const neck = new THREE.Mesh(
+    new THREE.CylinderGeometry(7, 9, 17, 24),
+    material(COLOURS.tool),
+  );
+  neck.quaternion.setFromUnitVectors(Y, Z);
+  neck.position.z = 72.5;
+  neck.name = "turretNeck";
+  neck.userData.decorative = true;
+  robot.add(neck);
   const actuator = nameNode(
     new THREE.Mesh(
       new THREE.CylinderGeometry(6, 6, 5, 18),
@@ -418,6 +428,39 @@ export function buildSceneGraph() {
     obstacleSignature: null,
     objectSignature: null,
   };
+  graph.ghost = nameNode(new THREE.Group(), "targetArmGhost");
+  graph.ghostLinks = new Map();
+  for (const p of defaultProxies) {
+    const mesh = makeCapsule(p, COLOURS.target);
+    mesh.material.transparent = true;
+    mesh.material.opacity = 0.24;
+    mesh.material.depthWrite = false;
+    mesh.name = `ghost:${p.id}`;
+    graph.ghostLinks.set(p.id, mesh);
+    graph.ghost.add(mesh);
+  }
+  scene.add(graph.ghost);
+  graph.trailPoints = [];
+  graph.trail = new THREE.Line(
+    new THREE.BufferGeometry(),
+    new THREE.LineBasicMaterial({
+      color: 0xf27822,
+      transparent: true,
+      opacity: 0.95,
+    }),
+  );
+  graph.trail.name = "actualToolTrail";
+  scene.add(graph.trail);
+  graph.programPath = new THREE.Line(
+    new THREE.BufferGeometry(),
+    new THREE.LineDashedMaterial({
+      color: COLOURS.target,
+      dashSize: 3,
+      gapSize: 2,
+    }),
+  );
+  graph.programPath.name = "programExpectedPath";
+  scene.add(graph.programPath);
   return graph;
 }
 
@@ -499,6 +542,15 @@ export function updateSceneGraph(graph, state, target, options = {}) {
   graph.joints[2].position.copy(point(pose.E));
   graph.joints[1].quaternion.setFromUnitVectors(Y, point(pose.u));
   graph.joints[2].quaternion.setFromUnitVectors(Y, point(pose.u));
+  graph.joints.forEach((joint, i) =>
+    joint.material.color.setHex(
+      options.focusJoint === i
+        ? 0x1cb568
+        : i === 0
+          ? COLOURS.tool
+          : COLOURS.joint,
+    ),
+  );
   graph.joints[0].quaternion
     .setFromUnitVectors(Y, Z)
     .premultiply(
@@ -515,6 +567,54 @@ export function updateSceneGraph(graph, state, target, options = {}) {
   graph.toolFrame.quaternion.setFromRotationMatrix(basis);
   graph.current.position.copy(point(pose.C));
   const preview = previewState(target, pose.C);
+  const ghostPose = preview.finite
+    ? solveIk(preview.position, state.actualJoints)
+    : null;
+  graph.ghost.visible =
+    (options.ghost ?? true) &&
+    !!ghostPose?.ok &&
+    point(preview.position).distanceTo(point(pose.C)) > 0.5;
+  if (graph.ghost.visible)
+    for (const p of robotProxies(ghostPose.value, state.gripperState)) {
+      const mesh = graph.ghostLinks.get(p.id);
+      orientSegment(mesh, p.a, p.b);
+      mesh.material.color.setHex(
+        preview.valid ? COLOURS.target : COLOURS.invalid,
+      );
+    }
+  if (graph.trailMode !== !!options.demonstration) {
+    if (!graph.trailMode) graph.learnerTrail = graph.trailPoints;
+    graph.trailPoints = options.demonstration ? [] : graph.learnerTrail || [];
+    graph.trailMode = !!options.demonstration;
+    graph.trail.geometry.dispose();
+    graph.trail.geometry = new THREE.BufferGeometry().setFromPoints(
+      graph.trailPoints,
+    );
+  }
+  const lastTrail = graph.trailPoints.at(-1);
+  if (!lastTrail || lastTrail.distanceTo(point(pose.C)) > 0.15) {
+    graph.trailPoints.push(point(pose.C));
+    if (graph.trailPoints.length > 1800) graph.trailPoints.shift();
+    graph.trail.geometry.dispose();
+    graph.trail.geometry = new THREE.BufferGeometry().setFromPoints(
+      graph.trailPoints,
+    );
+  }
+  graph.trail.visible = (options.trail ?? true) && graph.trailPoints.length > 1;
+  const programSignature = JSON.stringify(options.programPoints || []);
+  if (graph.programSignature !== programSignature) {
+    graph.programSignature = programSignature;
+    graph.programPath.geometry.dispose();
+    graph.programPath.geometry = new THREE.BufferGeometry().setFromPoints(
+      (options.programPoints || []).map(point),
+    );
+    graph.programPath.computeLineDistances();
+  }
+  graph.programPath.visible =
+    (options.path ?? true) && options.programPoints?.length > 1;
+  graph.programPath.material.color.setHex(
+    options.programValid === false ? COLOURS.invalid : COLOURS.target,
+  );
   graph.target.position.copy(point(preview.position));
   graph.target.visible =
     preview.finite && point(preview.position).distanceTo(point(pose.C)) > 0.5;
@@ -523,7 +623,9 @@ export function updateSceneGraph(graph, state, target, options = {}) {
     if (node.material?.color) node.material.color.setHex(previewColour);
   });
   graph.targetPath.visible =
-    preview.finite && point(preview.position).distanceTo(point(pose.C)) > 0.05;
+    (options.path ?? true) &&
+    preview.finite &&
+    point(preview.position).distanceTo(point(pose.C)) > 0.05;
   const positions = graph.targetPath.geometry.attributes.position;
   positions.setXYZ(0, pose.C.x, pose.C.y, pose.C.z);
   positions.setXYZ(
@@ -936,7 +1038,9 @@ export function createScene(container, options = {}) {
             .filter((item) => item.anatomy)
             .findIndex((item) => item.id === label.id) + 1;
         element.textContent = label.anatomy
-          ? String(anatomyIndex)
+          ? label.id === `J${(currentOptions.focusJoint ?? -2) + 1}`
+            ? strings[label.key]
+            : String(anatomyIndex)
           : label.text || strings[label.key] || label.key;
         element.title = strings[label.key] || label.text || "";
         if (label.anatomy)
@@ -1004,7 +1108,7 @@ export function createScene(container, options = {}) {
     if (disposed || failed) return;
     const rect = host.getBoundingClientRect();
     layoutWidth = Math.max(1, rect.width || container.clientWidth || 640);
-    layoutHeight = Math.max(240, rect.height || 360);
+    layoutHeight = Math.max(160, rect.height || 360);
     renderer.setSize(layoutWidth, layoutHeight, false);
     camera.aspect = layoutWidth / layoutHeight;
     camera.updateProjectionMatrix();
@@ -1130,6 +1234,20 @@ export function createScene(container, options = {}) {
   return {
     update,
     home,
+    clearTrail() {
+      if (graph) {
+        graph.trailPoints = [];
+        graph.learnerTrail = [];
+        graph.trail.geometry.dispose();
+        graph.trail.geometry = new THREE.BufferGeometry();
+        requestRender();
+      }
+    },
+    capture() {
+      if (failed || disposed) return null;
+      renderer.render(graph.scene, camera);
+      return renderer.domElement.toDataURL("image/png");
+    },
     dispose,
     resize,
     get supported() {
