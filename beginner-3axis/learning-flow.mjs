@@ -14,6 +14,7 @@ import {
 } from "./lessons.mjs";
 import { fk, distance } from "./model.mjs";
 import { createTypeSimulations } from "./type-simulations.mjs";
+import { createLessonGlossary } from "./lesson-glossary.mjs";
 import { VOCABULARY } from "./lesson-vocabulary.mjs";
 
 const WORDS = {
@@ -159,11 +160,14 @@ export function createLearningFlow(api) {
   const vocabulary = node("dl", null, "vocabulary-grid");
   vocabulary.id = "lesson-vocabulary";
   const courseFocus = node("p", null, "course-robot");
+  const courseBridge = node("div", null, "course-robot");
+  courseBridge.id = "course-focus-after-assessment";
   $("lesson-content").before(vocabulary, courseFocus);
   const typeHost = node("section", null, "type-simulations");
   typeHost.id = "type-simulations";
   $("lesson-content").after(typeHost);
   const typeSim = createTypeSimulations(typeHost);
+  const glossary = createLessonGlossary($("learning"));
   const assessmentNav = node("div", null, "assessment-nav");
   const operateStage = node("button"),
     reviewStage = node("button");
@@ -250,6 +254,7 @@ export function createLearningFlow(api) {
   next.id = "phase-next";
   lessonFooter.append(back, next);
   $("learning").append(lessonFooter);
+  lessonFooter.before(courseBridge);
   const ribbon = node("p", null, "lesson-ribbon");
   ribbon.id = "lesson-ribbon";
   document.querySelector(".scene-card").append(ribbon);
@@ -306,6 +311,7 @@ export function createLearningFlow(api) {
     routeSignature = "";
   let vocabularyKey = "";
   function setPhase(p) {
+    glossary.close();
     endDemo(false);
     phase = p;
     const { learning } = api.get();
@@ -436,14 +442,19 @@ export function createLearningFlow(api) {
         vocabulary.append(card);
       }
     }
-    courseFocus.hidden =
-      phase !== "understand" || !["types", "anatomy"].includes(id);
+    courseFocus.hidden = phase !== "understand" || id !== "anatomy";
+    courseBridge.hidden = id !== "types" || !assessment || !score.complete;
+    courseBridge.textContent =
+      language === "zh"
+        ? "机器人类型课程与评估已完成。接下来，本课程聚焦三轴关节式机械臂：J1底座旋转、J2肩关节、J3肘关节。夹爪独立开合，不算第四根定位轴。点击“下一课”认识它的部件。"
+        : "Robot types lesson and assessment complete. From here, this course focuses on a three-axis articulated arm: J1 base rotation, J2 shoulder and J3 elbow. Opening and closing the gripper is a separate action, not a fourth positioning axis. Choose Next lesson to meet its parts.";
     courseFocus.textContent =
       language === "zh"
         ? "本课程聚焦这种机器人：三轴关节式机械臂。三个旋转关节定位工具，夹爪独立开合。点击“演示”观察它，再在后续操作中使用3D工作区。"
         : "Our course focuses on this robot: a three-axis articulated arm. Three rotating joints position its tool; the gripper opens and closes separately. See it in Demo, then use the 3D workspace for practical lessons.";
-    typeHost.hidden = id !== "types" || phase !== "watch";
-    typeSim.update(language, mode === "learn" && !typeHost.hidden);
+    typeHost.hidden =
+      id !== "types" || !["understand", "watch"].includes(phase);
+    typeSim.update(language, mode === "learn" && !typeHost.hidden, phase, tr);
     assessmentNav.hidden = !["try", "review"].includes(phase) || conceptual;
     operateStage.textContent =
       language === "zh" ? "1 · 实际操作" : "1 · Operate";
@@ -500,6 +511,15 @@ export function createLearningFlow(api) {
       attempt?.prediction ? "predictSaved" : "recordFirst",
       language,
     );
+    if (conceptual)
+      predictionNote.textContent =
+        language === "zh"
+          ? attempt?.prediction
+            ? "回答已保存。请完成下方的评估与解释。"
+            : "先说明你的选择及理由，再完成下方的评估。"
+          : attempt?.prediction
+            ? "Your response is saved. Complete the assessment and explanation below."
+            : "Start with your choice and reasoning, then complete the assessment below.";
     predictionNote.hidden = phase !== "try";
     $("answer-form").hidden =
       !assessment || (conceptual && !attempt?.prediction);
@@ -516,6 +536,11 @@ export function createLearningFlow(api) {
     pending.textContent = nextCheck
       ? `${word("remaining", language)}: ${tr(`checks.${nextCheck[0]}`)}`
       : word("reviewReady", language);
+    if (conceptual && score.complete)
+      pending.textContent =
+        language === "zh"
+          ? "评估证据已保存，请阅读下方总结。"
+          : "Assessment evidence saved. Read the summary below.";
     pending.hidden = phase !== "try";
     taskGuide.hidden = true;
     if (routeSignature !== `${key}:${language}`) {
@@ -528,7 +553,7 @@ export function createLearningFlow(api) {
     routeSummary.textContent =
       language === "zh" ? "查看全部操作步骤" : "Show all practice steps";
     routeList
-      .querySelectorAll("button")
+      .querySelectorAll("button:not(.glossary-term)")
       .forEach((b) => (b.disabled = c.busy || !!demo));
     // Only committed actions after prediction mark a practical route item done.
     const events = learning.evidenceEvents.filter(
@@ -586,7 +611,7 @@ export function createLearningFlow(api) {
             node("small", activeStep.querySelector("small").textContent),
           );
         currentStep.append(text);
-        const original = activeStep.querySelector("button");
+        const original = activeStep.querySelector("button:not(.glossary-term)");
         if (original) {
           const use = node("button", word("use", language));
           use.id = "use-practice-target";
@@ -595,7 +620,7 @@ export function createLearningFlow(api) {
         }
       }
       currentStep
-        .querySelectorAll("button")
+        .querySelectorAll("button:not(.glossary-term)")
         .forEach((b) => (b.disabled = c.busy || !!demo));
     }
     math.hidden = phase !== "review" || id !== "coordinates";
@@ -629,6 +654,7 @@ export function createLearningFlow(api) {
     if (lastLang !== language) {
       lastLang = language;
     }
+    glossary.update(language);
   }
   return {
     render,

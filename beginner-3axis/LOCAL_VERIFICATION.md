@@ -1,5 +1,37 @@
 # Local integration verification — 12 October 2026
 
+## Robot-type slides, Three.js examples and vocabulary — 12 October 2026
+
+This supersedes the earlier 2D robot-type demos below. Concept now uses one
+swipeable slide window; Demo uses a shared Three.js renderer showing five
+different connected mechanisms doing jobs. Navigation supports horizontal
+pointer swipes, previous/next arrows, numbered type buttons and keyboard arrows.
+The three-axis articulated course-focus message is shown only after the type
+assessment is complete. All lesson text can expose bold glossary terms with
+bilingual, keyboard-accessible definitions; editable learner responses and
+operation controls retain their original behaviour.
+
+- **84 Node tests passed**, including sampled 3D arm/SCARA link lengths, all three
+  delta-chain closures, rover motion, the closed gantry print path and continuity.
+- **Seven-lesson DOM journey passed**, extended with slide navigation/swipe events,
+  all five demo controls, glossary lookups in each lesson, preservation of learning
+  and robot state on lookup, and completion-gated course focus. The model tests
+  establish geometry; DOM fallback does not claim WebGL rendering.
+- Inspected all five real WebGL previews in the in-app browser. Checked actual
+  horizontal drag from gantry to SCARA at 390×844, playback/scrubbing, connected
+  arm/SCARA/delta geometry, gantry print outline and rover parcel delivery.
+- Checked desktop 1280×1000, tablet 768×1024 and phone 390×844. Phone document had
+  no horizontal overflow, and the definition popup stayed within its width.
+  English and Chinese definitions worked; Enter opened a term and Escape closed
+  it. Fixed glossary markup so terms inside questions do not steal input labels.
+- Completed the robot-type assessment through visible browser controls: matching,
+  saved explanation, then the course-focus message and enabled Next lesson.
+- Physical touch hardware and full screen-reader certification remain untested.
+  Demos illustrate kinematics, not forces, payload or industrial accuracy. The
+  learner robot/program and root application remain isolated and unchanged.
+
+Local preview is still **http://127.0.0.1:4204/beginner-3axis/**. No deployment.
+
 ## Learn / Explore presentation revision — 12 October 2026
 
 - Learn now follows Vocabulary → Concept → Demo → Assessment. Practical assessment

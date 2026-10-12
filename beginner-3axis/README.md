@@ -73,7 +73,7 @@ Wireframe markers are abstract support/capture fixtures. Pickup requires the act
 
 ## Learning and privacy
 
-Learn uses **Vocabulary → Concept → Demo → Assessment**. Robot types use five interactive mechanism simulations, with Play/Pause, Reset and scrubbing. Reading and written assessment pages omit the 3D workspace; arm-specific examples and hands-on assessment bring it back. Explore remains the full three-axis operating workspace. Practical assessment separates operation from explanation/checking, and both contribute to the portfolio.
+Learn uses **Vocabulary → Concept → Demo → Assessment**. Robot types use swipeable concept slides and five Three.js job demonstrations, with Play/Pause, Reset and scrubbing. Their motion and graphics are separate from learner state. The course's three-axis articulated-arm focus is stated after completing that assessment. Reading and written assessment pages omit the operating workspace; arm-specific examples and hands-on assessment bring it back. Explore remains the full three-axis operating workspace. Bold vocabulary terms open bilingual definitions throughout lesson text. Practical assessment separates operation from explanation/checking, and both contribute to the portfolio.
 
 Seven short lessons introduce body plans, anatomy, joint-vs-XYZ movement, actual grasping, recording/replay, obstacle planning and an interest-led design proposal. Body-plan definitions, example jobs, trade-offs, morphology/cobot distinctions, sensor caveats and a post-replay six-axis comparison are visible teaching content. Answer checks and actual controller events supply evidence; predictions and learner-authored reflections remain separate. The scripted coach does not grade open-ended reasoning or operate the robot.
 

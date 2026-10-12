@@ -88,7 +88,9 @@ click("close-steps");
 $("record").checked = true;
 $("record").dispatchEvent(new w.Event("change"));
 click("route-toggle");
-const moves = [...$("waypoints").querySelectorAll("button")];
+const moves = [
+  ...$("waypoints").querySelectorAll("button:not(.glossary-term)"),
+];
 for (let i = 0; i < moves.length; i++) {
   moves[i].click();
   click("move");
@@ -153,6 +155,19 @@ click("learn");
 const chooseLesson = (id) => {
   $("lesson-select").value = id;
   $("lesson-select").dispatchEvent(new w.Event("change"));
+  const term = $("lesson-vocabulary").querySelector(".glossary-term");
+  assert.ok(term, `${id} vocabulary must contain tappable terms`);
+  const beforeGlossary = structuredClone(saved());
+  term.click();
+  assert.equal($("lesson-definition").hidden, false);
+  assert.ok($("lesson-definition").querySelector("p").textContent.length > 12);
+  document.querySelector(".definition-close").click();
+  assert.equal($("lesson-definition").hidden, true);
+  assert.deepEqual(
+    saved(),
+    beforeGlossary,
+    "Looking up a definition must not change learning evidence or the robot",
+  );
 };
 const predict = () => {
   click("phase-try");
@@ -195,6 +210,33 @@ for (const [id, answers] of [
   click("phase-understand");
   assert.equal($("lesson-vocabulary").hidden, true);
   assert.equal(document.querySelector(".scene-card").hidden, true);
+  if (id === "types") {
+    assert.equal($("lesson-content").querySelectorAll("details").length, 0);
+    assert.equal($("course-focus-after-assessment").hidden, true);
+    click("type-next");
+    assert.match($("robot-slide-title").textContent, /gantry/);
+    $("type-simulations").dispatchEvent(
+      new w.MouseEvent("pointerdown", {
+        bubbles: true,
+        clientX: 250,
+        clientY: 100,
+        button: 0,
+      }),
+    );
+    $("type-simulations").dispatchEvent(
+      new w.MouseEvent("pointerup", {
+        bubbles: true,
+        clientX: 100,
+        clientY: 103,
+        button: 0,
+      }),
+    );
+    assert.equal($("robot-slide-title").textContent, "SCARA");
+    $("type-simulations").dispatchEvent(
+      new w.KeyboardEvent("keydown", { bubbles: true, key: "ArrowLeft" }),
+    );
+    assert.match($("robot-slide-title").textContent, /gantry/);
+  }
   assert.ok(
     $("lesson-content").textContent.includes(
       id === "types" ? "Morphology" : "physical sensors",
@@ -211,16 +253,14 @@ for (const [id, answers] of [
     assert.equal(document.querySelector(".scene-card").hidden, true);
     assert.equal($("type-simulations").hidden, false);
     assert.equal($("watch-example").closest(".example-pane").hidden, true);
-    for (const button of document.querySelectorAll("[data-robot-type]")) {
+    for (const button of document.querySelectorAll("button[data-robot-type]")) {
       button.click();
-      const svgBefore = document.querySelector(".mechanism-stage").innerHTML;
+      click("type-reset");
+      const progressBefore = $("robot-type-stage").dataset.progress;
       click("type-play");
       advance(4000);
       click("type-play");
-      assert.notEqual(
-        document.querySelector(".mechanism-stage").innerHTML,
-        svgBefore,
-      );
+      assert.notEqual($("robot-type-stage").dataset.progress, progressBefore);
       const paused = $("type-progress").value;
       advance(1500);
       assert.equal($("type-progress").value, paused);
@@ -257,16 +297,25 @@ for (const [id, answers] of [
     click("demo-toggle");
     const row = $("joint-controls").querySelector(".joint-row");
     row.querySelector('input[type="number"]').value = "10";
-    row.querySelector("button").click();
+    row.querySelector("button:not(.glossary-term)").click();
     advance(5000);
     click("demo-toggle");
   }
   click("phase-review");
   for (const [key, value] of Object.entries(answers))
     $("answer-form").querySelector(`[name="${key}"]`).value = value;
-  $("answer-form").querySelector("button").click();
+  $("answer-form").querySelector("button:not(.glossary-term)").click();
   reflect();
   done(id);
+  if (id === "types") {
+    assert.equal($("course-focus-after-assessment").hidden, false);
+    assert.match(
+      $("course-focus-after-assessment").textContent,
+      /three-axis articulated arm/,
+    );
+    click("phase-watch");
+    assert.equal($("course-focus-after-assessment").hidden, true);
+  }
 }
 chooseLesson("coordinates");
 predict();
@@ -287,10 +336,9 @@ done("coordinates");
 chooseLesson("grip");
 predict();
 click("route-toggle");
-for (const button of [...$("waypoints").querySelectorAll("button")].slice(
-  0,
-  2,
-)) {
+for (const button of [
+  ...$("waypoints").querySelectorAll("button:not(.glossary-term)"),
+].slice(0, 2)) {
   button.click();
   click("move");
   advance(30000);
@@ -310,7 +358,9 @@ function recordUiRoute() {
   $("record").checked = true;
   $("record").dispatchEvent(new w.Event("change"));
   if ($("waypoints").hidden) click("route-toggle");
-  const buttons = [...$("waypoints").querySelectorAll("button")];
+  const buttons = [
+    ...$("waypoints").querySelectorAll("button:not(.glossary-term)"),
+  ];
   for (let i = 0; i < buttons.length; i++) {
     buttons[i].click();
     click("move");
@@ -335,7 +385,7 @@ assert.match($("six-axis").textContent, /six-axis arm/);
 chooseLesson("obstacle");
 predict();
 click("route-toggle");
-let path = [...$("waypoints").querySelectorAll("button")];
+let path = [...$("waypoints").querySelectorAll("button:not(.glossary-term)")];
 for (const button of path.slice(0, 2)) {
   button.click();
   click("move");
@@ -409,7 +459,7 @@ const proposal = {
 };
 for (const [key, value] of Object.entries(proposal))
   $("answer-form").querySelector(`[name="${key}"]`).value = value;
-$("answer-form").querySelector("button").click();
+$("answer-form").querySelector("button:not(.glossary-term)").click();
 reflect();
 done("design");
 const downloads = [];

@@ -16,8 +16,8 @@ export const COURSE = {
       "根据工作选择合适的机器人结构。",
     ),
     concept: pair(
-      "A robot is a machine controlled by instructions. This simulator is an articulated arm: three rotating joints position a gripper. A gantry moves on straight rails. Body shape changes where and how a robot can work.",
-      "机器人是按指令工作的机器。本模拟器是关节式机械臂：三个旋转关节定位夹爪。龙门式机器人沿直线导轨移动。结构决定机器人能在哪里、以什么方式工作。",
+      "A robot follows instructions. Its body plan changes how it moves and which jobs it can do. Swipe through five types, then see each one working in Demo.",
+      "机器人按指令工作。结构类型决定它如何运动、适合什么任务。滑动认识五种类型，再在“演示”中观察它们工作。",
     ),
     prediction: pair(
       "Which body plan would you choose to move books along straight library shelves? Why?",

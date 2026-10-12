@@ -2,6 +2,24 @@ const term = (en, zh, meaning, meaningZh) => ({ en, zh, meaning, meaningZh });
 export const VOCABULARY = {
   types: [
     term(
+      "SCARA",
+      "SCARA机器人",
+      "An arm that reaches using rotary joints in a horizontal plane, with vertical movement for jobs such as insertion.",
+      "通过水平面内的旋转关节定位，并通过竖直运动完成插入等任务的机械臂。",
+    ),
+    term(
+      "Delta",
+      "Delta机器人",
+      "A parallel robot whose linked arms work together to move one platform.",
+      "多组支臂共同驱动同一个运动平台的并联机器人。",
+    ),
+    term(
+      "Mobile rover",
+      "移动机器人",
+      "A robot that moves its whole body through a space, for example on wheels.",
+      "通过轮子等方式让整个机体在空间中移动的机器人。",
+    ),
+    term(
       "Robot",
       "机器人",
       "A machine that carries out programmed actions.",

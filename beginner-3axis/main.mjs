@@ -522,17 +522,6 @@ function renderTeaching(id) {
   root.replaceChildren();
   if (id === "types") {
     root.append(el("p", tr("bodyPlans.morphology")));
-    for (const type of Object.keys(BODY_PLAN_ANSWERS)) {
-      const item = el("details"),
-        heading = el("summary", tr(`bodyPlans.${type}.title`));
-      item.append(
-        heading,
-        ...["description", "job", "tradeoff"].map((k) =>
-          el("p", tr(`bodyPlans.${type}.${k}`)),
-        ),
-      );
-      root.append(item);
-    }
     root.append(el("p", tr("bodyPlans.cobot")));
   } else if (id === "anatomy") {
     for (const part of [

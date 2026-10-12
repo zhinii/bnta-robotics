@@ -1,5 +1,187 @@
 /* Layout contract: a visible scene and a scrollable lesson/operation rail.
    Instructions never occupy the robot canvas. Phone uses the same DOM order. */
+.robot-slides {
+  border: 1px solid #dbe3ef;
+  border-radius: 18px;
+  padding: clamp(14px, 2vw, 24px);
+  background: #fff;
+  touch-action: pan-y;
+  margin: 16px 0;
+}
+.slide-heading {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.robot-slides .slide-heading h3 {
+  margin: 0;
+  font-size: clamp(22px, 3vw, 30px);
+  flex: 1;
+}
+.slide-counter {
+  padding: 7px 12px;
+  border-radius: 30px;
+  background: #e9effb;
+  color: #2450a0;
+  white-space: nowrap;
+  font-weight: 700;
+  font-size: 12px;
+}
+.robot-slide-description {
+  line-height: 1.65;
+  color: #4b5e75;
+}
+.robot-slide-facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin: 24px 0;
+}
+.robot-slide-facts section {
+  padding: 20px;
+  border-radius: 12px;
+  background: #f2f6fc;
+}
+.robot-slide-facts h4 {
+  margin: 0 0 10px;
+  font-size: 14px;
+}
+.robot-slide-facts p {
+  margin: 0;
+  line-height: 1.7;
+}
+.robot-type-stage {
+  width: 100%;
+  height: clamp(270px, 43dvh, 430px);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #eef2f7;
+}
+.robot-type-stage canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.robot-type-fallback {
+  padding: 24px;
+}
+.robot-slide-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-left: auto;
+}
+.robot-slide-nav > button {
+  min-width: 44px;
+  min-height: 44px;
+  font-size: 20px;
+}
+.robot-slide-dots {
+  display: flex;
+  gap: 4px;
+}
+.robot-slide-dots button {
+  min-width: 40px;
+  min-height: 44px;
+  padding: 5px;
+  border-radius: 10px;
+}
+.robot-slide-dots button[aria-current="true"] {
+  background: #245de8;
+  border-color: #245de8;
+  color: white;
+}
+.slide-swipe-hint {
+  font-size: 11px;
+  color: #63758c;
+  text-align: center;
+  margin: 12px 0 0;
+}
+.glossary-term {
+  display: inline !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: none !important;
+  color: #244b83 !important;
+  font: inherit !important;
+  font-weight: 750 !important;
+  line-height: inherit !important;
+  text-decoration: underline dotted #7393c1;
+  text-underline-offset: 3px;
+  cursor: help;
+}
+.glossary-term:focus-visible {
+  outline: 3px solid #2aaa73;
+  outline-offset: 3px;
+}
+.glossary-popup {
+  position: fixed;
+  z-index: 2000;
+  border: 2px solid #5980cf;
+  border-radius: 14px;
+  padding: 18px;
+  padding-right: 48px;
+  background: #fff;
+  box-shadow: 0 12px 40px #14294b33;
+  max-height: calc(100dvh - 24px);
+  overflow: auto;
+  color: #203149;
+}
+.glossary-popup strong {
+  font-size: 16px;
+}
+.glossary-popup p {
+  margin: 10px 0 0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.definition-close {
+  position: absolute;
+  right: 2px;
+  top: 2px;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  background: transparent;
+  font-size: 24px;
+}
+@media (max-width: 600px) {
+  .robot-slide-facts {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin: 16px 0;
+  }
+  .robot-slide-facts section {
+    padding: 14px;
+  }
+  .robot-slides {
+    padding: 12px;
+  }
+  .robot-slide-dots {
+    gap: 0;
+  }
+  .robot-slide-dots button {
+    min-width: 30px;
+  }
+  .robot-slide-nav {
+    width: 100%;
+  }
+  .robot-slide-media .mechanism-controls {
+    position: static;
+  }
+  .robot-type-stage {
+    height: clamp(250px, 34dvh, 320px);
+  }
+  .robot-slide-media .mechanism-controls {
+    top: 60px;
+  }
+}
 /* Learn is a lesson page. The machine workspace appears only for relevant demos/practice. */
 body[data-mode="learn"][data-lesson-scene="false"] .workspace {
   display: block;
