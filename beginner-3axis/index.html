@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="color-scheme" content="light" />
-    <title>BNTA Robotics · Three-axis learning lab</title>
+    <title>Robot Lab · Three-axis learning lab</title>
     <link rel="stylesheet" href="./styles.css" />
     <script type="importmap">
       { "imports": { "three": "./vendor/three/build/three.module.js" } }
@@ -12,7 +12,8 @@
   </head>
   <body>
     <header>
-      <a class="brand" href="../">BNTA <span>ROBOTICS</span></a
+      <a class="brand" href="../"
+        ><span class="brand-mark" aria-hidden="true">◇</span> Robot Lab</a
       ><span class="edition" data-i18n="app.title"></span>
       <nav aria-label="Mode">
         <button id="learn" data-i18n="mode.learn"></button
@@ -31,52 +32,6 @@
       >
     </header>
     <main>
-      <section id="learning" class="card learning" hidden>
-        <div class="section-head">
-          <select id="lesson-select" aria-label="Lesson / 课程"></select
-          ><button id="new-attempt" data-i18n="control.newAttempt"></button>
-        </div>
-        <h1 id="task-title"></h1>
-        <p id="task-description"></p>
-        <p id="lesson-status" class="badge"></p>
-        <div class="predict-row">
-          <label
-            ><span data-i18n="control.prediction"></span
-            ><textarea
-              id="prediction"
-              maxlength="1200"
-              rows="2"
-            ></textarea></label
-          ><button
-            id="save-prediction"
-            data-i18n="control.savePrediction"
-          ></button>
-        </div>
-        <div id="lesson-content"></div>
-        <p id="joint-deltas" class="subtle" hidden></p>
-        <div id="answer-form"></div>
-        <div class="lesson-actions">
-          <button id="inspect-joints" data-i18n="control.inspectJoints"></button
-          ><button
-            id="changed-target"
-            data-i18n="control.changedTarget"
-          ></button>
-        </div>
-        <details>
-          <summary data-i18n="control.reflection"></summary>
-          <label
-            ><span data-i18n="control.reflection"></span
-            ><textarea
-              id="reflection"
-              maxlength="1200"
-              rows="2"
-            ></textarea></label
-          ><button
-            id="save-reflection"
-            data-i18n="control.saveReflection"
-          ></button>
-        </details>
-      </section>
       <div class="workspace">
         <section class="scene-column">
           <div class="card scene-card">
@@ -106,22 +61,25 @@
             </div>
             <p id="fixture-reference" class="subtle"></p>
           </div>
-          <div class="card route-card">
-            <div class="section-head">
-              <h2 data-i18n="route.title"></h2>
-              <button
-                id="route-toggle"
-                data-i18n="control.workedExample"
-              ></button>
+          <details class="card route-card">
+            <summary data-i18n="route.title"></summary>
+            <div>
+              <div class="section-head">
+                <h2 data-i18n="route.title"></h2>
+                <button
+                  id="route-toggle"
+                  data-i18n="control.workedExample"
+                ></button>
+              </div>
+              <p data-i18n="route.previewOnly"></p>
+              <div id="waypoints" hidden></div>
             </div>
-            <p data-i18n="route.previewOnly"></p>
-            <div id="waypoints" hidden></div>
-          </div>
-          <section class="card coach-card">
-            <h2 data-i18n="coach.title"></h2>
+          </details>
+          <details class="card coach-card">
+            <summary data-i18n="coach.title"></summary>
             <p id="coach-text"></p>
             <button id="hint" data-i18n="control.hint"></button>
-          </section>
+          </details>
         </section>
         <section class="card control-card">
           <h2 data-i18n="control.move"></h2>
@@ -176,7 +134,7 @@
             <p data-i18n="help.collision"></p>
             <p data-i18n="help.noSafety"></p>
             <label
-              ><input id="labels" type="checkbox" checked /><span
+              ><input id="labels" type="checkbox" /><span
                 data-i18n="control.labels"
               ></span></label
             ><label
@@ -186,19 +144,73 @@
             ></label>
           </details>
         </section>
+        <section id="learning" class="card learning" hidden>
+          <div class="section-head">
+            <select id="lesson-select" aria-label="Lesson / 课程"></select
+            ><button id="new-attempt" data-i18n="control.newAttempt"></button>
+          </div>
+          <h1 id="task-title"></h1>
+          <p id="task-description"></p>
+          <p id="lesson-status" class="badge"></p>
+          <div class="predict-row">
+            <label
+              ><span data-i18n="control.prediction"></span
+              ><textarea
+                id="prediction"
+                maxlength="1200"
+                rows="2"
+              ></textarea></label
+            ><button
+              id="save-prediction"
+              data-i18n="control.savePrediction"
+            ></button>
+          </div>
+          <div id="lesson-content"></div>
+          <p id="joint-deltas" class="subtle" hidden></p>
+          <div id="answer-form"></div>
+          <div class="lesson-actions">
+            <button
+              id="inspect-joints"
+              data-i18n="control.inspectJoints"
+            ></button
+            ><button
+              id="changed-target"
+              data-i18n="control.changedTarget"
+            ></button>
+          </div>
+          <details>
+            <summary data-i18n="control.reflection"></summary>
+            <label
+              ><span data-i18n="control.reflection"></span
+              ><textarea
+                id="reflection"
+                maxlength="1200"
+                rows="2"
+              ></textarea></label
+            ><button
+              id="save-reflection"
+              data-i18n="control.saveReflection"
+            ></button>
+          </details>
+        </section>
       </div>
       <section id="six-axis" class="card" hidden>
         <p data-i18n="demo.sixAxis"></p>
       </section>
-      <section class="card portfolio">
-        <h2 data-i18n="portfolio.title"></h2>
-        <label
-          ><span data-i18n="control.learnerName"></span
-          ><input id="learner-name" maxlength="80" autocomplete="off" /></label
-        ><button id="export-json" data-i18n="control.exportJson"></button
-        ><button id="export-text" data-i18n="control.exportText"></button>
-        <p id="storage-status" class="subtle"></p>
-      </section>
+      <details class="card portfolio">
+        <summary data-i18n="portfolio.title"></summary>
+        <div class="portfolio-content">
+          <label
+            ><span data-i18n="control.learnerName"></span
+            ><input
+              id="learner-name"
+              maxlength="80"
+              autocomplete="off" /></label
+          ><button id="export-json" data-i18n="control.exportJson"></button
+          ><button id="export-text" data-i18n="control.exportText"></button>
+          <p id="storage-status" class="subtle"></p>
+        </div>
+      </details>
       <p class="attribution">
         Robot Lab — developed by Christopher Hansen.
         <a href="../LICENSE">MIT license</a> ·

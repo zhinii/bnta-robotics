@@ -6,17 +6,17 @@ import { BASE, proxies as robotProxies } from "./geometry.mjs";
 import { t } from "./i18n.mjs";
 
 const COLOURS = Object.freeze({
-  arm: 0x23465b,
-  tool: 0x07888c,
-  joint: 0xcde1e6,
+  arm: 0xd3dae4,
+  tool: 0x303b4e,
+  joint: 0x466ce3,
   current: 0xc57428,
-  target: 0x008f96,
+  target: 0x376be8,
   invalid: 0xb34237,
   part: 0xe39133,
-  base: 0x617d8c,
-  grid: 0xdce7eb,
+  base: 0x354154,
+  grid: 0xe1e4e9,
   source: 0x678291,
-  destination: 0x008c91,
+  destination: 0x376be8,
 });
 const Y = new THREE.Vector3(0, 1, 0);
 const Z = new THREE.Vector3(0, 0, 1);
@@ -26,8 +26,8 @@ const mean = (a, b) => point(a).add(point(b)).multiplyScalar(0.5);
 const material = (color, extra = {}) =>
   new THREE.MeshStandardMaterial({
     color,
-    roughness: 0.7,
-    metalness: 0.1,
+    roughness: 0.38,
+    metalness: 0.35,
     ...extra,
   });
 const nameNode = (node, name, extra = {}) => {
@@ -155,7 +155,7 @@ function clearGroup(group) {
  */
 export function buildSceneGraph() {
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0xeff5f7);
+  scene.background = new THREE.Color(0xf1f3f6);
   const robot = nameNode(new THREE.Group(), "robot");
   const debug = nameNode(new THREE.Group(), "collisionProxies");
   const fixtures = nameNode(new THREE.Group(), "fixtures");
@@ -166,14 +166,20 @@ export function buildSceneGraph() {
   scene.add(new THREE.HemisphereLight(0xffffff, 0x79888b, 2.1));
   const light = new THREE.DirectionalLight(0xffffff, 2.4);
   light.position.set(-150, -250, 500);
+  light.castShadow = true;
+  light.shadow.mapSize.set(1024, 1024);
+  Object.assign(light.shadow.camera, {left:-350,right:350,top:350,bottom:-350,near:1,far:1200});
+  light.shadow.bias = -0.0004;
+  light.shadow.normalBias = 0.4;
   scene.add(light);
 
   const floor = new THREE.Mesh(
     new THREE.PlaneGeometry(620, 520),
-    material(0xeaf1f3, { side: THREE.DoubleSide }),
+    material(0xf0f2f5, { side: THREE.DoubleSide }),
   );
   floor.position.set(70, 10, -0.06);
   floor.name = "floor";
+  floor.receiveShadow = true;
   scene.add(floor);
   const grid = nameNode(
     new THREE.GridHelper(500, 25, 0xc5d6dd, COLOURS.grid),
@@ -209,6 +215,20 @@ export function buildSceneGraph() {
     proxyMeshes.set(p.id, outline);
     debug.add(outline);
   }
+  const shells = new Map();
+  for (const [id, length, radius] of [
+    ["upper", 92, 9],
+    ["forearm", 76, 7.5],
+  ]) {
+    const shell = new THREE.Mesh(
+      new THREE.CylinderGeometry(radius * 0.72, radius, length, 12),
+      material(0xe0e5ed),
+    );
+    shell.name = `housing:${id}`;
+    shell.userData.decorative = true;
+    shells.set(id, shell);
+    robot.add(shell);
+  }
   const landmarks = {};
   for (const id of ["O", "S", "E", "F", "C"]) {
     landmarks[id] = nameNode(new THREE.Object3D(), `landmark:${id}`);
@@ -222,11 +242,11 @@ export function buildSceneGraph() {
       material(COLOURS.tool),
     ),
     new THREE.Mesh(
-      new THREE.SphereGeometry(7, 16, 12),
+      new THREE.CylinderGeometry(10, 10, 12, 32),
       material(COLOURS.joint),
     ),
     new THREE.Mesh(
-      new THREE.SphereGeometry(7, 16, 12),
+      new THREE.CylinderGeometry(10, 10, 12, 32),
       material(COLOURS.joint),
     ),
   ];
@@ -239,6 +259,45 @@ export function buildSceneGraph() {
       }),
     ),
   );
+  // Visual joint covers are decorative, as documented; checked proxies stay unchanged.
+  for (const joint of joints) {
+    for (const sign of [-1, 1]) {
+      const cap = new THREE.Mesh(
+        new THREE.CylinderGeometry(7.5, 7.5, 1.5, 32),
+        material(0xe7ebf2),
+      );
+      cap.position.y = sign * 6.6;
+      joint.add(cap);
+      for (let i = 0; i < 4; i++) {
+        const bolt = new THREE.Mesh(
+          new THREE.SphereGeometry(0.9, 8, 6),
+          material(0x283346),
+        );
+        bolt.position.set(
+          Math.cos((i * Math.PI) / 2) * 5,
+          sign * 7.5,
+          Math.sin((i * Math.PI) / 2) * 5,
+        );
+        joint.add(bolt);
+      }
+    }
+  }
+  const baseBody = robot.getObjectByName("base");
+  baseBody.visible = false;
+  for (const [radius, height, z, colour] of [
+    [18, 6, 3, 0x273244],
+    [16, 50, 31, 0xd4dce8],
+    [17, 6, 59, 0x273244],
+  ]) {
+    const housing = new THREE.Mesh(
+      new THREE.CylinderGeometry(radius, radius, height, 40),
+      material(colour),
+    );
+    housing.quaternion.setFromUnitVectors(Y, Z);
+    housing.position.z = z;
+    housing.userData.decorative = true;
+    robot.add(housing);
+  }
   joints[0].quaternion.setFromUnitVectors(Y, Z);
   joints[0].position.set(0, 0, 66);
   const actuator = nameNode(
@@ -346,6 +405,7 @@ export function buildSceneGraph() {
     obstacles,
     labels: [],
     lastScene: null,
+    shells,
     worldBounds: new THREE.Box3(),
     fixtureSignature: null,
     obstacleSignature: null,
@@ -416,12 +476,22 @@ export function updateSceneGraph(graph, state, target, options = {}) {
     node.position.copy(point(pose[id]));
   for (const p of robotProxies(state.actualJoints, state.gripperState)) {
     orientSegment(graph.links.get(p.id), p.a, p.b);
+    if (graph.shells.has(p.id)) {
+      const shell = graph.shells.get(p.id);
+      shell.position.copy(mean(p.a, p.b));
+      shell.quaternion.setFromUnitVectors(
+        Y,
+        point(p.b).sub(point(p.a)).normalize(),
+      );
+    }
     orientSegment(graph.proxyMeshes.get(p.id), p.a, p.b);
     // Copy exact contact geometry for numeric verification; no mutable model references.
     graph.links.get(p.id).userData.proxy = structuredClone(p);
   }
   graph.joints[1].position.copy(point(pose.S));
   graph.joints[2].position.copy(point(pose.E));
+  graph.joints[1].quaternion.setFromUnitVectors(Y, point(pose.u));
+  graph.joints[2].quaternion.setFromUnitVectors(Y, point(pose.u));
   graph.joints[0].quaternion
     .setFromUnitVectors(Y, Z)
     .premultiply(
@@ -439,7 +509,8 @@ export function updateSceneGraph(graph, state, target, options = {}) {
   graph.current.position.copy(point(pose.C));
   const preview = previewState(target, pose.C);
   graph.target.position.copy(point(preview.position));
-  graph.target.visible = preview.finite;
+  graph.target.visible =
+    preview.finite && point(preview.position).distanceTo(point(pose.C)) > 0.5;
   const previewColour = preview.valid ? COLOURS.target : COLOURS.invalid;
   graph.target.traverse((node) => {
     if (node.material?.color) node.material.color.setHex(previewColour);
@@ -594,7 +665,9 @@ export function updateSceneGraph(graph, state, target, options = {}) {
       key: preview.valid ? "target" : "invalid",
       point: preview.position,
       offset: [16, -20],
-      always: true,
+      always:
+        point(preview.position).distanceTo(point(pose.C)) > 0.5 ||
+        !preview.valid,
       invalid: !preview.valid,
     },
     ...(state.fixtures || []).map((f) => ({
@@ -626,7 +699,7 @@ export function updateSceneGraph(graph, state, target, options = {}) {
     pose.F,
     pose.C,
     { x: -65, y: -100, z: 0 },
-    { x: 0, y: 0, z: 225 },
+
     ...(state.fixtures || []).map((f) => f.targetPosition),
   ])
     graph.worldBounds.expandByPoint(point(p));
@@ -634,7 +707,24 @@ export function updateSceneGraph(graph, state, target, options = {}) {
     graph.worldBounds.expandByPoint(point(box.min));
     graph.worldBounds.expandByPoint(point(box.max));
   }
-  graph.worldBounds.expandByScalar(24);
+  graph.worldBounds.expandByScalar(18);
+  graph.worldBounds.framePoints = [
+    pose.O,
+    pose.S,
+    pose.E,
+    pose.F,
+    pose.C,
+    { x: -65, y: -100, z: 44 },
+    ...(state.fixtures || []).map((f) => f.targetPosition),
+    ...(state.obstacles || []).flatMap((b) => [b.min, b.max]),
+  ].flatMap((p) =>
+    [-18, 18].flatMap((x) =>
+      [-18, 18].flatMap((y) =>
+        [-18, 18].map((z) => new THREE.Vector3(p.x + x, p.y + y, p.z + z)),
+      ),
+    ),
+  );
+  graph.robot.traverse(node => { if (node.isMesh) node.castShadow = true; });
   graph.scene.updateMatrixWorld(true);
   graph.lastScene = {
     pose,
@@ -659,12 +749,33 @@ export function fitCamera(camera, bounds, controls, resetDirection = false) {
   const radius = bounds.getSize(new THREE.Vector3()).length() / 2;
   const vertical = THREE.MathUtils.degToRad(camera.fov / 2);
   const horizontal = Math.atan(Math.tan(vertical) * camera.aspect);
-  const distance = (radius / Math.sin(Math.min(vertical, horizontal))) * 1.08;
+
   const oldTarget = controls?.target || centre;
   const direction = resetDirection
     ? new THREE.Vector3(1.05, -1.6, 0.95).normalize()
     : camera.position.clone().sub(oldTarget).normalize();
   if (!direction.lengthSq()) direction.set(1.05, -1.6, 0.95).normalize();
+  const right = new THREE.Vector3()
+    .crossVectors(camera.up, direction)
+    .normalize();
+  if (!right.lengthSq()) right.set(1, 0, 0);
+  const up = new THREE.Vector3().crossVectors(direction, right).normalize();
+  let distance = 1;
+  const framePoints =
+    bounds.framePoints ||
+    [bounds.min.x, bounds.max.x].flatMap((x) =>
+      [bounds.min.y, bounds.max.y].flatMap((y) =>
+        [bounds.min.z, bounds.max.z].map((z) => new THREE.Vector3(x, y, z)),
+      ),
+    );
+  for (const p of framePoints) {
+    const d = p.clone().sub(centre);
+    distance = Math.max(
+      distance,
+      d.dot(direction) + Math.abs(d.dot(right)) / (Math.tan(horizontal) * 0.88),
+      d.dot(direction) + Math.abs(d.dot(up)) / (Math.tan(vertical) * 0.88),
+    );
+  }
   camera.position.copy(centre).addScaledVector(direction, distance);
   camera.near = 0.5;
   camera.far = Math.max(2500, distance + radius * 8);
@@ -788,6 +899,7 @@ export function createScene(container, options = {}) {
     try {
       camera.updateMatrixWorld();
       renderer.render(graph.scene, camera);
+      const occupied = [];
       for (const label of graph.labels) {
         let element = labelElements.get(label.id);
         if (!element) {
@@ -797,12 +909,12 @@ export function createScene(container, options = {}) {
           Object.assign(element.style, {
             position: "absolute",
             maxWidth: "160px",
-            fontSize: ".68rem",
+            fontSize: ".72rem",
             fontWeight: "650",
             lineHeight: "1.2",
             whiteSpace: "nowrap",
             color: "#26495b",
-            background: "rgba(239,245,247,.88)",
+            background: "rgba(255,255,255,.92)",
             padding: "2px 4px",
             borderRadius: "3px",
             transform: "translate(-50%, -50%)",
@@ -839,7 +951,7 @@ export function createScene(container, options = {}) {
           (label.always ||
             (label.axis && (currentOptions.axes ?? true)) ||
             (label.anatomy && (currentOptions.labels ?? true)) ||
-            label.fixture) &&
+            (label.fixture && !label.dim)) &&
           position.z >= -1 &&
           position.z <= 1 &&
           Math.abs(position.x) < 1.1 &&
@@ -847,8 +959,28 @@ export function createScene(container, options = {}) {
         element.hidden = !visible;
         const x = ((position.x + 1) * layoutWidth) / 2 + label.offset[0];
         const y = ((-position.y + 1) * layoutHeight) / 2 + label.offset[1];
-        element.style.left = `${Math.max(28, Math.min(layoutWidth - 28, x))}px`;
-        element.style.top = `${Math.max(9, Math.min(layoutHeight - 9, y))}px`;
+        const w = element.offsetWidth || 22,
+          h = element.offsetHeight || 18;
+        const left = Math.max(w / 2 + 6, Math.min(layoutWidth - w / 2 - 6, x));
+        let top = Math.max(h / 2 + 6, Math.min(layoutHeight - h / 2 - 6, y));
+        if (visible) {
+          for (let n = 0; n < 10; n++) {
+            if (
+              !occupied.some(
+                (r) =>
+                  Math.abs(r.x - left) < (r.w + w) / 2 + 4 &&
+                  Math.abs(r.y - top) < (r.h + h) / 2 + 4,
+              )
+            )
+              break;
+            top += h + 5;
+            if (top > layoutHeight - h / 2 - 6)
+              top = Math.max(h / 2 + 6, y - (n + 1) * (h + 5));
+          }
+          occupied.push({ x: left, y: top, w, h });
+        }
+        element.style.left = `${left}px`;
+        element.style.top = `${top}px`;
       }
       for (const [id, element] of labelElements)
         if (!graph.labels.some((label) => label.id === id)) {
@@ -883,6 +1015,7 @@ export function createScene(container, options = {}) {
       ...(view.strings || {}),
     };
     note.textContent = strings.help;
+    note.hidden = true;
     fallback.textContent = strings.unsupported;
     anatomyLegend.hidden = !(view.labels ?? true) || failed;
     const pose = fk(state.actualJoints),
@@ -955,6 +1088,8 @@ export function createScene(container, options = {}) {
     renderer = new THREE.WebGLRenderer({ canvas, context, antialias: true });
     renderer.setPixelRatio(Math.min(win.devicePixelRatio || 1, 2));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.domElement.setAttribute("role", "img");
     renderer.domElement.setAttribute("aria-label", strings.canvas);
     renderer.domElement.tabIndex = 0;

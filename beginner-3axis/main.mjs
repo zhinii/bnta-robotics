@@ -46,7 +46,7 @@ let learning = createLearningState(),
   language = "en",
   mode = "explore",
   demo = false,
-  view = { grid: true, axes: true, labels: true, proxies: false },
+  view = { grid: true, axes: true, labels: false, proxies: false },
   renderer,
   uiReady = false,
   lastRevision = -1,
@@ -233,7 +233,11 @@ function render() {
     .join(" · ");
   for (const axis of ["x", "y", "z"]) {
     if (document.activeElement !== $(`target-${axis}`))
-      $(`target-${axis}`).value = s.target.draft[axis];
+      $(`target-${axis}`).value =
+        Number.isFinite(Number(s.target.draft[axis])) &&
+        String(s.target.draft[axis]).trim() !== ""
+          ? String(Math.round(Number(s.target.draft[axis]) * 10) / 10)
+          : s.target.draft[axis];
     for (const sign of ["minus", "plus"]) {
       $(`${sign}-${axis}`).disabled = busy || demo;
       $(`${sign}-${axis}`).setAttribute(
@@ -523,6 +527,9 @@ function setMode(value) {
   if (mode === "learn" && !currentAttempt(learning))
     learning = beginLessonAttempt(learning, learning.currentLessonId);
   render();
+  $(mode === "learn" ? "learning" : "scene").scrollIntoView?.({
+    block: "start",
+  });
 }
 function startLesson(id, { transfer = false } = {}) {
   if (

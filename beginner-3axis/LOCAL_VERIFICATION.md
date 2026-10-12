@@ -53,3 +53,28 @@ Verified in the Codex in-app browser:
 
 Publication is a feature-branch push only. No main merge, root navigation change
 or public website deployment is authorized by this integration.
+
+## UI refinement — 12 October 2026
+
+Reworked the isolated module into a compact white/slate instrument workspace with
+blue actions, a clear current/target distinction, one-decimal coordinate display,
+expandable reference/coach/portfolio sections, and a native program editor.
+The original six-axis app remains untouched. The header uses Robot Lab and keeps
+Christopher Hansen attribution. No backend or new runtime dependencies were added.
+
+The robot now has tapered silver arm covers, cylindrical base housing, blue joint
+covers and fastener details. These covers are visual decorations, not additional
+joints or calibrated contact geometry. Kinematics, swept collision proxies,
+gripper logic, lesson assessment and saved model data are unchanged.
+
+Framing now uses occupied scene points. Inactive fixture labels and coincident
+target labels are hidden, and visible labels are separated in screen space.
+Anatomy numbers remain available through About this model. On portrait phones,
+the scene stays visible above the scrolling controls; short screens use normal
+flow so the pinned view cannot consume the entire display.
+
+Verification: all 73 Node tests passed again; the seven-lesson DOM journey passed
+again. Real-browser movement, Chinese learning layout, tablet program dialog,
+and portrait scene/control visibility were inspected. No horizontal document
+overflow was found at 390px and 768px widths. Full accessibility certification,
+physical touch-device acceptance and a complete viewport matrix remain pending.
