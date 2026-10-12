@@ -78,3 +78,9 @@ again. Real-browser movement, Chinese learning layout, tablet program dialog,
 and portrait scene/control visibility were inspected. No horizontal document
 overflow was found at 390px and 768px widths. Full accessibility certification,
 physical touch-device acceptance and a complete viewport matrix remain pending.
+
+CAD-style follow-up: joined scene and inspector into one instrument shell,
+relocated actual TCP coordinates into a small scene HUD, grouped Move/Open/Close,
+and arranged mobile XYZ controls into three columns. Added a robot-arm silhouette
+header icon. The final seven-lesson DOM journey passed again; phone-width editing
+kept the scene visible and showed no horizontal document overflow.

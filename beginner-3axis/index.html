@@ -24,7 +24,8 @@
               <path d="M22 17h4v5h-4zM19 21h10v3h-3v3h-2v-4h-2v4h-3z" />
             </g>
           </svg>
-        </span> Robot Lab</a
+        </span>
+        Robot Lab</a
       ><span class="edition" data-i18n="app.title"></span>
       <nav aria-label="Mode">
         <button id="learn" data-i18n="mode.learn"></button
@@ -62,6 +63,10 @@
                 ><button id="home" data-i18n="control.homeView"></button>
               </div>
             </div>
+            <div class="current-readout">
+              <strong data-i18n="control.current"></strong
+              ><output id="current"></output><span data-i18n="units.mm"></span>
+            </div>
             <div id="scene" aria-label="Three-axis robot scene"></div>
             <div class="scene-key">
               <span class="current-dot"></span
@@ -95,10 +100,6 @@
         <section class="card control-card">
           <h2 data-i18n="control.move"></h2>
           <p class="subtle" data-i18n="control.frame"></p>
-          <div class="current-readout">
-            <strong data-i18n="control.current"></strong
-            ><output id="current"></output><span data-i18n="units.mm"></span>
-          </div>
           <div class="section-head">
             <h3 data-i18n="control.target"></h3>
             <label
@@ -113,14 +114,16 @@
           <div id="coordinates"></div>
           <p id="joint-readout" class="subtle"></p>
           <p id="next-action" class="next-action"></p>
-          <button
-            id="move"
-            class="primary wide"
-            data-i18n="control.move"
-          ></button>
-          <div class="grip-row">
-            <button id="open" data-i18n="control.open"></button
-            ><button id="close" data-i18n="control.close"></button>
+          <div class="motion-actions">
+            <button
+              id="move"
+              class="primary wide"
+              data-i18n="control.move"
+            ></button>
+            <div class="grip-row">
+              <button id="open" data-i18n="control.open"></button
+              ><button id="close" data-i18n="control.close"></button>
+            </div>
           </div>
           <p id="held" class="held"></p>
           <div class="record-bar">

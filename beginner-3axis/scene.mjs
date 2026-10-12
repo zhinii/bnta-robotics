@@ -168,7 +168,14 @@ export function buildSceneGraph() {
   light.position.set(-150, -250, 500);
   light.castShadow = true;
   light.shadow.mapSize.set(1024, 1024);
-  Object.assign(light.shadow.camera, {left:-350,right:350,top:350,bottom:-350,near:1,far:1200});
+  Object.assign(light.shadow.camera, {
+    left: -350,
+    right: 350,
+    top: 350,
+    bottom: -350,
+    near: 1,
+    far: 1200,
+  });
   light.shadow.bias = -0.0004;
   light.shadow.normalBias = 0.4;
   scene.add(light);
@@ -724,7 +731,9 @@ export function updateSceneGraph(graph, state, target, options = {}) {
       ),
     ),
   );
-  graph.robot.traverse(node => { if (node.isMesh) node.castShadow = true; });
+  graph.robot.traverse((node) => {
+    if (node.isMesh) node.castShadow = true;
+  });
   graph.scene.updateMatrixWorld(true);
   graph.lastScene = {
     pose,

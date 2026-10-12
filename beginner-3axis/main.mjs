@@ -261,6 +261,7 @@ function render() {
   $("record-state").textContent = tr(
     s.recording.enabled ? "status.on" : "status.off",
   );
+  $("record-note").hidden = !s.recording.blockedReason;
   $("record-note").textContent = s.recording.blockedReason
     ? tr("error.START_STATE_MISMATCH")
     : tr("status.pathChecked");
