@@ -256,6 +256,28 @@ test("P3-02/03 camera orbit, Home fit, toggles and target preview do not mutate 
   disposeObject(graph.scene);
 });
 
+test("World axes start at the model origin and their labels mark the arrow tips", () => {
+  const graph = buildSceneGraph();
+  updateSceneGraph(graph, initialScene(), fk(CONFIG.home).C);
+  for (const [id, end] of [
+    ["X", { x: 200, y: 0, z: 0 }],
+    ["Y", { x: 0, y: 180, z: 0 }],
+    ["Z", { x: 0, y: 0, z: 220 }],
+    ["-X", { x: -70, y: 0, z: 0 }],
+    ["-Y", { x: 0, y: -70, z: 0 }],
+  ]) {
+    const arrow = graph.axes.getObjectByName(`axis:${id}`);
+    near(plain(arrow.position), { x: 0, y: 0, z: 0 });
+    near(plain(arrow.cone.getWorldPosition(new THREE.Vector3())), end);
+    near(graph.labels.find((l) => l.id === `axis:${id}`).point, end);
+  }
+  near(
+    graph.labels.find((l) => l.id === "axis:origin").point,
+    fk(CONFIG.home).O,
+  );
+  disposeObject(graph.scene);
+});
+
 test("P3 camera fitting preserves aspect and frames required fixtures across viewport ratios", () => {
   const graph = buildSceneGraph(),
     state = initialScene();
@@ -266,6 +288,8 @@ test("P3 camera fitting preserves aspect and frames required fixtures across vie
     [844, 320],
     [768, 420],
     [850, 480],
+    [340, 110],
+    [340, 390],
   ]) {
     const camera = createCamera(width / height);
     fitCamera(camera, graph.worldBounds, null, true);
@@ -280,6 +304,13 @@ test("P3 camera fitting preserves aspect and frames required fixtures across vie
       assert.ok(
         Math.abs(p.x) < 1 && Math.abs(p.y) < 1 && p.z > -1 && p.z < 1,
         `fixture clipped at ${width}×${height}`,
+      );
+    }
+    for (const point of graph.worldBounds.framePoints) {
+      const p = point.clone().project(camera);
+      assert.ok(
+        Math.abs(p.x) < 1 && Math.abs(p.y) < 1,
+        `required geometry clipped at ${width}x${height}`,
       );
     }
   }
@@ -316,6 +347,9 @@ function fakeContainer() {
   const doc = {
     defaultView: win,
     createElement(tag) {
+      return new Element(tag);
+    },
+    createElementNS(namespace, tag) {
       return new Element(tag);
     },
   };

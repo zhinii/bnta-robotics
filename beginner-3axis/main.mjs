@@ -1,3 +1,8 @@
+import { buildDesignQuestions } from "./practical-presentation.mjs";
+import { paginateScenarios } from "./coordinate-presentation.mjs";
+import { SCENARIOS, scenarioIllustration } from "./assessment-visuals.mjs";
+import { attachAnswerFeedback, answerFeedback } from "./answer-feedback.mjs";
+import { buildAnatomyQuestions } from "./anatomy-presentation.mjs";
 import { Controller } from "./controller.mjs";
 import {
   CONFIG,
@@ -211,6 +216,33 @@ function preview() {
   c.state.target.error = r.ok ? null : r.error;
   render();
 }
+// Keep buttons stable so simulation updates do not replace keyboard focus.
+for (const [index, lesson] of LESSONS.entries()) {
+  const button = el("button", String(index + 1));
+  button.id = `lesson-${lesson.id}`;
+  button.dataset.lesson = lesson.id;
+  button.addEventListener("click", () => {
+    if (lesson.id !== learning.currentLessonId) startLesson(lesson.id);
+  });
+  $("lesson-nav").append(button);
+}
+function renderLessonNavigation() {
+  const zh = language === "zh";
+  $("lesson-nav").setAttribute("aria-label", zh ? "课程" : "Lessons");
+  for (const [index, lesson] of LESSONS.entries()) {
+    const button = $(`lesson-${lesson.id}`);
+    const label = `${zh ? "第" : "Lesson "}${index + 1}${zh ? "课" : ""}: ${tr(lesson.titleKey)}`;
+    button.title = label;
+    button.setAttribute("aria-label", label);
+    if (lesson.id === learning.currentLessonId)
+      button.setAttribute("aria-current", "step");
+    else button.removeAttribute("aria-current");
+    button.disabled = c.busy || !!journey?.demo;
+  }
+  $("new-attempt").textContent = "↺";
+  $("new-attempt").title = tr("control.newAttempt");
+  $("new-attempt").setAttribute("aria-label", tr("control.newAttempt"));
+}
 function translate() {
   document.documentElement.lang = language === "zh" ? "zh-Hans" : "en";
   document
@@ -238,10 +270,15 @@ function formatPosition(p) {
 function render() {
   if (!uiReady) return;
   const s = c.state,
-    current = fk(s.scene.actualJoints).C,
+    current = fk(
+      journey?.demo?.controller.state.scene.actualJoints ??
+        s.scene.actualJoints,
+    ).C,
     busy = c.busy;
   $("current").textContent = formatPosition(current);
-  $("joint-readout").textContent = s.scene.actualJoints
+  $("joint-readout").textContent = (
+    journey?.demo?.controller.state.scene.actualJoints ?? s.scene.actualJoints
+  )
     .map((q, i) => `J${i + 1} ${radiansToDegrees(q).toFixed(1)}°`)
     .join(" · ");
   const lastMove = [...learning.evidenceEvents, ...s.events]
@@ -333,6 +370,19 @@ function render() {
     ? `${tr(`status.${s.execution.status === "movingManual" ? "moving" : s.execution.status}`)} · ${tr("status.step", { current: s.execution.stepIndex + 1, total: s.execution.status === "movingManual" ? 1 : s.program.steps.length })}`
     : tr(feedbackKey, feedbackParams);
   if (journey?.demo) $("feedback").textContent = word("demoOnly", language);
+  $("feedback").dataset.tone =
+    busy || journey?.demo
+      ? "active"
+      : feedbackKey.startsWith("error.")
+        ? "error"
+        : [
+              "status.moveComplete",
+              "status.attached",
+              "status.released",
+              "status.replayComplete",
+            ].includes(feedbackKey)
+          ? "success"
+          : "neutral";
   $("six-axis").hidden = ![...learning.evidenceEvents, ...s.events].some(
     (e) => e.type === "RUN_COMPLETED" && e.verified,
   );
@@ -446,6 +496,7 @@ function render() {
     $("lesson-select").disabled = busy;
     $("steps").disabled = false;
   }
+  renderLessonNavigation();
 }
 function renderProgram() {
   $("program-list").replaceChildren();
@@ -561,6 +612,7 @@ function selection(name, choices, labelKey) {
 }
 function renderAnswers() {
   const root = $("answer-form");
+  let feedback;
   root.replaceChildren();
   const id = learning.currentLessonId;
   renderTeaching(id);
@@ -570,22 +622,80 @@ function renderAnswers() {
         v,
         `${id === "types" ? "jobs" : "parts"}.${v}`,
       ]);
-    for (const part of Object.keys(answers))
-      root.append(
-        selection(
-          part,
-          choices,
-          `${id === "types" ? "bodyPlan" : "anatomy"}.${part}`,
-        ),
-      );
+    if (id === "types") {
+      const grid = el("div", undefined, "scenario-grid");
+      for (const scenario of SCENARIOS) {
+        const card = el("section", undefined, "scenario-card");
+        card.append(
+          scenarioIllustration(
+            scenario.id,
+            language === "zh" ? scenario.zh : scenario.en,
+          ),
+          el("h3", language === "zh" ? scenario.zh : scenario.en),
+          el("p", language === "zh" ? scenario.promptZh : scenario.prompt),
+        );
+        const label = el("label"),
+          text = el(
+            "span",
+            language === "zh" ? "选择机器人类型" : "Choose the robot type",
+          ),
+          select = el("select");
+        select.name = `scenario-${scenario.id}`;
+        const blank = el("option", "—");
+        blank.value = "";
+        select.append(blank);
+        for (const type of Object.keys(BODY_PLAN_ANSWERS)) {
+          const option = el("option", tr(`bodyPlan.${type}`));
+          option.value = type;
+          select.append(option);
+        }
+        label.append(text, select);
+        card.append(label);
+        grid.append(card);
+      }
+      root.append(grid);
+      paginateScenarios(root, language);
+    } else buildAnatomyQuestions(root, tr, language);
     const b = el("button", tr("control.submitAnswers"));
+    b.id = "submit-answers";
     b.addEventListener("click", () => {
-      const answers = Object.fromEntries(
-        [...root.querySelectorAll("select")].map((e) => [e.name, e.value]),
-      );
-      learning = submitAnswers(learning, answers);
+      const answers =
+        id === "types"
+          ? Object.fromEntries(
+              SCENARIOS.map((scenario) => [
+                root.querySelector(`[name="scenario-${scenario.id}"]`).value,
+                scenario.id,
+              ]),
+            )
+          : Object.fromEntries(
+              [...root.querySelectorAll("select")].map((e) => [
+                e.name,
+                e.value,
+              ]),
+            );
+      const scenarioAnswers =
+        id === "types"
+          ? Object.fromEntries(
+              SCENARIOS.map((scenario) => [
+                scenario.id,
+                root.querySelector(`[name="scenario-${scenario.id}"]`).value,
+              ]),
+            )
+          : null;
+      learning = submitAnswers(learning, answers, id, scenarioAnswers);
+      const checked = answerFeedback(id, currentAttempt(learning), language);
+      if (!learning.warning && checked.correct < checked.total)
+        learning = recordLearningEvent(learning, {
+          type: "HINT_SHOWN",
+          source: "offline-assessment",
+          note: "Targeted hints shown for incorrect or unanswered matching questions.",
+        });
       persist();
       render();
+      if (!learning.warning) {
+        feedback.refresh(true);
+        root.dispatchEvent(new window.CustomEvent("assessment-submitted"));
+      }
     });
     root.append(b);
   } else if (id === "design") {
@@ -610,8 +720,29 @@ function renderAnswers() {
       label.append(text, input);
       root.append(label);
     }
+    const wizard = buildDesignQuestions(root, language);
+    const designFeedback = el("p");
+    designFeedback.id = "design-feedback";
+    designFeedback.setAttribute("role", "status");
     const b = el("button", tr("control.saveDesign"));
+    b.id = "save-design";
     b.addEventListener("click", () => {
+      const missing = ["job", "bodyPlan", "benefit", "limit", "interest"]
+        .map((name) => root.querySelector(`[name="${name}"]`))
+        .find((e) => !e.value.trim() || e.value === "—");
+      if (missing) {
+        wizard.showMissing(missing.name);
+        missing.focus();
+        designFeedback.textContent =
+          language === "zh"
+            ? "请先完成这一项。你的其他内容仍保留。"
+            : "Complete this part first. Your other responses are kept.";
+        return;
+      }
+      designFeedback.textContent =
+        language === "zh"
+          ? "方案已保存。请在下方解释你的证据与下一步。"
+          : "Proposal saved. Explain your evidence and next step below.";
       learning = submitDesign(
         learning,
         Object.fromEntries(
@@ -623,16 +754,36 @@ function renderAnswers() {
       );
       persist();
       render();
+      if (!learning.warning)
+        root.dispatchEvent(new window.CustomEvent("assessment-submitted"));
     });
-    root.append(b);
+    root.append(b, designFeedback);
   }
   const savedAnswers =
     currentAttempt(learning)?.[id === "design" ? "design" : "answers"];
   if (savedAnswers)
     for (const field of root.querySelectorAll("input,select")) {
-      if (typeof savedAnswers[field.name] === "string")
+      if (id === "types")
+        field.value =
+          currentAttempt(learning)?.scenarioAnswers?.[
+            field.name.replace("scenario-", "")
+          ] ??
+          Object.keys(savedAnswers).find(
+            (type) =>
+              savedAnswers[type] === field.name.replace("scenario-", ""),
+          ) ??
+          "";
+      else if (typeof savedAnswers[field.name] === "string")
         field.value = savedAnswers[field.name];
     }
+  if (["types", "anatomy"].includes(id))
+    feedback = attachAnswerFeedback(
+      root,
+      root.querySelector(":scope > button"),
+      id,
+      () => currentAttempt(learning),
+      language,
+    );
 }
 function setMode(value) {
   if ($("steps-dialog").open) $("steps-dialog").close();
@@ -648,16 +799,53 @@ function setMode(value) {
   render();
   document.querySelector("header").scrollIntoView?.({ block: "start" });
 }
-function startLesson(id, { transfer = false } = {}) {
+const lessonSwitch = el("dialog");
+lessonSwitch.id = "lesson-switch-dialog";
+lessonSwitch.setAttribute("aria-labelledby", "lesson-switch-title");
+const lessonSwitchTitle = el("h2"),
+  lessonSwitchText = el("p"),
+  lessonSwitchActions = el("div");
+lessonSwitchTitle.id = "lesson-switch-title";
+lessonSwitchActions.className = "focused-actions";
+const keepLesson = el("button"),
+  saveLesson = el("button"),
+  confirmLesson = el("button");
+keepLesson.id = "cancel-lesson-switch";
+saveLesson.id = "save-before-lesson";
+confirmLesson.id = "confirm-lesson-switch";
+confirmLesson.className = "primary";
+lessonSwitchActions.append(keepLesson, saveLesson, confirmLesson);
+lessonSwitch.append(lessonSwitchTitle, lessonSwitchText, lessonSwitchActions);
+document.body.append(lessonSwitch);
+let pendingLesson = null;
+keepLesson.addEventListener("click", () => lessonSwitch.close());
+saveLesson.addEventListener("click", () => $("export-json").click());
+lessonSwitch.addEventListener("close", () => {
+  $("lesson-select").value = learning.currentLessonId;
+});
+confirmLesson.addEventListener("click", () => {
+  const target = pendingLesson;
+  lessonSwitch.close();
+  if (target)
+    startLesson(target.id, { transfer: target.transfer, confirmed: true });
+});
+function startLesson(id, { transfer = false, confirmed = false } = {}) {
   journey?.endDemo(false);
   const resetsScene = !["types", "design"].includes(id);
-  if (
-    resetsScene &&
-    c.state.program.steps.length &&
-    !window.confirm(
-      tr("clear.question", { count: c.state.program.steps.length }),
-    )
-  ) {
+  if (resetsScene && c.state.program.steps.length && !confirmed) {
+    pendingLesson = { id, transfer };
+    const zh = language === "zh";
+    lessonSwitchTitle.textContent = zh
+      ? "准备下一次操作？"
+      : "Set up the next activity?";
+    lessonSwitchText.textContent = zh
+      ? "新活动将重置场景并清空当前程序，课程证据仍保留在作品集中。如需保留完整程序，请先导出JSON。"
+      : "The new activity resets the scene and clears the current program. Your lesson evidence stays in the portfolio. Export JSON first to keep the complete program.";
+    keepLesson.textContent = zh ? "继续当前活动" : "Keep working";
+    saveLesson.textContent = zh ? "保存JSON" : "Save JSON";
+    confirmLesson.textContent = zh ? "开始活动" : "Start activity";
+    lessonSwitch.showModal();
+    keepLesson.focus();
     $("lesson-select").value = learning.currentLessonId;
     return;
   }
@@ -734,9 +922,29 @@ $("changed-target").addEventListener("click", () =>
   startLesson("obstacle", { transfer: true }),
 );
 $("save-prediction").addEventListener("click", () => {
+  const practical = ["grip", "program", "obstacle"].includes(
+    learning.currentLessonId,
+  );
+  if (practical && !$("prediction").value.trim()) {
+    $("practical-prediction-status").textContent =
+      language === "zh"
+        ? "请先在上面的输入框写下你的预测，再开始操作。"
+        : "Write your prediction in the box above before beginning the operation.";
+    $("prediction").focus();
+    return;
+  }
+  if (practical) $("practical-prediction-status").textContent = "";
   learning = submitPrediction(learning, $("prediction").value);
   persist();
   render();
+  if (practical) {
+    $(
+      matchMedia("(max-width: 700px)").matches
+        ? "learning"
+        : "lesson-practical",
+    ).scrollIntoView?.({ block: "start" });
+    $("practice-move").focus({ preventScroll: true });
+  }
 });
 $("save-reflection").addEventListener("click", () => {
   learning = submitReflection(learning, $("reflection").value);
@@ -812,7 +1020,10 @@ $("close-steps").addEventListener("click", () => $("steps-dialog").close());
 $("steps-dialog").addEventListener("close", () => {
   document.body.dataset.panel = "";
   render();
-  $("steps").focus();
+  (mode === "learn" && $("practice-steps")?.getClientRects().length
+    ? $("practice-steps")
+    : $("steps")
+  ).focus();
 });
 $("clear").addEventListener("click", () => {
   $("confirm-text").textContent = tr("clear.question", {

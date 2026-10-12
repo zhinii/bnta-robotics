@@ -323,7 +323,12 @@ export function recordLearningEvent(state, event) {
     attempt.hintCount++;
     if (safe.type === "WORKED_EXAMPLE_SHOWN") attempt.workedExampleCount++;
   }
-  if (safe.type === "ANSWERS_SUBMITTED") attempt.answers = clone(safe.answers);
+  if (safe.type === "ANSWERS_SUBMITTED") {
+    attempt.answers = clone(safe.answers);
+    attempt.scenarioAnswers = safe.scenarioAnswers
+      ? clone(safe.scenarioAnswers)
+      : null;
+  }
   if (safe.type === "DESIGN_SUBMITTED") attempt.design = clone(safe.proposal);
   next.evidenceEvents.push(safe);
   attempt.evidenceEventIds.push(id);
@@ -342,7 +347,12 @@ export function submitReflection(state, text, id = state.currentLessonId) {
     text,
   });
 }
-export function submitAnswers(state, answers, id = state.currentLessonId) {
+export function submitAnswers(
+  state,
+  answers,
+  id = state.currentLessonId,
+  scenarioAnswers = null,
+) {
   id = normalId(id);
   const key =
     id === "types"
@@ -368,6 +378,18 @@ export function submitAnswers(state, answers, id = state.currentLessonId) {
   return recordLearningEvent(ensureAttempt(state, id), {
     type: "ANSWERS_SUBMITTED",
     answers: selected,
+    ...(id === "types" && scenarioAnswers
+      ? {
+          scenarioAnswers: Object.fromEntries(
+            Object.values(BODY_PLAN_ANSWERS).map((job) => [
+              job,
+              Object.hasOwn(BODY_PLAN_ANSWERS, scenarioAnswers[job])
+                ? scenarioAnswers[job]
+                : "",
+            ]),
+          ),
+        }
+      : {}),
     correct: corrections.length === 0,
     corrections,
   });
@@ -400,7 +422,11 @@ export function noteHint(
 
 /** Evaluate only actual, post-prediction events for this one attempt. The result
  * exposes checks so the UI explains exactly what is still missing. */
-export function evaluateLesson(state, id = state.currentLessonId) {
+export function evaluateLesson(
+  state,
+  id = state.currentLessonId,
+  { legacyMatching = false } = {},
+) {
   id = normalId(id);
   const attempt = currentAttempt(state, id);
   if (!attempt)
@@ -424,11 +450,19 @@ export function evaluateLesson(state, id = state.currentLessonId) {
   };
   if (id === "types" || id === "anatomy") {
     const key = id === "types" ? BODY_PLAN_ANSWERS : ANATOMY_ANSWERS;
-    const answer = scored.find(
-      (e) =>
-        e.type === "ANSWERS_SUBMITTED" &&
-        Object.entries(key).every(([k, v]) => e.answers?.[k] === v),
-    );
+    const latestAnswer = scored
+      .filter((e) => e.type === "ANSWERS_SUBMITTED")
+      .at(-1);
+    const answer = legacyMatching
+      ? scored.find(
+          (e) =>
+            e.type === "ANSWERS_SUBMITTED" &&
+            Object.entries(key).every(([k, v]) => e.answers?.[k] === v),
+        )
+      : latestAnswer &&
+          Object.entries(key).every(([k, v]) => latestAnswer.answers?.[k] === v)
+        ? latestAnswer
+        : null;
     checks[id === "types" ? "allBodyPlansMatched" : "allPartsIdentified"] =
       take(answer);
     if (id === "anatomy")
@@ -833,9 +867,19 @@ export function evaluateLesson(state, id = state.currentLessonId) {
           Object.hasOwn(BODY_PLAN_ANSWERS, e.proposal.bodyPlan),
       ),
     );
+  const reflectionEvidence =
+    !legacyMatching && ["types", "anatomy"].includes(id)
+      ? evidence.filter(
+          (eventId) =>
+            events.find((e) => e.id === eventId)?.type !== "ANSWERS_SUBMITTED",
+        )
+      : evidence;
   const lastEvidence = Math.max(
+    !legacyMatching && ["types", "anatomy"].includes(id)
+      ? (attempt.predictionSequence ?? 0)
+      : 0,
     0,
-    ...evidence.map(
+    ...reflectionEvidence.map(
       (eventId) => events.find((e) => e.id === eventId)?.sequence ?? 0,
     ),
   );

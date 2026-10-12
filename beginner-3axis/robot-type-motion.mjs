@@ -1,6 +1,15 @@
 // Illustrative mechanism geometry, independent of the learner's robot and evidence.
 const mix = (a, b, t) => a.map((n, i) => n + (b[i] - n) * t);
 const smooth = (t) => t * t * (3 - 2 * t);
+export const DELTA_GEOMETRY = Object.freeze({
+  baseRadius: 60,
+  mountHeight: 280,
+  upperLength: 65,
+  lowerLength: 190,
+  platformRadius: 20,
+  platformOffset: 26,
+  rodHalfSpacing: 8,
+});
 export const distance3 = (a, b) => Math.hypot(...a.map((n, i) => n - b[i]));
 function elbow2(a, b, l1, l2, side = 1) {
   const dx = b[0] - a[0],
@@ -62,13 +71,13 @@ export function robotTypePose(type, progress) {
   }
   const source =
     type === "delta"
-      ? [-40, 30, 35]
+      ? [-36, 34, 22]
       : type === "scara"
         ? [75, 18, 55]
         : [110, 18, 55];
   const destination =
     type === "delta"
-      ? [40, 30, -35]
+      ? [36, 34, -22]
       : type === "scara"
         ? [105, 18, -55]
         : [95, 18, -65];
@@ -92,6 +101,25 @@ export function robotTypePose(type, progress) {
         : phase === 2
           ? 10 + 7 * u
           : 17;
+  // SCARA travels above the fixture, then inserts vertically. No diagonal
+  // descent through the receiving socket or sideways withdrawal of the jaws.
+  if (type === "scara") {
+    const aboveSource = [source[0], 62, source[2]],
+      aboveDestination = [destination[0], 62, destination[2]];
+    if (phase === 0) tip = mix(aboveSource, source, Math.min(1, u / 0.65));
+    else if (phase === 1)
+      tip =
+        u < 0.28
+          ? mix(source, aboveSource, smooth(u / 0.28))
+          : mix(aboveSource, aboveDestination, smooth((u - 0.28) / 0.72));
+    else if (phase === 2)
+      tip = mix(aboveDestination, destination, Math.min(1, u / 0.6));
+    else
+      tip =
+        u < 0.35
+          ? mix(destination, aboveDestination, smooth(u / 0.35))
+          : mix(aboveDestination, aboveSource, smooth((u - 0.35) / 0.65));
+  }
   const pose = {
     type,
     t,
@@ -103,6 +131,68 @@ export function robotTypePose(type, progress) {
     held: phase === 1,
     object: phase < 1 ? source : phase === 1 ? tip : destination,
   };
+  if (type === "scara") {
+    pose.gap =
+      phase === 0
+        ? 17 - 8 * Math.max(0, (u - 0.65) / 0.35)
+        : phase === 1
+          ? 9
+          : phase === 2
+            ? 9 + 8 * Math.max(0, (u - 0.6) / 0.4)
+            : 17;
+    pose.held = phase === 1 || (phase === 2 && u < 0.6);
+    pose.object = pose.held ? tip : phase === 0 ? source : destination;
+  }
+  if (type === "delta") {
+    const from = [source[0], 70, source[2]],
+      to = [destination[0], 70, destination[2]];
+    const ease = (v) => {
+      const n = Math.max(0, Math.min(1, v));
+      return n * n * n * (10 + n * (-15 + 6 * n));
+    };
+    const local = t === 1 ? 1 : (t * 4) % 1;
+    if (phase === 0) pose.tip = mix(from, source, ease(local / 0.72));
+    else if (phase === 1)
+      pose.tip =
+        local < 0.35
+          ? mix(source, from, ease(local / 0.35))
+          : mix(from, to, ease((local - 0.35) / 0.65));
+    else if (phase === 2) pose.tip = mix(to, destination, ease(local / 0.68));
+    else
+      pose.tip =
+        local < 0.35
+          ? mix(destination, to, ease(local / 0.35))
+          : mix(to, from, ease((local - 0.35) / 0.65));
+    tip = pose.tip;
+    pose.held =
+      (phase === 0 && local >= 0.82) ||
+      phase === 1 ||
+      (phase === 2 && local < 0.82);
+    pose.object = pose.held
+      ? [...tip]
+      : phase === 0
+        ? [...source]
+        : [...destination];
+    pose.vacuumOn = pose.held;
+    pose.motionStage =
+      phase === 0
+        ? local < 0.72
+          ? "approach"
+          : "pickup"
+        : phase === 1
+          ? local < 0.35
+            ? "lift"
+            : "transfer"
+          : phase === 2
+            ? local < 0.68
+              ? "lower"
+              : local < 0.82
+                ? "place"
+                : "release"
+            : local < 0.35
+              ? "withdraw"
+              : "return";
+  }
   if (type === "articulated") {
     const yaw = Math.atan2(tip[2], tip[0]),
       r = Math.hypot(tip[0], tip[2]);
@@ -121,20 +211,35 @@ export function robotTypePose(type, progress) {
       const angle = (i * Math.PI * 2) / 3,
         c = Math.cos(angle),
         s = Math.sin(angle);
-      const a = [100 * c, 160, 100 * s],
-        e = [tip[0] + 22 * c, tip[1] + 15, tip[2] + 22 * s];
+      const g = DELTA_GEOMETRY;
+      const a = [g.baseRadius * c, g.mountHeight, g.baseRadius * s],
+        e = [
+          tip[0] + g.platformRadius * c,
+          tip[1] + g.platformOffset,
+          tip[2] + g.platformRadius * s,
+        ];
       const tangent = -e[0] * s + e[2] * c;
       const joint = elbow2(
-        [100, 160],
+        [g.baseRadius, g.mountHeight],
         [e[0] * c + e[2] * s, e[1]],
-        75,
-        Math.sqrt(125 ** 2 - tangent ** 2),
+        g.upperLength,
+        Math.sqrt(g.lowerLength ** 2 - tangent ** 2),
       );
+      const b = [joint[0] * c, joint[1], joint[0] * s];
+      const direction = [-s, 0, c];
       return {
         a,
-        b: [joint[0] * c, joint[1], joint[0] * s],
+        b,
         e,
-        tangent: [-s, 0, c],
+        tangent: direction,
+        upperAngle: Math.atan2(
+          g.mountHeight - b[1],
+          Math.hypot(b[0], b[2]) - g.baseRadius,
+        ),
+        rods: [-1, 1].map((sign) => ({
+          from: b.map((v, j) => v + sign * g.rodHalfSpacing * direction[j]),
+          to: e.map((v, j) => v + sign * g.rodHalfSpacing * direction[j]),
+        })),
       };
     });
   }

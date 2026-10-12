@@ -76,6 +76,17 @@ assert.equal($("record").checked, false);
 assert.match($("scene").textContent, /WebGL2/);
 assert.ok($("move").textContent);
 const initial = $("current").textContent;
+for (const name of ["trail", "path"]) {
+  assert.equal($(name).type, "checkbox");
+  assert.ok($("scene").contains($(name)));
+  click(name);
+  assert.equal($(name).checked, false);
+  assert.equal($(name).getAttribute("aria-pressed"), "false");
+  click(name);
+  assert.equal($(name).checked, true);
+}
+assert.equal($("current").textContent, initial);
+assert.equal($("record").checked, false);
 click("plus-z");
 assert.equal($("current").textContent, initial);
 click("move");
@@ -152,9 +163,30 @@ assert.ok(!document.body.textContent.includes("[units.mm]"));
 $("language").value = "en";
 $("language").dispatchEvent(new w.Event("change"));
 click("learn");
+const { LESSON_UNITS } = await import("../lesson-units.mjs");
+const { LessonDemo } = await import("../curriculum.mjs");
 const chooseLesson = (id) => {
-  $("lesson-select").value = id;
-  $("lesson-select").dispatchEvent(new w.Event("change"));
+  if ($(`lesson-${id}`).getAttribute("aria-current") === "step")
+    click("new-attempt");
+  else click(`lesson-${id}`);
+  if ($("lesson-switch-dialog").open) click("confirm-lesson-switch");
+  assert.equal($("lesson-select").hidden, true);
+  assert.equal(document.querySelectorAll(".lesson-navigation").length, 1);
+  assert.equal(
+    document.querySelectorAll(
+      ".lesson-footer, #unit-next, #unit-previous, #type-next, #type-previous",
+    ).length,
+    0,
+  );
+  assert.ok(
+    document.querySelector(".lesson-navigation").contains($("phase-next")),
+  );
+  assert.equal($("lesson-nav").children.length, 7);
+  assert.equal($(`lesson-${id}`).getAttribute("aria-current"), "step");
+  assert.equal(
+    $("lesson-nav").querySelectorAll('[aria-current="step"]').length,
+    1,
+  );
   const term = $("lesson-vocabulary").querySelector(".glossary-term");
   assert.ok(term, `${id} vocabulary must contain tappable terms`);
   const beforeGlossary = structuredClone(saved());
@@ -168,22 +200,148 @@ const chooseLesson = (id) => {
     beforeGlossary,
     "Looking up a definition must not change learning evidence or the robot",
   );
+  if (id !== "types") {
+    click("phase-next");
+    for (const [index, unit] of LESSON_UNITS[id].entries()) {
+      assert.equal(document.body.dataset.phase, "understand");
+      assert.ok($("lesson-unit").textContent.includes(unit.title.en));
+      assert.equal($("lesson-content").hidden, true);
+      click("watch-example");
+      assert.equal(document.body.dataset.phase, "watch");
+      assert.equal(document.querySelector(".scene-card").hidden, true);
+      if (id !== "design") {
+        const probe = new LessonDemo(id, unit.kind);
+        assert.equal(
+          $("lesson-demo-sequence").querySelectorAll("li").length,
+          probe.commands.length,
+        );
+        probe.dispose();
+        advance(32);
+        assert.equal(
+          $("lesson-demo-sequence").querySelectorAll('[aria-current="step"]')
+            .length,
+          1,
+        );
+        assert.match($("lesson-demo-sequence").textContent, /NOW 1/);
+        assert.equal($("lesson-demo-sequence").dataset.state, "playing");
+        if (index === 0) {
+          click("stop-example");
+          assert.equal($("stop-example").hidden, true);
+          assert.equal($("watch-example").disabled, false);
+          assert.equal($("lesson-demo-sequence").dataset.state, "stopped");
+          assert.match(
+            $("lesson-demo-sequence").textContent,
+            /Example stopped/,
+          );
+          click("watch-example");
+        }
+      }
+      {
+        assert.equal(
+          $(
+            id === "anatomy"
+              ? "anatomy-scene"
+              : id === "coordinates"
+                ? "coordinate-scene"
+                : "task-preview-scene",
+          ).closest("figure").hidden,
+          false,
+        );
+        assert.equal($("phase-watch").hidden, true);
+        advance(120000);
+        if (id !== "design") {
+          assert.match(
+            $("lesson-demo-sequence").textContent,
+            /Example complete/,
+          );
+          assert.equal($("lesson-demo-sequence").dataset.state, "done");
+          assert.equal(
+            $("lesson-demo-sequence").querySelectorAll(
+              'li:not([data-state="complete"])',
+            ).length,
+            0,
+          );
+        }
+        if (id === "coordinates" && index === 1)
+          assert.match($("example-pane").textContent, /Worked example:.*mm\/s/);
+      }
+      assert.ok($("example-pane").textContent.includes(unit.demo.en));
+      click("phase-next");
+    }
+    assert.equal(document.body.dataset.phase, "try");
+    click("phase-vocabulary");
+    click("phase-next");
+    click("phase-vocabulary");
+  }
 };
 const predict = () => {
   click("phase-try");
+  const practical = ["grip", "program", "obstacle"].includes(
+    saved().learning.currentLessonId,
+  );
+  if (practical) {
+    assert.equal(
+      $("lesson-practical").hidden,
+      false,
+      "See the task before writing",
+    );
+    assert.equal($("practical-prediction").hidden, false);
+    assert.equal($("focused-controls").hidden, true);
+    assert.equal($("assessment-operate").disabled, true);
+    click("save-prediction");
+    assert.match(
+      $("practical-prediction-status").textContent,
+      /Write your prediction/,
+    );
+    assert.equal(document.activeElement, $("prediction"));
+  }
   change(
     "prediction",
     "I predict the requested movement and will check actual feedback.",
   );
   click("save-prediction");
+  if (practical) {
+    assert.equal($("practical-prediction").hidden, true);
+    assert.equal($("focused-controls").hidden, false);
+    assert.equal($("reflection-pane").hidden, true);
+    assert.equal($("assessment-operate").disabled, false);
+    const evidenceCount = saved().learning.evidenceEvents.length;
+    click("assessment-predict");
+    assert.equal($("prediction").readOnly, true);
+    assert.equal($("save-prediction").hidden, true);
+    click("return-to-operation");
+    assert.equal($("focused-controls").hidden, false);
+    assert.equal(
+      saved().learning.evidenceEvents.length,
+      evidenceCount,
+      "Re-reading a prediction must not create new evidence",
+    );
+  }
 };
 const reflect = () => {
   click("phase-review");
+  if (
+    ["grip", "program", "obstacle"].includes(saved().learning.currentLessonId)
+  ) {
+    assert.equal($("reflection-pane").hidden, false);
+    assert.equal($("reflection-pane").open, true);
+    assert.ok(
+      $("reflection").closest("label").querySelector("span").textContent
+        .length > 35,
+      "Question and answer box are one labelled field",
+    );
+    assert.equal($("save-reflection").textContent, "Save explanation");
+  }
   change(
     "reflection",
     "I compared the actual result with my prediction and revised the sequence.",
   );
   click("save-reflection");
+  if (
+    ["grip", "program", "obstacle"].includes(saved().learning.currentLessonId)
+  ) {
+    assert.match($("practical-reflection-status").textContent, /saved/i);
+  }
 };
 const done = (id) =>
   assert.ok(
@@ -205,7 +363,9 @@ for (const [id, answers] of [
     [...document.querySelectorAll(".phase-nav > button")].map(
       (b) => b.textContent,
     ),
-    ["Vocabulary", "Concept", "Demo", "Assessment"],
+    id === "anatomy"
+      ? ["Vocabulary", "Parts in motion", "Demo", "Assessment"]
+      : ["Vocabulary", "Concept & example", "Demo", "Assessment"],
   );
   click("phase-understand");
   assert.equal($("lesson-vocabulary").hidden, true);
@@ -213,29 +373,33 @@ for (const [id, answers] of [
   if (id === "types") {
     assert.equal($("lesson-content").querySelectorAll("details").length, 0);
     assert.equal($("course-focus-after-assessment").hidden, true);
-    click("type-next");
-    assert.match($("robot-slide-title").textContent, /gantry/);
-    $("type-simulations").dispatchEvent(
-      new w.MouseEvent("pointerdown", {
-        bubbles: true,
-        clientX: 250,
-        clientY: 100,
-        button: 0,
-      }),
-    );
-    $("type-simulations").dispatchEvent(
-      new w.MouseEvent("pointerup", {
-        bubbles: true,
-        clientX: 100,
-        clientY: 103,
-        button: 0,
-      }),
-    );
-    assert.equal($("robot-slide-title").textContent, "SCARA");
+    assert.equal($("robot-type-stage").dataset.robotType, "articulated");
+    click("phase-next");
+    assert.equal(document.body.dataset.phase, "understand");
+    assert.equal($("robot-type-stage").dataset.robotType, "cartesian");
     $("type-simulations").dispatchEvent(
       new w.KeyboardEvent("keydown", { bubbles: true, key: "ArrowLeft" }),
     );
-    assert.match($("robot-slide-title").textContent, /gantry/);
+    assert.equal($("robot-type-stage").dataset.robotType, "articulated");
+    for (const [index, type] of [
+      "articulated",
+      "cartesian",
+      "scara",
+      "delta",
+      "mobile",
+    ].entries()) {
+      assert.equal(saved().learning.presentation.robotTypeIndex, index);
+      assert.equal($("robot-type-stage").dataset.robotType, type);
+      assert.equal(document.querySelector(".robot-slide-media").hidden, false);
+      assert.equal(document.querySelector(".robot-slide-facts").hidden, false);
+      click("type-play");
+      advance(120000);
+      click("phase-next");
+    }
+    assert.equal(document.body.dataset.phase, "try");
+    click("phase-back");
+    assert.equal(document.body.dataset.phase, "understand");
+    assert.equal($("robot-type-stage").dataset.robotType, "mobile");
   }
   assert.ok(
     $("lesson-content").textContent.includes(
@@ -255,6 +419,11 @@ for (const [id, answers] of [
     assert.equal($("watch-example").closest(".example-pane").hidden, true);
     for (const button of document.querySelectorAll("button[data-robot-type]")) {
       button.click();
+      assert.equal(document.body.dataset.phase, "understand");
+      assert.equal(
+        $("robot-type-stage").dataset.robotType,
+        button.dataset.robotType,
+      );
       click("type-reset");
       const progressBefore = $("robot-type-stage").dataset.progress;
       click("type-play");
@@ -271,14 +440,17 @@ for (const [id, answers] of [
     }
     click("type-play");
     advance(500);
-    click("phase-understand");
+    click("phase-vocabulary");
     advance(500);
     const paused = $("type-progress").value;
     advance(1500);
     assert.equal($("type-progress").value, paused);
     click("phase-watch");
   } else {
-    assert.equal(document.querySelector(".scene-card").hidden, false);
+    assert.equal(
+      document.querySelector(".scene-card").hidden,
+      id === "anatomy",
+    );
     click("watch-example");
   }
   advance(120000);
@@ -294,17 +466,106 @@ for (const [id, answers] of [
   );
   click("phase-try");
   if (id === "anatomy") {
-    click("demo-toggle");
-    const row = $("joint-controls").querySelector(".joint-row");
-    row.querySelector('input[type="number"]').value = "10";
-    row.querySelector("button:not(.glossary-term)").click();
+    assert.equal($("anatomy-operation").hidden, false);
+    click("anatomy-turn-plus");
     advance(5000);
-    click("demo-toggle");
   }
   click("phase-review");
+  if (id === "types") {
+    assert.equal($("assessment-demos").hidden, false);
+    click("phase-try");
+    assert.match(
+      $("task-description").textContent,
+      /five robot types and their 3D demos/,
+    );
+    const draft = $("answer-form").querySelector('[name="scenario-assembly"]');
+    draft.value = "articulated";
+    for (const b of $("assessment-demos").querySelectorAll("button")) {
+      b.click();
+      assert.equal(document.body.dataset.phase, "watch");
+      assert.equal(
+        $("robot-type-stage").dataset.robotType,
+        b.dataset.revisitType,
+      );
+      assert.equal($("return-to-assessment").hidden, false);
+      assert.match($("phase-next").textContent, /Return to assessment/);
+      click(
+        b.dataset.revisitType === "mobile"
+          ? "phase-next"
+          : "return-to-assessment",
+      );
+      assert.equal(document.body.dataset.phase, "try");
+      assert.equal(
+        $("answer-form").querySelector('[name="scenario-assembly"]').value,
+        "articulated",
+      );
+    }
+  }
+  if (id === "types") {
+    const form = $("answer-form");
+    form.querySelector('[name="scenario-assembly"]').value = "articulated";
+    form.querySelector('[name="scenario-gantry"]').value = "articulated";
+    form.querySelector('[name="scenario-pickPlace"]').value = "scara";
+    form.querySelector('[name="scenario-sorting"]').value = "";
+    form.querySelector('[name="scenario-delivery"]').value = "mobile";
+    click("submit-answers");
+    assert.match($("answer-feedback-summary").textContent, /3 of 5 correct/);
+    assert.equal(
+      form.querySelectorAll('[data-answer-state="review"]').length,
+      2,
+    );
+    assert.equal(
+      form.querySelector('[name="scenario-assembly"]').value,
+      "articulated",
+    );
+    form.querySelector('[name="scenario-gantry"]').value = "cartesian";
+    form
+      .querySelector('[name="scenario-gantry"]')
+      .dispatchEvent(new w.Event("change"));
+    assert.match($("answer-feedback-summary").textContent, /unsubmitted edits/);
+  } else {
+    assert.equal(
+      $("anatomy-scene").dataset.labels,
+      "base,upper,J2,actuator,gripper,controller",
+    );
+    assert.equal(
+      [...document.querySelectorAll(".anatomy-question")].filter(
+        (e) => !e.hidden,
+      ).length,
+      1,
+    );
+    assert.deepEqual(
+      [...$("answer-form").querySelector('select[name="base"]').options].map(
+        (o) => o.textContent,
+      ),
+      ["Choose A–F", "A", "B", "C", "D", "E", "F"],
+    );
+    click("anatomy-question-next");
+    assert.match($("anatomy-question-counter").textContent, /2 of 6/);
+    click("anatomy-question-previous");
+    click("submit-answers");
+    assert.match($("answer-feedback-summary").textContent, /0 of 6 correct/);
+  }
   for (const [key, value] of Object.entries(answers))
-    $("answer-form").querySelector(`[name="${key}"]`).value = value;
-  $("answer-form").querySelector("button:not(.glossary-term)").click();
+    $("answer-form").querySelector(
+      `[name="${id === "types" ? `scenario-${value}` : key}"]`,
+    ).value = id === "types" ? key : value;
+  if (id === "anatomy") {
+    change("reflection", "A joint rotates, while a link connects joints.");
+    click("save-reflection");
+  }
+  click("submit-answers");
+  assert.match(
+    $("answer-feedback-summary").textContent,
+    id === "types" ? /5 of 5 correct/ : /6 of 6 correct/,
+  );
+  if (id === "anatomy") {
+    assert.equal(
+      $("phase-next").disabled,
+      false,
+      "Saving reflection before submitting matches must not block next lesson",
+    );
+  }
   reflect();
   done(id);
   if (id === "types") {
@@ -319,14 +580,20 @@ for (const [id, answers] of [
 }
 chooseLesson("coordinates");
 predict();
-click("plus-z");
-click("move");
+assert.equal($("coordinate-operation").hidden, false);
+const startZ = Number($("lesson-z-target").value);
+change("lesson-z-target", String(startZ + 10));
+click("lesson-z-move");
 advance(5000);
 click("inspect-joints");
 click("phase-review");
 const measurementMove = saved()
   .learning.evidenceEvents.filter((e) => e.type === "MOVE_COMPLETED")
   .at(-1);
+change("calc-displacement", "0");
+click("check-calculation");
+assert.match($("calculation-status").textContent, /final Z/);
+assert.equal($("reflection-pane").hidden, true);
 change("calc-displacement", "10");
 change("calc-distance", "10");
 change("calc-speed", String(10 / (measurementMove.simulatedDurationMs / 1000)));
@@ -335,44 +602,53 @@ reflect();
 done("coordinates");
 chooseLesson("grip");
 predict();
-click("route-toggle");
-for (const button of [
-  ...$("waypoints").querySelectorAll("button:not(.glossary-term)"),
-].slice(0, 2)) {
-  button.click();
-  click("move");
+for (const name of ["trail", "path"]) {
+  const toggle = $(`practice-${name}`);
+  assert.ok($("task-preview-scene").contains(toggle));
+  assert.equal($("focused-controls").contains(toggle), false);
+  toggle.click();
+  assert.equal(toggle.checked, false);
+  toggle.click();
+  assert.equal(toggle.checked, true);
+}
+for (let i = 0; i < 2; i++) {
+  click("use-practice-target");
+  click("practice-move");
   advance(30000);
 }
-click("close");
-click("plus-z");
-click("move");
+click("practice-close");
+change("practice-z", String(Number($("practice-z").value) + 10));
+click("practice-move");
 advance(5000);
 reflect();
 done("grip");
 function resetUi() {
-  click("steps");
-  click("reset");
-  click("close-steps");
+  click("practice-reset");
 }
 function recordUiRoute() {
-  $("record").checked = true;
-  $("record").dispatchEvent(new w.Event("change"));
-  if ($("waypoints").hidden) click("route-toggle");
-  const buttons = [
-    ...$("waypoints").querySelectorAll("button:not(.glossary-term)"),
-  ];
-  for (let i = 0; i < buttons.length; i++) {
-    buttons[i].click();
-    click("move");
+  $("practice-record").checked = true;
+  $("practice-record").dispatchEvent(new w.Event("change"));
+  for (let i = 0; i < 7; i++) {
+    click("use-practice-target");
+    click("practice-move");
     advance(30000);
-    if (i === 1) click("close");
-    if (i === 5) click("open");
+    if (i === 1) click("practice-close");
+    if (i === 5) click("practice-open");
   }
-  $("record").checked = false;
-  $("record").dispatchEvent(new w.Event("change"));
+  $("practice-record").checked = false;
+  $("practice-record").dispatchEvent(new w.Event("change"));
   resetUi();
-  click("run");
+  click("practice-run");
+  assert.equal($("lesson-practical").dataset.playback, "true");
+  click("practice-pause");
+  assert.equal(
+    $("lesson-practical").dataset.playback,
+    "true",
+    "Paused playback keeps the enlarged view",
+  );
+  click("practice-run");
   advance(120000);
+  assert.equal($("lesson-practical").dataset.playback, "false");
 }
 chooseLesson("program");
 predict();
@@ -380,57 +656,64 @@ resetUi();
 recordUiRoute();
 reflect();
 done("program");
+click("phase-next");
+assert.equal($("lesson-switch-dialog").open, true);
+click("cancel-lesson-switch");
+assert.equal(saved().learning.currentLessonId, "program");
 assert.equal($("six-axis").hidden, false);
 assert.match($("six-axis").textContent, /six-axis arm/);
 chooseLesson("obstacle");
 predict();
-click("route-toggle");
-let path = [...$("waypoints").querySelectorAll("button:not(.glossary-term)")];
-for (const button of path.slice(0, 2)) {
-  button.click();
-  click("move");
+for (let i = 0; i < 2; i++) {
+  click("use-practice-target");
+  click("practice-move");
   advance(30000);
 }
-click("close");
+click("practice-close");
 const blockedCurrent = $("current").textContent;
-path[5].click();
-click("move");
+click("use-practice-target");
+click("practice-move");
 advance(1000);
 assert.equal($("current").textContent, blockedCurrent);
-for (const button of path.slice(2, 6)) {
-  button.click();
-  click("move");
+for (let i = 0; i < 4; i++) {
+  click("use-practice-target");
+  click("practice-move");
   advance(30000);
 }
-click("open");
-path[6].click();
-click("move");
+click("practice-open");
+click("use-practice-target");
+click("practice-move");
 advance(30000);
 reflect();
 done("obstacle");
 click("changed-target");
 predict();
 assert.equal($("hint").disabled, true);
+assert.equal($("transfer-reference").hidden, false);
+assert.match($("transfer-reference").textContent, /Place at B/);
 assert.equal($("waypoints").hidden, true);
 assert.equal($("coach-text").textContent, "Ready");
 const { initialScene, teachingRoute } = await import("../planner.mjs");
 const routeB = teachingRoute(
   initialScene({ obstacle: true, destination: "destinationB" }),
 );
-$("record").checked = true;
-$("record").dispatchEvent(new w.Event("change"));
+$("practice-record").checked = true;
+$("practice-record").dispatchEvent(new w.Event("change"));
 for (const command of routeB) {
   if (command.type === "move") {
     for (const axis of ["x", "y", "z"])
-      change(`target-${axis}`, String(command.targetMm[axis]));
-    click("move");
+      change(`practice-${axis}`, String(command.targetMm[axis]));
+    click("practice-move");
     advance(30000);
-  } else click(command.gripperState === "closed" ? "close" : "open");
+  } else
+    click(
+      command.gripperState === "closed" ? "practice-close" : "practice-open",
+    );
 }
-$("record").checked = false;
-$("record").dispatchEvent(new w.Event("change"));
+$("practice-record").checked = false;
+$("practice-record").dispatchEvent(new w.Event("change"));
 resetUi();
-click("run");
+click("practice-run");
 advance(120000);
 reflect();
 assert.equal(saved().learning.lessons.obstacle.status, "transferPassed");
@@ -450,6 +733,10 @@ assert.deepEqual(
 );
 predict();
 click("phase-review");
+click("save-design");
+assert.equal(document.activeElement.name, "job");
+assert.match($("design-question").textContent, /Who needs help/);
+assert.match($("design-feedback").textContent, /Complete/);
 const proposal = {
   interest: "making",
   bodyPlan: "articulated",
@@ -459,9 +746,10 @@ const proposal = {
 };
 for (const [key, value] of Object.entries(proposal))
   $("answer-form").querySelector(`[name="${key}"]`).value = value;
-$("answer-form").querySelector("button:not(.glossary-term)").click();
+click("save-design");
 reflect();
 done("design");
+assert.equal($("phase-next").disabled, false);
 const downloads = [];
 w.HTMLAnchorElement.prototype.click = function () {
   downloads.push(this.download);

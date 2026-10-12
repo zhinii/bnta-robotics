@@ -102,8 +102,8 @@ test("P5-01 explicit body-plan matches and stable anatomy answers; reflection re
   s = submitAnswers(s, BODY_PLAN_ANSWERS);
   assert.equal(
     evaluateLesson(s).complete,
-    false,
-    "Reflection must follow corrected attempt",
+    true,
+    "Correcting a match must not require saving the same reflection again",
   );
   s = submitReflection(s, "A benefit is flexibility, with limits.");
   assert.equal(evaluateLesson(s).status, "completedWithoutHints");
@@ -118,6 +118,18 @@ test("P5-01 explicit body-plan matches and stable anatomy answers; reflection re
   s = submitAnswers(s, ANATOMY_ANSWERS);
   s = submitReflection(s, "A joint allows motion; a link joins the joints.");
   assert.equal(evaluateLesson(s).complete, true);
+  s = submitAnswers(s, { ...ANATOMY_ANSWERS, link: "shoulder" });
+  assert.equal(
+    evaluateLesson(s).complete,
+    false,
+    "Latest submission must agree with the visible score",
+  );
+  s = submitAnswers(s, ANATOMY_ANSWERS);
+  assert.equal(
+    evaluateLesson(s).complete,
+    true,
+    "Resubmission must preserve an already saved reflection",
+  );
   assert.match(
     evaluateLesson(s).reflectionAssessment,
     /not automatically graded/,

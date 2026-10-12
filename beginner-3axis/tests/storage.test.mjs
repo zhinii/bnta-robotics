@@ -328,3 +328,36 @@ test("P5-07 approach made before recording survives a saved one-step Close progr
   restored.tick(1e6);
   assert.equal(restored.state.scene.objects[0].heldByGripper, true);
 });
+
+test("Legacy matching progress is validated and re-scored without losing evidence", () => {
+  let learning = beginLessonAttempt(createLearningState(), "types");
+  learning = submitPrediction(learning, "The robot shape should suit the job.");
+  learning = submitReflection(
+    learning,
+    "I compared the tasks and chose the mechanisms that fit.",
+  );
+  learning = submitAnswers(learning, BODY_PLAN_ANSWERS, "types");
+  const payload = createProgressPayload({ learning });
+  const a = payload.learning.lessons.types.attempts.at(-1);
+  a.status = "practicing";
+  payload.learning.lessons.types.status = "practicing";
+  assert.equal(validateProgressPayload(payload), false);
+  const rawEvents = JSON.stringify(payload.learning.evidenceEvents);
+  const store = memoryStore({ [STORAGE_KEY]: JSON.stringify(payload) });
+  const restored = loadProgress(store);
+  assert.equal(restored.ok, true);
+  assert.equal(
+    restored.value.learning.lessons.types.attempts.at(-1).status,
+    "completedWithoutHints",
+  );
+  assert.equal(
+    JSON.stringify(restored.value.learning.evidenceEvents),
+    rawEvents,
+  );
+  const forged = createProgressPayload({ learning: createLearningState() });
+  forged.learning.lessons.types.status = "completedWithoutHints";
+  assert.equal(
+    loadProgress(memoryStore({ [STORAGE_KEY]: JSON.stringify(forged) })).ok,
+    false,
+  );
+});

@@ -257,7 +257,7 @@ export function validateStoredProgram(program) {
     return false;
   }
 }
-export function validateLearningState(learning) {
+export function validateLearningState(learning, evaluationOptions = {}) {
   try {
     if (
       !learning ||
@@ -282,6 +282,13 @@ export function validateLearningState(learning) {
       )
         return false;
       ids.add(e.id);
+      if (
+        e.type === "AI_TUTOR_MESSAGE" &&
+        (!["user", "assistant"].includes(e.role) ||
+          typeof e.text !== "string" ||
+          e.text.length > 4000)
+      )
+        return false;
       if (
         ["PREDICTION_SUBMITTED", "REFLECTION_SUBMITTED"].includes(e.type) &&
         (typeof e.text !== "string" || e.text.length > MAX_TEXT_LENGTH)
@@ -356,7 +363,7 @@ export function validateLearningState(learning) {
               [id]: { ...lesson, currentAttemptId: a.id },
             },
           },
-          actual = evaluateLesson(view, id);
+          actual = evaluateLesson(view, id, evaluationOptions);
         if (a.status !== actual.status) return false;
         if (
           LESSON_STATUSES.indexOf(actual.status) > LESSON_STATUSES.indexOf(best)
@@ -393,7 +400,7 @@ export function createProgressPayload(
     scene: scene ? clone(scene) : null,
   };
 }
-export function validateProgressPayload(payload) {
+export function validateProgressPayload(payload, evaluationOptions = {}) {
   try {
     return Boolean(
       payload &&
@@ -406,7 +413,7 @@ export function validateProgressPayload(payload) {
         typeof payload.learnerName === "string" &&
         payload.learnerName.length <= 80 &&
         finiteTree(payload) &&
-        validateLearningState(payload.learning) &&
+        validateLearningState(payload.learning, evaluationOptions) &&
         validateStoredProgram(payload.program) &&
         (payload.scene === null || validateStoredScene(payload.scene)),
     );
@@ -423,8 +430,41 @@ function parseRaw(raw) {
   } catch {
     return problem("malformedJson");
   }
-  if (!validateProgressPayload(parsed))
-    return problem("unsupportedOrInvalidPayload");
+  if (!validateProgressPayload(parsed)) {
+    // Accept only a payload that fully validates under the previous matching rules.
+    // Recalculate derived scores; keep every response and evidence event unchanged.
+    if (!validateProgressPayload(parsed, { legacyMatching: true }))
+      return problem("unsupportedOrInvalidPayload");
+    for (const id of ["types", "anatomy"]) {
+      const lesson = parsed.learning.lessons[id];
+      for (const attempt of lesson.attempts) {
+        const view = {
+          ...parsed.learning,
+          currentLessonId: id,
+          lessons: {
+            ...parsed.learning.lessons,
+            [id]: { ...lesson, currentAttemptId: attempt.id },
+          },
+        };
+        const score = evaluateLesson(view, id);
+        Object.assign(attempt, {
+          status: score.status,
+          checks: score.checks,
+          measurements: score.measurements,
+          verifiedEvidenceIds: score.evidenceEventIds,
+        });
+      }
+      lesson.status = lesson.attempts.reduce(
+        (best, a) =>
+          LESSON_STATUSES.indexOf(a.status) > LESSON_STATUSES.indexOf(best)
+            ? a.status
+            : best,
+        "notStarted",
+      );
+    }
+    if (!validateProgressPayload(parsed))
+      return problem("unsupportedOrInvalidPayload");
+  }
   return success(parsed);
 }
 /** File import is validated fully before the UI replaces any current work. */
@@ -607,7 +647,11 @@ export function exportPortfolio(
       for (const event of learning.evidenceEvents.filter(
         (e) =>
           e.attemptId === a.id &&
-          ["CALCULATION_SUBMITTED", "IMAGE_CAPTURED"].includes(e.type),
+          [
+            "CALCULATION_SUBMITTED",
+            "IMAGE_CAPTURED",
+            "AI_TUTOR_MESSAGE",
+          ].includes(e.type),
       ))
         lines.push(`  ${event.type}: ${JSON.stringify(event)}`);
       if (a.transferResult)

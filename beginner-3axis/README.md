@@ -14,7 +14,21 @@ python -m http.server 8000 --bind 127.0.0.1
 
 Open `http://localhost:8000/beginner-3axis/` in a current WebGL2-capable browser. To test a GitHub Pages-style project subpath, serve the parent of the repository and open `/bnta-robotics/beginner-3axis/` (or the actual checkout folder name). Assets and module imports are relative. Do not open `index.html` through `file://`.
 
-No application build, backend, account, runtime package installation or network API is required. Three.js is pinned and served locally. With WebGL2 unavailable, the page explicitly reports the limitation and keeps text coordinates and controls available; this is not a working 3D view.
+No application build, backend, account, runtime package installation or network API is required for lessons, operation, reflections or JSON export. Optional AI assessment feedback uses the separate server described below. Three.js is pinned and served locally. With WebGL2 unavailable, the page explicitly reports the limitation and keeps text coordinates and controls available; this is not a working 3D view.
+
+## Optional AI assessment dialogue
+
+**Without AI:** Save reflection saves locally and includes the response in project JSON. Lessons and completion checks work without a connection. There is no invented AI feedback.
+
+**With AI:** Saving a response requests Qwen feedback automatically, then learners can reply and revise their reasoning in a dialogue. The response is saved before the request; a timeout or provider error keeps it intact and offers Retry. Dialogue is included in JSON and the readable portfolio. AI cannot move the robot, award completion or substitute for teacher judgement. Independent-task discussion opens after the delivery test.
+
+Run the optional same-origin server from the repository root:
+
+```sh
+python beginner-3axis/server/serve.py --host 127.0.0.1 --port 4205
+```
+
+Open `http://127.0.0.1:4205/beginner-3axis/`. With no key this is an offline preview. On the school server, it can reuse the existing `QIANWEN_API_KEY`, `QIANWEN_BASE_URL` and `QIANWEN_MODEL` environment settings. No key belongs in browser code or Git. See [server/README.md](server/README.md) for the connection contract, limitations and verification steps. GitHub Pages alone cannot run this server.
 
 ## Test
 
@@ -31,7 +45,10 @@ Optional DOM integration uses jsdom, strictly as a development dependency:
 cd beginner-3axis
 npm ci --ignore-scripts
 npm run test:dom
+node tests/tutor.dom.mjs
 ```
+
+The optional server also has six mocked provider/security tests: `python -m unittest discover -s beginner-3axis/server -p "test_*.py" -v` from the repository root.
 
 The DOM harness exercises the actual page event handlers and controller, including the seven-lesson journey. **jsdom does not test pixels, layout, WebGL, real keyboard focus trapping, touch, or physical devices.** The normal unit suite does not need jsdom or npm installation. A test-only `BNTA_JSDOM_PATH` override can point to an already-installed jsdom module.
 
@@ -73,7 +90,13 @@ Wireframe markers are abstract support/capture fixtures. Pickup requires the act
 
 ## Learning and privacy
 
-Learn uses **Vocabulary → Concept → Demo → Assessment**. Robot types use swipeable concept slides and five Three.js job demonstrations, with Play/Pause, Reset and scrubbing. Their motion and graphics are separate from learner state. The course's three-axis articulated-arm focus is stated after completing that assessment. Reading and written assessment pages omit the operating workspace; arm-specific examples and hands-on assessment bring it back. Explore remains the full three-axis operating workspace. Bold vocabulary terms open bilingual definitions throughout lesson text. Practical assessment separates operation from explanation/checking, and both contribute to the portfolio.
+Examples in Lessons 1–6 now show a numbered action list with a synchronised current-step highlight. On phones, programming keeps a compact scene; replay (including Pause) enlarges it and exposes playback controls. World axes originate at the model's (0,0,0), with larger directional arrows and a tighter camera fit.
+
+Lessons 4–6 assessments use **Predict → Operate → Explain**. The task and live scene are visible before writing; each question sits directly above its own answer box. Saving the prediction opens the robot controls. Review checks actual operations before asking for the explanation, and confirms when it is saved. TCP coordinates sit below the scene instead of over the gripper. Narrow screens keep the scene and scrollable controls in separate rows. Lesson 7 remains unchanged while its redesign is on hold.
+
+Learn uses **Vocabulary → Concept → Demo → Assessment**. Lesson 1 pairs each robot’s concept with its Three.js demonstration before moving to the next robot: articulated, gantry, SCARA, delta, then mobile. Vocabulary comes first and assessment comes after all five pairs. The swipeable presentation provides five job demonstrations, with Play/Pause, Reset and scrubbing. Their motion and graphics are separate from learner state. The course's three-axis articulated-arm focus is stated after completing that assessment. Reading and written assessment pages omit the operating workspace; arm-specific examples and hands-on assessment bring it back. Explore remains the full three-axis operating workspace. Bold vocabulary terms open bilingual definitions throughout lesson text. Practical assessment separates operation from explanation/checking, and both contribute to the portfolio.
+
+The remaining lessons also use short concept/demo pairs before their assessment; learners can replay the relevant example and return without losing answers. Lesson 1 uses five illustrated job scenarios to match robot bodies to applications. These are original explanatory illustrations, not photographs.
 
 Seven short lessons introduce body plans, anatomy, joint-vs-XYZ movement, actual grasping, recording/replay, obstacle planning and an interest-led design proposal. Body-plan definitions, example jobs, trade-offs, morphology/cobot distinctions, sensor caveats and a post-replay six-axis comparison are visible teaching content. Answer checks and actual controller events supply evidence; predictions and learner-authored reflections remain separate. The scripted coach does not grade open-ended reasoning or operate the robot.
 
@@ -83,11 +106,11 @@ English and 简体中文 use paired offline dictionaries, including the lesson f
 
 Only the new local key `bnta3axis:v1` is used as a convenience copy. The old application's data is never read, migrated or cleared. Recording never restores ON. Bad/stale stored data is retained and blocks overwrite; quota/privacy failures keep the current session usable and visibly request an export. Save project JSON includes a validated resume payload, and Open project JSON validates before confirming replacement of current work. No server database is used.
 
-Evidence history is capped at 2,000 events: the app warns and stops adding evidence rather than silently deleting it. Text fields are length-limited. Names are optional and blank by default. JSON and readable text exports include actual events, predictions, calculations, reflections and limitations. Save scene image creates a separate PNG; retain it with the project. No analytics, AI calls, student-data upload, API keys or hardware connection is present. The guide is honestly labelled scripted. `coach.mjs` exposes a bounded future-adapter schema only.
+Evidence history is capped at 2,000 events: the app warns and stops adding evidence rather than silently deleting it. Text fields are length-limited. Names are optional and blank by default. JSON and readable text exports include actual events, predictions, calculations, reflections and limitations. Save scene image creates a separate PNG; retain it with the project. There is no analytics or hardware connection. Without an AI connection, no response is uploaded. When connected, the saved response, recent dialogue, lesson reference and a bounded simulator snapshot are sent through the school server to Qwen; learner names are excluded from the snapshot. The interface explains this before a response is submitted. The server does not store conversations or log their content. The operational guide remains explicitly scripted; assessment dialogue is separately labelled Qwen feedback.
 
 ## Brief revision and reusable teaching framework
 
-Read [BRIEF_REVIEW.md](BRIEF_REVIEW.md) for the pre-change learner audit and [TEACHING_FRAMEWORK.md](TEACHING_FRAMEWORK.md) for lesson outcomes, evidence and teacher review. Each lesson has Understand, Watch, Try and Review phases. Examples use an isolated controller and never contribute student completion evidence. A new anatomy attempt requires actual joint operation; a new coordinate attempt also requires a calculation checked against the actual movement and model time. Earlier stored attempts remain compatible.
+Read [BRIEF_REVIEW.md](BRIEF_REVIEW.md) for the pre-change learner audit and [TEACHING_FRAMEWORK.md](TEACHING_FRAMEWORK.md) for lesson outcomes, evidence and teacher review. All seven lessons use Vocabulary, paired Concept/example, then Assessment. Lessons 4–6 put a live robot beside focused operation controls, followed by a review of actual test evidence and reflection. Lesson 7 uses four short proposal questions. Examples use an isolated controller and never contribute student completion evidence. A new anatomy attempt requires actual joint operation; a new coordinate attempt also requires a calculation checked against the actual movement and model time. Earlier stored attempts remain compatible.
 
 Ghost shows the target arm pose. A dashed blue line shows expected TCP travel; the program panel shows the whole saved route. Red indicates an invalid move/program, not simulated impact. The orange trail follows actual movement and can be hidden or cleared. These overlays do not move the robot or change a program. The gripper now has a connecting slide bridge included in collision checks.
 

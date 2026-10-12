@@ -7,6 +7,7 @@
     <title>Robot Lab · Three-axis learning lab</title>
     <link rel="stylesheet" href="./styles.css" />
     <link rel="stylesheet" href="./learning-flow.css" />
+    <link rel="stylesheet" href="./interaction-theme.css" />
     <script type="importmap">
       { "imports": { "three": "./vendor/three/build/three.module.js" } }
     </script>
@@ -57,16 +58,6 @@
                   data-i18n="control.ghost"
                 ></button>
                 <button
-                  id="path"
-                  aria-pressed="true"
-                  data-i18n="control.path"
-                ></button>
-                <button
-                  id="trail"
-                  aria-pressed="true"
-                  data-i18n="control.trail"
-                ></button>
-                <button
                   id="clear-trail"
                   data-i18n="control.clearTrail"
                 ></button>
@@ -87,7 +78,20 @@
               <strong data-i18n="control.current"></strong
               ><output id="current"></output><span data-i18n="units.mm"></span>
             </div>
-            <div id="scene" aria-label="Three-axis robot scene"></div>
+            <div id="scene" aria-label="Three-axis robot scene">
+              <div class="scene-view-options">
+                <label
+                  ><input id="trail" type="checkbox" checked /><span
+                    data-i18n="control.trail"
+                  ></span
+                ></label>
+                <label
+                  ><input id="path" type="checkbox" checked /><span
+                    data-i18n="control.path"
+                  ></span
+                ></label>
+              </div>
+            </div>
             <div class="scene-key">
               <span class="current-dot"></span
               ><span data-i18n="control.current"></span
@@ -181,8 +185,13 @@
         </section>
         <section id="learning" class="card learning" hidden>
           <div class="section-head">
-            <select id="lesson-select" aria-label="Lesson / 课程"></select
-            ><button id="new-attempt" data-i18n="control.newAttempt"></button>
+            <nav id="lesson-nav" aria-label="Lessons / 课程"></nav>
+            <select
+              id="lesson-select"
+              aria-label="Lesson / 课程"
+              hidden
+            ></select>
+            <button id="new-attempt" data-i18n="control.newAttempt"></button>
           </div>
           <h1 id="task-title"></h1>
           <p id="task-description"></p>

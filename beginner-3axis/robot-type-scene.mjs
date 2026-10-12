@@ -1,5 +1,6 @@
 import * as THREE from "./vendor/three/build/three.module.js";
-import { robotTypePose } from "./robot-type-motion.mjs";
+import { robotTypePose, DELTA_GEOMETRY } from "./robot-type-motion.mjs";
+import { drawDelta } from "./delta-model.mjs";
 
 /** One reusable WebGL scene for the entire presentation; never learner state. */
 export function createRobotTypeScene(host) {
@@ -45,7 +46,44 @@ export function createRobotTypeScene(host) {
     ball: new THREE.SphereGeometry(1, 20, 12),
     rod: new THREE.CylinderGeometry(1, 1, 1, 20),
     ring: new THREE.TorusGeometry(1, 0.22, 10, 28),
+    housing: roundedTriangle(),
+    taper: new THREE.CylinderGeometry(0.65, 1, 1, 12),
+    cup: new THREE.CylinderGeometry(0.48, 1, 1, 24),
+    packet: new THREE.BoxGeometry(1, 1, 1),
   };
+  function roundedTriangle() {
+    // A gently rounded triangular casting, with its three lobes aligned to
+    // the three motor planes and the moving platform's attachment points.
+    const vertices = [0, 1, 2].map(
+      (i) =>
+        new THREE.Vector2(
+          Math.cos((i * 2 * Math.PI) / 3),
+          Math.sin((i * 2 * Math.PI) / 3),
+        ),
+    );
+    const shape = new THREE.Shape();
+    for (let i = 0; i < 3; i++) {
+      const v = vertices[i],
+        before = v.clone().lerp(vertices[(i + 2) % 3], 0.08),
+        after = v.clone().lerp(vertices[(i + 1) % 3], 0.08);
+      if (!i) shape.moveTo(before.x, before.y);
+      else shape.lineTo(before.x, before.y);
+      shape.quadraticCurveTo(v.x, v.y, after.x, after.y);
+    }
+    shape.closePath();
+    const geometry = new THREE.ExtrudeGeometry(shape, {
+      depth: 0.94,
+      bevelEnabled: true,
+      bevelSegments: 2,
+      steps: 1,
+      bevelSize: 0.02,
+      bevelThickness: 0.03,
+      curveSegments: 6,
+    });
+    geometry.translate(0, 0, -0.47);
+    geometry.rotateX(Math.PI / 2);
+    return geometry;
+  }
   const colors = {
     silver: 0xdce3ec,
     dark: 0x26364b,
@@ -53,6 +91,7 @@ export function createRobotTypeScene(host) {
     orange: 0xf59e0b,
     green: 0x7dc7b2,
     white: 0xffffff,
+    carbon: 0x222a32,
   };
   const materials = Object.fromEntries(
     Object.entries(colors).map(([k, color]) => [
@@ -87,20 +126,24 @@ export function createRobotTypeScene(host) {
       for (const v of [p.base, p.joint, p.tip, p.source, p.destination])
         if (v) points.push(new THREE.Vector3(...v));
       if (type === "scara")
-        points.push(new THREE.Vector3(p.tip[0], 115, p.tip[2]));
+        points.push(new THREE.Vector3(p.tip[0], p.tip[1] + 124, p.tip[2]));
       if (type === "delta")
         for (const { a, b, e } of p.chains)
           points.push(
             new THREE.Vector3(...a),
             new THREE.Vector3(...b),
             new THREE.Vector3(...e),
-            new THREE.Vector3(a[0] * 1.65, 0, a[2] * 1.65),
-            new THREE.Vector3(a[0] * 1.65, 160, a[2] * 1.65),
           );
       if (type === "mobile")
         for (const x of [-30, 30])
           for (const z of [-28, 28])
             points.push(new THREE.Vector3(p.tip[0] + x, 60, p.tip[2] + z));
+    }
+    if (type === "delta") {
+      for (const x of [-121, 121])
+        for (const y of [0, DELTA_GEOMETRY.mountHeight + 47])
+          points.push(new THREE.Vector3(x, y, -102));
+      for (const x of [-65, 65]) points.push(new THREE.Vector3(x, 0, 60));
     }
     if (type === "cartesian")
       for (const x of [-105, 105])
@@ -114,7 +157,11 @@ export function createRobotTypeScene(host) {
     const center = new THREE.Box3()
       .setFromPoints(points)
       .getCenter(new THREE.Vector3());
-    const direction = new THREE.Vector3(1, 0.72, 1.35).normalize(),
+    const direction = (
+        type === "delta"
+          ? new THREE.Vector3(0.75, 0.5, 1.6)
+          : new THREE.Vector3(1, 0.72, 1.35)
+      ).normalize(),
       right = new THREE.Vector3().crossVectors(up, direction).normalize(),
       vertical = new THREE.Vector3().crossVectors(direction, right).normalize();
     const tan = Math.tan(THREE.MathUtils.degToRad(36) / 2);
@@ -172,7 +219,7 @@ export function createRobotTypeScene(host) {
     m.quaternion.setFromUnitVectors(up, delta.normalize());
     return m;
   }
-  function grip(tip, direction, gap) {
+  function grip(tip, direction, gap, fingerExtension = 6) {
     const forward = new THREE.Vector3(...direction).normalize();
     let side = new THREE.Vector3().crossVectors(forward, up);
     if (side.length() < 0.01) side.set(1, 0, 0);
@@ -203,7 +250,7 @@ export function createRobotTypeScene(host) {
         p
           .clone()
           .addScaledVector(side, sign * gap)
-          .addScaledVector(forward, 6)
+          .addScaledVector(forward, fingerExtension)
           .toArray(),
         3,
         "dark",
@@ -288,6 +335,8 @@ export function createRobotTypeScene(host) {
           3,
           "orange",
         );
+    } else if (type === "delta") {
+      drawDelta(f, { mesh, box, rod, ball });
     } else {
       for (const [key, p] of [
         ["source", f.source],
@@ -323,19 +372,22 @@ export function createRobotTypeScene(host) {
         rod("upper", f.base, f.joint, 11);
         joint("shoulder", f.base, [0, 1, 0], 14);
         joint("elbow", f.joint, [0, 1, 0], 12);
-        rod("forearm", f.joint, [f.tip[0], 100, f.tip[2]], 9);
+        const elbowTop = [f.joint[0], 112, f.joint[2]];
+        rod("elbow-riser", f.joint, elbowTop, 10, "dark");
+        rod("forearm", elbowTop, [f.tip[0], 112, f.tip[2]], 8);
+        box("wrist-guide", [f.tip[0], 112, f.tip[2]], [20, 26, 20], "blue");
         rod(
           "plunger",
-          [f.tip[0], 105, f.tip[2]],
+          [f.tip[0], f.tip[1] + 124, f.tip[2]],
           [f.tip[0], f.tip[1] + 24, f.tip[2]],
-          5,
+          4,
         );
-        grip(f.tip, [0, -1, 0], f.gap);
+        grip(f.tip, [0, -1, 0], f.gap, -2);
         const socket = mesh(
           "socket",
           "ring",
           "dark",
-          [f.destination[0], 25, f.destination[2]],
+          [f.destination[0], 14, f.destination[2]],
           [9, 9, 9],
         );
         socket.rotation.x = Math.PI / 2;
@@ -343,38 +395,10 @@ export function createRobotTypeScene(host) {
           rod(
             `socket-support${sign}`,
             [f.destination[0] + sign * 13, 10, f.destination[2]],
-            [f.destination[0] + sign * 8, 25, f.destination[2]],
+            [f.destination[0] + sign * 8, 14, f.destination[2]],
             2,
             "dark",
           );
-      } else {
-        for (let i = 0; i < 3; i++) {
-          const { a, b, e, tangent } = f.chains[i],
-            next = f.chains[(i + 1) % 3].a;
-          rod(`frame${i}`, a, next, 7, "dark");
-          ball(`motor${i}`, a, 11);
-          const stand = [a[0] * 1.65, 0, a[2] * 1.65];
-          rod(`stand${i}`, stand, [stand[0], 160, stand[2]], 5, "dark");
-          rod(`mount${i}`, [stand[0], 160, stand[2]], a, 5, "dark");
-          rod(`upper${i}`, a, b, 8);
-          ball(`elbow${i}`, b, 8);
-          for (const sign of [-1, 1])
-            rod(
-              `lower${i}${sign}`,
-              b.map((n, j) => n + sign * 4 * tangent[j]),
-              e.map((n, j) => n + sign * 4 * tangent[j]),
-              3,
-              "blue",
-            );
-          rod(`platform${i}`, e, f.chains[(i + 1) % 3].e, 5, "dark");
-        }
-        rod(
-          "suction",
-          [f.tip[0], f.tip[1] + 15, f.tip[2]],
-          [f.tip[0], f.tip[1] + 7, f.tip[2]],
-          6,
-          "dark",
-        );
       }
       if (type === "scara")
         rod(

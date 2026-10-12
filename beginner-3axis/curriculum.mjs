@@ -16,20 +16,20 @@ export const COURSE = {
       "根据工作选择合适的机器人结构。",
     ),
     concept: pair(
-      "A robot follows instructions. Its body plan changes how it moves and which jobs it can do. Swipe through five types, then see each one working in Demo.",
-      "机器人按指令工作。结构类型决定它如何运动、适合什么任务。滑动认识五种类型，再在“演示”中观察它们工作。",
+      "A robot follows instructions. Its body plan changes how it moves and which jobs it can do. For each type, read the concept, then watch its 3D demo before meeting the next robot.",
+      "机器人按指令工作。结构类型决定它如何运动、适合什么任务。每种类型先学概念，再看它的3D演示，然后认识下一种机器人。",
     ),
     prediction: pair(
       "Which body plan would you choose to move books along straight library shelves? Why?",
       "沿笔直的图书架搬运书籍，你会选择哪种结构？为什么？",
     ),
     task: pair(
-      "Watch the example, then match each robot type to one suitable job in Assessment. There can be other suitable choices in real life; these matches use the examples taught here.",
-      "先观看示例，再到“评估”把每种机器人与本课介绍的工作配对。现实中可能有多种合适选择，这里使用本课的例子。",
+      "Think back to the five robot types and their 3D demos in this lesson. Choose a robot for each illustrated job, using the motion you saw it demonstrate. Use the replay buttons below if you need a reminder. These matches refer to this lesson’s examples; real robots can have other suitable jobs.",
+      "回想本课五种机器人及其3D演示，根据演示中的运动，为每幅工作图选择机器人。需要回顾时，使用下方的重看按钮。这些配对依据本课示例，真实机器人还可以承担其他合适的工作。",
     ),
     reflect: pair(
-      "Why might a gantry be useful in a store? When might an articulated arm be better?",
-      "龙门式机器人为什么适合仓库？什么情况下关节式机械臂更合适？",
+      "Compare two robots from the demos. Describe one movement you observed in each, and explain how its body plan helps it do its job.",
+      "比较演示中的两种机器人。分别描述你观察到的一种运动，并说明它的结构如何帮助它完成工作。",
     ),
     demo: pair(
       "Example: a small arm transfers a part between two stations. Its joints rotate; a gantry would use straight sliding axes. Neither body is best for every job.",
@@ -50,8 +50,8 @@ export const COURSE = {
       "只转动J1，哪些部件会跟着移动？",
     ),
     task: pair(
-      "Open Joint controls. Change one angle by about 10°, then press Move joint. Watch which parts move. Return to XYZ controls when finished. In Explain & check, identify the parts.",
-      "打开“关节控制”，将一个角度改变约10°，按“移动关节”。观察哪些部件移动。完成后返回XYZ控制，再到“评估”辨认部件。",
+      "Predict what turns with J1 and save your prediction. Then use +10° or −10° to turn it yourself. Watch the robot before choosing Identify & explain.",
+      "预测哪些部件随J1转动并保存预测，再按+10°或−10°亲自转动。观察机器人，然后选择“辨认与解释”。",
     ),
     reflect: pair(
       "How is a joint different from a link? Explain why the gripper is not a fourth positioning axis.",
@@ -215,7 +215,7 @@ export function practiceRoute(id, scene) {
 
 /** A deterministic example with its own world; no learner controller references. */
 export class LessonDemo {
-  constructor(id) {
+  constructor(id, segment = "full") {
     this.controller = new Controller({
       scene: initialScene({ obstacle: id === "obstacle" }),
     });
@@ -250,6 +250,28 @@ export class LessonDemo {
               },
             ]
           : practiceRoute(id, this.controller.state.scene);
+    if (id === "anatomy" && segment !== "full") {
+      this.commands =
+        segment === "base"
+          ? this.commands.slice(0, 2)
+          : segment === "links"
+            ? this.commands.slice(2, 6)
+            : this.commands.slice(6);
+    }
+    if (id === "coordinates" && segment === "joint")
+      this.commands = [
+        {
+          type: "jointDemo",
+          jointIndex: 1,
+          angleRad: q[1] + rad(10),
+          name: "J2 +10°",
+        },
+        { type: "jointDemo", jointIndex: 1, angleRad: q[1], name: "J2 return" },
+      ];
+    if (id === "grip" && segment === "approach")
+      this.commands = this.commands.slice(0, 2);
+    if (id === "obstacle" && segment === "blocked")
+      this.commands = this.commands.slice(0, 4);
     this.index = -1;
     this.wait = 0;
     this.done = false;

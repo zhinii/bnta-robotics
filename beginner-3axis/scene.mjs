@@ -20,6 +20,13 @@ const COLOURS = Object.freeze({
 });
 const Y = new THREE.Vector3(0, 1, 0);
 const Z = new THREE.Vector3(0, 0, 1);
+export const WORLD_AXES = Object.freeze([
+  { id: "X", end: { x: 200, y: 0, z: 0 }, color: 0xbe4a3f },
+  { id: "Y", end: { x: 0, y: 180, z: 0 }, color: 0x388447 },
+  { id: "Z", end: { x: 0, y: 0, z: 220 }, color: 0x3767be },
+  { id: "-X", end: { x: -70, y: 0, z: 0 }, color: 0xbe4a3f },
+  { id: "-Y", end: { x: 0, y: -70, z: 0 }, color: 0x388447 },
+]);
 const point = (p) => new THREE.Vector3(p.x, p.y, p.z);
 const plain = (p) => ({ x: p.x, y: p.y, z: p.z });
 const mean = (a, b) => point(a).add(point(b)).multiplyScalar(0.5);
@@ -389,15 +396,21 @@ export function buildSceneGraph() {
   targetPath.name = "previewDisplacement";
   scene.add(targetPath);
 
-  const axisOrigin = new THREE.Vector3(-65, -100, 1);
-  for (const [id, vector, color] of [
-    ["X", new THREE.Vector3(1, 0, 0), 0xbe4a3f],
-    ["Y", new THREE.Vector3(0, 1, 0), 0x388447],
-    ["Z", new THREE.Vector3(0, 0, 1), 0x3767be],
-  ]) {
+  // This is the model's world frame, not a decorative corner triad.
+  const axisOrigin = new THREE.Vector3(0, 0, 0);
+  for (const { id, end, color } of WORLD_AXES) {
+    const vector = point(end),
+      length = vector.length();
     axes.add(
       nameNode(
-        new THREE.ArrowHelper(vector, axisOrigin, 36, color, 7, 3.5),
+        new THREE.ArrowHelper(
+          vector.normalize(),
+          axisOrigin,
+          length,
+          color,
+          10,
+          5,
+        ),
         `axis:${id}`,
       ),
     );
@@ -641,6 +654,15 @@ export function updateSceneGraph(graph, state, target, options = {}) {
   graph.grid.visible = options.grid ?? true;
   graph.axes.visible = options.axes ?? true;
   graph.debug.visible = options.proxies ?? false;
+  graph.fixtures.visible =
+    graph.objects.visible =
+    graph.obstacles.visible =
+      !options.anatomyOnly;
+  graph.current.visible = !options.anatomyOnly || !!options.coordinateLesson;
+  if (options.anatomyOnly) {
+    graph.target.visible = false;
+    graph.targetPath.visible = false;
+  }
 
   const fixtureSignature = JSON.stringify([state.fixtures, state.destination]);
   if (fixtureSignature !== graph.fixtureSignature) {
@@ -708,7 +730,7 @@ export function updateSceneGraph(graph, state, target, options = {}) {
     {
       id: "base",
       key: "base",
-      point: { x: -20, y: 0, z: 20 },
+      point: { x: 0, y: 0, z: 24 },
       offset: [-34, 10],
       anatomy: true,
     },
@@ -787,17 +809,21 @@ export function updateSceneGraph(graph, state, target, options = {}) {
       fixture: true,
       dim: f.id !== "source" && f.id !== state.destination,
     })),
-    ...["X", "Y", "Z"].map((axis, i) => ({
-      id: `axis:${axis}`,
-      text: axis,
-      point: {
-        x: -65 + (i === 0 ? 44 : 0),
-        y: -100 + (i === 1 ? 44 : 0),
-        z: 1 + (i === 2 ? 44 : 0),
-      },
-      offset: [0, 0],
+    ...WORLD_AXES.map(({ id, end, color }) => ({
+      id: `axis:${id}`,
+      text: id.startsWith("-") ? id : `+${id}`,
+      point: end,
+      color,
+      offset: [0, -10],
       axis: true,
     })),
+    {
+      id: "axis:origin",
+      text: "0, 0, 0",
+      point: { x: 0, y: 0, z: 0 },
+      offset: [-28, 20],
+      axis: true,
+    },
   ];
   // Bounds include required fixtures and current geometry, not enormous/invalid drafts.
   graph.worldBounds.makeEmpty();
@@ -807,29 +833,38 @@ export function updateSceneGraph(graph, state, target, options = {}) {
     pose.E,
     pose.F,
     pose.C,
-    { x: -65, y: -100, z: 0 },
+    { x: -40, y: -40, z: 0 },
+    ...((options.axes ?? true) ? WORLD_AXES.map((axis) => axis.end) : []),
 
-    ...(state.fixtures || []).map((f) => f.targetPosition),
+    ...(options.anatomyOnly ? [] : state.fixtures || []).map(
+      (f) => f.targetPosition,
+    ),
   ])
     graph.worldBounds.expandByPoint(point(p));
-  for (const box of state.obstacles || []) {
+  for (const box of options.anatomyOnly ? [] : state.obstacles || []) {
     graph.worldBounds.expandByPoint(point(box.min));
     graph.worldBounds.expandByPoint(point(box.max));
   }
-  graph.worldBounds.expandByScalar(18);
+  graph.worldBounds.expandByScalar(12);
   graph.worldBounds.framePoints = [
     pose.O,
     pose.S,
     pose.E,
     pose.F,
     pose.C,
-    { x: -65, y: -100, z: 44 },
-    ...(state.fixtures || []).map((f) => f.targetPosition),
-    ...(state.obstacles || []).flatMap((b) => [b.min, b.max]),
+    { x: -40, y: -40, z: 0 },
+    ...((options.axes ?? true) ? WORLD_AXES.map((axis) => axis.end) : []),
+    ...(options.anatomyOnly ? [] : state.fixtures || []).map(
+      (f) => f.targetPosition,
+    ),
+    ...(options.anatomyOnly ? [] : state.obstacles || []).flatMap((b) => [
+      b.min,
+      b.max,
+    ]),
   ].flatMap((p) =>
-    [-18, 18].flatMap((x) =>
-      [-18, 18].flatMap((y) =>
-        [-18, 18].map((z) => new THREE.Vector3(p.x + x, p.y + y, p.z + z)),
+    [-12, 12].flatMap((x) =>
+      [-12, 12].flatMap((y) =>
+        [-12, 12].map((z) => new THREE.Vector3(p.x + x, p.y + y, p.z + z)),
       ),
     ),
   );
@@ -883,8 +918,8 @@ export function fitCamera(camera, bounds, controls, resetDirection = false) {
     const d = p.clone().sub(centre);
     distance = Math.max(
       distance,
-      d.dot(direction) + Math.abs(d.dot(right)) / (Math.tan(horizontal) * 0.88),
-      d.dot(direction) + Math.abs(d.dot(up)) / (Math.tan(vertical) * 0.88),
+      d.dot(direction) + Math.abs(d.dot(right)) / (Math.tan(horizontal) * 0.95),
+      d.dot(direction) + Math.abs(d.dot(up)) / (Math.tan(vertical) * 0.95),
     );
   }
   camera.position.copy(centre).addScaledVector(direction, distance);
@@ -967,6 +1002,7 @@ export function createScene(container, options = {}) {
     layoutHeight = 1,
     legendSignature = "";
   const labelElements = new Map();
+  const leaderElements = new Map();
   const labelLayer = doc.createElement("div");
   labelLayer.className = "scene-label-layer";
   labelLayer.setAttribute("aria-hidden", "true");
@@ -976,6 +1012,14 @@ export function createScene(container, options = {}) {
     pointerEvents: "none",
     overflow: "hidden",
   });
+  const leaders = doc.createElementNS("http://www.w3.org/2000/svg", "svg");
+  Object.assign(leaders.style, {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+    inset: "0",
+  });
+  labelLayer.append(leaders);
 
   function fail() {
     if (disposed || failed) return;
@@ -1037,16 +1081,17 @@ export function createScene(container, options = {}) {
           graph.labels
             .filter((item) => item.anatomy)
             .findIndex((item) => item.id === label.id) + 1;
-        element.textContent = label.anatomy
-          ? label.id === `J${(currentOptions.focusJoint ?? -2) + 1}`
-            ? strings[label.key]
-            : String(anatomyIndex)
-          : label.text || strings[label.key] || label.key;
+        element.textContent =
+          label.anatomy && !currentOptions.namedLabels
+            ? label.id === `J${(currentOptions.focusJoint ?? -2) + 1}`
+              ? strings[label.key]
+              : String(anatomyIndex)
+            : label.text || strings[label.key] || label.key;
         element.title = strings[label.key] || label.text || "";
         if (label.anatomy)
           Object.assign(element.style, {
             border: "1px solid #9fbac7",
-            borderRadius: "50%",
+            borderRadius: currentOptions.namedLabels ? "5px" : "50%",
             minWidth: "18px",
             textAlign: "center",
             padding: "2px",
@@ -1059,8 +1104,27 @@ export function createScene(container, options = {}) {
               ? "#007b82"
               : "#26495b";
         element.style.opacity = label.dim ? ".55" : "1";
+        if (label.axis)
+          Object.assign(element.style, {
+            background: "transparent",
+            padding: "0",
+            fontSize: label.id === "axis:origin" ? "11px" : "14px",
+            fontWeight: "750",
+            color: label.color
+              ? `#${label.color.toString(16).padStart(6, "0")}`
+              : "#526273",
+            textShadow: "0 1px 3px white",
+          });
         const position = point(label.point).project(camera);
         const visible =
+          (!(label.id === "current" || label.id === "target") ||
+            currentOptions.toolLabels !== false) &&
+          (!currentOptions.anatomyOnly ||
+            label.anatomy ||
+            (currentOptions.coordinateLesson && label.axis)) &&
+          (!label.anatomy ||
+            !currentOptions.labelIds ||
+            currentOptions.labelIds.includes(label.id)) &&
           (label.always ||
             (label.axis && (currentOptions.axes ?? true)) ||
             (label.anatomy && (currentOptions.labels ?? true)) ||
@@ -1070,8 +1134,13 @@ export function createScene(container, options = {}) {
           Math.abs(position.x) < 1.1 &&
           Math.abs(position.y) < 1.1;
         element.hidden = !visible;
-        const x = ((position.x + 1) * layoutWidth) / 2 + label.offset[0];
-        const y = ((-position.y + 1) * layoutHeight) / 2 + label.offset[1];
+        const anchor = currentOptions.labelLayout?.[label.id];
+        const x = anchor
+          ? anchor[0] * layoutWidth
+          : ((position.x + 1) * layoutWidth) / 2 + label.offset[0];
+        const y = anchor
+          ? anchor[1] * layoutHeight
+          : ((-position.y + 1) * layoutHeight) / 2 + label.offset[1];
         const w = element.offsetWidth || 22,
           h = element.offsetHeight || 18;
         const left = Math.max(w / 2 + 6, Math.min(layoutWidth - w / 2 - 6, x));
@@ -1094,6 +1163,41 @@ export function createScene(container, options = {}) {
         }
         element.style.left = `${left}px`;
         element.style.top = `${top}px`;
+        if (label.anatomy) {
+          let leader = leaderElements.get(label.id);
+          if (!leader) {
+            const line = doc.createElementNS(
+              "http://www.w3.org/2000/svg",
+              "line",
+            );
+            const dot = doc.createElementNS(
+              "http://www.w3.org/2000/svg",
+              "circle",
+            );
+            line.setAttribute("stroke", "#42658b");
+            line.setAttribute("stroke-width", "1.5");
+            dot.setAttribute("r", "3");
+            dot.setAttribute("fill", "#42658b");
+            leaders.append(line, dot);
+            leader = { line, dot };
+            leaderElements.set(label.id, leader);
+          }
+          const show = visible && currentOptions.namedLabels;
+          leader.line.style.display = leader.dot.style.display = show
+            ? ""
+            : "none";
+          const px = ((position.x + 1) * layoutWidth) / 2,
+            py = ((-position.y + 1) * layoutHeight) / 2;
+          for (const [k, v] of Object.entries({
+            x1: px,
+            y1: py,
+            x2: left,
+            y2: top,
+          }))
+            leader.line.setAttribute(k, v);
+          leader.dot.setAttribute("cx", px);
+          leader.dot.setAttribute("cy", py);
+        }
       }
       for (const [id, element] of labelElements)
         if (!graph.labels.some((label) => label.id === id)) {
@@ -1130,12 +1234,18 @@ export function createScene(container, options = {}) {
     note.textContent = strings.help;
     note.hidden = true;
     fallback.textContent = strings.unsupported;
-    anatomyLegend.hidden = !(view.labels ?? true) || failed;
+    anatomyLegend.hidden =
+      !(view.labels ?? true) || !!view.namedLabels || failed;
     const pose = fk(state.actualJoints),
       preview = previewState(target, pose.C);
     const format = (p) =>
       `X ${p.x.toFixed(1)} · Y ${p.y.toFixed(1)} · Z ${p.z.toFixed(1)} mm`;
     status.textContent = `${strings.current}: ${format(pose.C)}. ${preview.valid ? strings.target : strings.invalid}: ${preview.finite ? format(preview.position) : "—"}. ${strings.gripper}: ${strings[state.gripperState] || state.gripperState}. ${strings.held}: ${strings[(state.objects || []).some((o) => o.heldByGripper) ? "yes" : "no"]}.`;
+    if (view.anatomyOnly)
+      status.textContent =
+        view.language === "zh"
+          ? "机器人结构教学模型，可拖动查看。"
+          : "Robot anatomy teaching model. Drag to inspect.";
     if (failed) return;
     renderer.domElement.setAttribute(
       "aria-label",
@@ -1187,6 +1297,7 @@ export function createScene(container, options = {}) {
     note.remove();
     anatomyLegend.remove();
     labelElements.clear();
+    leaderElements.clear();
   }
   try {
     graph = buildSceneGraph();

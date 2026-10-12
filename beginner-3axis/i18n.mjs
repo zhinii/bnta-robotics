@@ -5,7 +5,7 @@
 const entries = [
   ["program.position", "Position", "位置"],
   ["control.ghost", "Ghost", "虚影"],
-  ["control.path", "Preview path", "预览路径"],
+  ["control.path", "Expected path", "预期路径"],
   ["control.trail", "Trail", "轨迹"],
   ["control.clearTrail", "Clear trail", "清除轨迹"],
   [
@@ -470,6 +470,11 @@ const entries = [
   ],
   ["bodyPlans.articulated.title", "Articulated", "关节式"],
   [
+    "bodyPlans.articulated.familiar",
+    "Building a car: factory arms reach around a car body to weld metal pieces together. Many use more joints than the three-axis arm in this course.",
+    "制造汽车：工厂里的机械臂伸向车身不同位置，把金属零件焊接在一起。许多工业机械臂的关节数比本课程的三轴机械臂更多。",
+  ],
+  [
     "bodyPlans.articulated.description",
     "Linked rotary joints. This arm has three positioning joints.",
     "由连杆和旋转关节组成。本机械臂有三个定位关节。",
@@ -485,6 +490,11 @@ const entries = [
     "工作范围灵活，但运动受关节限位和工具姿态变化约束。",
   ],
   ["bodyPlans.cartesian.title", "Cartesian / gantry", "直角坐标式／龙门式"],
+  [
+    "bodyPlans.cartesian.familiar",
+    "Making a keyring: a classroom 3D printer moves its nozzle along straight axes to build your design layer by layer. This demo traces just one layer.",
+    "制作钥匙扣：教室里的3D打印机沿直线轴移动喷嘴，一层一层打印你的设计。本演示只描画其中一层。",
+  ],
   [
     "bodyPlans.cartesian.description",
     "Perpendicular sliding axes.",
@@ -502,6 +512,11 @@ const entries = [
   ],
   ["bodyPlans.scara.title", "SCARA", "选择顺应性装配机械臂（SCARA）"],
   [
+    "bodyPlans.scara.familiar",
+    "Making electronics: think of the tiny switches inside an electronic toy. SCARA robots help assemble small electronic parts. Watch the peg line up over a hole, then move straight down.",
+    "制造电子产品：想想电子玩具里的小开关。SCARA机器人可帮助装配小型电子零件。观察销钉先对准孔，再竖直下降。",
+  ],
+  [
     "bodyPlans.scara.description",
     "Planar rotary motion, typically with vertical travel.",
     "进行平面内旋转运动，通常还具有垂直移动功能。",
@@ -518,6 +533,11 @@ const entries = [
   ],
   ["bodyPlans.delta.title", "Delta / parallel", "德尔塔式／并联式"],
   [
+    "bodyPlans.delta.familiar",
+    "Packing snacks: Delta robots can quickly move light food products into trays or boxes. Imagine the small snacks you see in a supermarket. Our orange part stands for one item.",
+    "包装零食：Delta机器人能快速把轻巧的食品放进托盘或盒子。想想超市里的小零食。本演示的橙色零件代表一个待包装物品。",
+  ],
+  [
     "bodyPlans.delta.description",
     "Multiple arms support a common platform.",
     "多个支臂共同支撑一个动平台。",
@@ -533,6 +553,11 @@ const entries = [
     "可快速移动轻型平台，但工作空间受限。",
   ],
   ["bodyPlans.mobile.title", "Mobile rover", "移动机器人"],
+  [
+    "bodyPlans.mobile.familiar",
+    "Delivering lunch: small wheeled robots carry food and drinks across some university campuses. Unlike an arm fixed to a table, the whole robot travels to the customer.",
+    "配送午餐：有些大学校园使用小型轮式机器人运送食物和饮料。它不像固定在桌上的机械臂，而是整台机器人移动到顾客身边。",
+  ],
   [
     "bodyPlans.mobile.description",
     "Wheels or tracks move the entire robot.",
@@ -566,10 +591,14 @@ const entries = [
   ],
   [
     "jobs.sorting",
-    "Sort lightweight items above a conveyor",
-    "在传送带上方分拣轻质物品",
+    "Transfer a lightweight part with three parallel linkages",
+    "用三组并联连杆搬运轻质零件",
   ],
-  ["jobs.delivery", "Carry supplies between rooms", "在房间之间运送物资"],
+  [
+    "jobs.delivery",
+    "Carry a parcel to a delivery station",
+    "把包裹运送到交付站点",
+  ],
   ["anatomy.base.title", "Base / chassis", "底座／底盘"],
   [
     "anatomy.base.description",

@@ -1,4 +1,7 @@
 import { createRobotTypeScene } from "./robot-type-scene.mjs";
+import { createDemoSequence } from "./demo-sequence.mjs";
+import { createDemoFocus } from "./demo-focus.mjs";
+import { robotTypePose } from "./robot-type-motion.mjs";
 /** Interactive robot-type slide presentation.
  * Preview scenes are separate from the learner model. */
 export const ROBOT_TYPES = [
@@ -8,7 +11,7 @@ export const ROBOT_TYPES = [
   "delta",
   "mobile",
 ];
-export function createTypeSimulations(host) {
+export function createTypeSimulations(host, navigation) {
   let index = 0,
     progress = 0,
     playing = false,
@@ -44,9 +47,14 @@ export function createTypeSimulations(host) {
   job.append(jobTitle, jobCopy);
   limit.append(limitTitle, limitCopy);
   facts.append(job, limit);
+  const familiar = make("section", "familiar-example"),
+    familiarTitle = make("h4"),
+    familiarCopy = make("p");
+  familiar.append(familiarTitle, familiarCopy);
+  facts.insertBefore(familiar, limit);
   const media = make("div", "robot-slide-media");
   const controls = make("div", "mechanism-controls"),
-    play = make("button"),
+    play = make("button", "primary"),
     reset = make("button"),
     range = make("input"),
     label = make("label");
@@ -67,13 +75,16 @@ export function createTypeSimulations(host) {
   const status = make("p", "mechanism-status");
   status.setAttribute("role", "status");
   const modelNote = make("p", "subtle");
-  media.append(controls, stage, status, modelNote);
+  const figure = make("figure", "type-demo-figure");
+  const demoBody = make("div", "type-demo-body");
+  figure.append(stage);
+  demoBody.append(controls, status, modelNote);
+  media.append(figure, demoBody);
+  const sequence = createDemoSequence("type-demo-sequence");
+  demoBody.insertBefore(sequence.root, modelNote);
+  const demoFocus = createDemoFocus(media, demoBody, ".robot-type-stage");
   const nav = make("nav", "robot-slide-nav"),
-    previous = make("button"),
-    next = make("button"),
     dots = make("div", "robot-slide-dots");
-  previous.id = "type-previous";
-  next.id = "type-next";
   counter.setAttribute("role", "status");
   const buttons = ROBOT_TYPES.map((type, i) => {
     const b = make("button");
@@ -83,28 +94,25 @@ export function createTypeSimulations(host) {
     dots.append(b);
     return b;
   });
-  nav.append(previous, dots, next);
+  nav.append(dots);
   const hint = make("p", "slide-swipe-hint");
   top.append(nav);
-  host.append(top, hint, description, facts, media);
+  const content = make("div", "robot-type-content");
+  const explanation = make("div", "robot-type-explanation");
+  explanation.append(description, facts);
+  content.append(media, explanation);
+  host.append(top, hint, content);
   const setText = (node, text) => {
     if (node.textContent !== text) node.textContent = text;
   };
   function select(i) {
-    index = Math.max(0, Math.min(ROBOT_TYPES.length - 1, i));
-    progress = 0;
-    playing =
-      active &&
-      phase === "watch" &&
-      !matchMedia("(prefers-reduced-motion: reduce)").matches;
-    render();
+    navigation.select(Math.max(0, Math.min(ROBOT_TYPES.length - 1, i)));
   }
-  previous.onclick = () => select(index - 1);
-  next.onclick = () => select(index + 1);
   play.onclick = () => {
     if (progress >= 1) progress = 0;
     playing = !playing;
     render();
+    if (playing) demoFocus.focus();
   };
   reset.onclick = () => {
     playing = false;
@@ -122,7 +130,11 @@ export function createTypeSimulations(host) {
   });
   let swipe = null;
   host.addEventListener("pointerdown", (e) => {
-    if (e.button !== 0 || e.target.closest("button,input,select,a")) return;
+    if (
+      e.button !== 0 ||
+      e.target.closest("button,input,select,a,.glossary-term")
+    )
+      return;
     swipe = { x: e.clientX, y: e.clientY, id: e.pointerId };
   });
   host.addEventListener("pointerup", (e) => {
@@ -131,37 +143,33 @@ export function createTypeSimulations(host) {
       dy = e.clientY - swipe.y;
     swipe = null;
     if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.3)
-      select(index + (dx < 0 ? 1 : -1));
+      navigation.advance(dx < 0 ? 1 : -1);
   });
   host.addEventListener("pointercancel", () => (swipe = null));
   host.addEventListener("keydown", (e) => {
     if (e.target.matches("input,textarea,select")) return;
     if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
       e.preventDefault();
-      select(index + (e.key === "ArrowRight" ? 1 : -1));
+      navigation.advance(e.key === "ArrowRight" ? 1 : -1);
     }
   });
   function render() {
     const type = ROBOT_TYPES[index];
     const tr = (k) => (translate ? translate(`bodyPlans.${type}.${k}`) : type);
     setText(heading, tr("title"));
-    setText(counter, `${index + 1} / ${ROBOT_TYPES.length}`);
+    setText(
+      counter,
+      `${index + 1} / ${ROBOT_TYPES.length} · ${phase === "watch" ? words("Demo", "演示") : words("Concept", "概念")}`,
+    );
     setText(description, tr("description"));
     setText(jobTitle, words("A useful job", "可以做什么"));
     setText(jobCopy, tr("job"));
+    setText(familiarTitle, words("Where you might meet one", "生活中的例子"));
+    setText(familiarCopy, tr("familiar"));
     setText(limitTitle, words("What to consider", "需要考虑什么"));
     setText(limitCopy, tr("tradeoff"));
-    facts.hidden = phase === "watch";
-    media.hidden = phase !== "watch";
-    setText(previous, "←");
-    setText(next, "→");
-    previous.setAttribute(
-      "aria-label",
-      words("Previous robot type", "上一种机器人"),
-    );
-    next.setAttribute("aria-label", words("Next robot type", "下一种机器人"));
-    previous.disabled = index === 0;
-    next.disabled = index === ROBOT_TYPES.length - 1;
+    facts.hidden = false;
+    media.hidden = false;
     buttons.forEach((b, i) => {
       b.setAttribute("aria-current", String(i === index));
       b.setAttribute(
@@ -174,8 +182,8 @@ export function createTypeSimulations(host) {
     setText(
       hint,
       words(
-        "Swipe, use the arrows, or press ← / → to change robot.",
-        "左右滑动、点击箭头，或按 ← / → 切换机器人。",
+        "Watch this robot at work, then move to the next type.",
+        "观看这类机器人的工作示例，再查看下一种。",
       ),
     );
     setText(
@@ -184,7 +192,7 @@ export function createTypeSimulations(host) {
         ? words("Ⅱ Pause", "Ⅱ 暂停")
         : progress >= 1
           ? words("↻ Replay", "↻ 重播")
-          : words("▶ Play", "▶ 播放"),
+          : words("▶ Watch example", "▶ 观看示例"),
     );
     setText(reset, words("↺ Reset", "↺ 重置"));
     setText(label, words("Motion", "进度"));
@@ -211,20 +219,93 @@ export function createTypeSimulations(host) {
               words("Print the opposite edge", "打印对边"),
               words("Complete the outline", "完成轮廓"),
             ]
-          : [
-              words("Approach and collect the part", "接近并取件"),
-              words("Lift and transfer the part", "抬起并搬运零件"),
-              words(
-                type === "scara"
-                  ? "Insert the part vertically"
-                  : "Place at the green station",
-                type === "scara" ? "竖直放入零件" : "放到绿色站点",
-              ),
-              words("Return for the next part", "返回取下一件"),
-            ];
-    const message = phrases[Math.min(3, Math.floor(progress * 4))];
+          : type === "delta"
+            ? [
+                words(
+                  "Lower the cup and switch suction on",
+                  "降低吸盘，开启吸力",
+                ),
+                words(
+                  "Lift clear, then carry to the tray",
+                  "先抬高，再移到托盘上方",
+                ),
+                words(
+                  "Lower into the tray and release",
+                  "降低到托盘中，释放物品",
+                ),
+                words(
+                  "Lift the empty tool and return",
+                  "抬起空吸盘，返回取件位置",
+                ),
+              ]
+            : [
+                words("Approach and collect the part", "接近并取件"),
+                words("Lift and transfer the part", "抬起并搬运零件"),
+                words(
+                  type === "scara"
+                    ? "Insert the part vertically"
+                    : "Place at the green station",
+                  type === "scara" ? "竖直放入零件" : "放到绿色站点",
+                ),
+                words("Return for the next part", "返回取下一件"),
+              ];
+    let message = phrases[Math.min(3, Math.floor(progress * 4))];
+    if (type === "delta") {
+      const pose = robotTypePose(type, progress);
+      const stages = {
+        approach: words(
+          "Lower straight onto the snack packet.",
+          "竖直降低，接近零食包装。",
+        ),
+        pickup: pose.vacuumOn
+          ? words(
+              "Suction ON · packet attached to the cup.",
+              "吸力开启 · 包装已吸附在吸盘上。",
+            )
+          : words(
+              "Cup in contact · switch suction on before lifting.",
+              "吸盘已接触 · 抬起前开启吸力。",
+            ),
+        lift: words(
+          "Lift the packet clear of the conveyor.",
+          "抬起包装，离开传送带。",
+        ),
+        transfer: words(
+          "Carry the packet above the tray · platform stays level.",
+          "将包装移到托盘上方 · 平台保持水平。",
+        ),
+        lower: words(
+          "Lower vertically into the tray · suction stays ON.",
+          "竖直放入托盘 · 吸力保持开启。",
+        ),
+        place: words(
+          "Packet resting on the tray · ready to release.",
+          "包装已放稳在托盘上 · 准备释放。",
+        ),
+        release: words(
+          "Suction OFF · packet stays on the tray.",
+          "吸力关闭 · 包装留在托盘中。",
+        ),
+        withdraw: words(
+          "Lift the empty cup before moving sideways.",
+          "先抬起空吸盘，再横向移动。",
+        ),
+        return: words(
+          "Return above the conveyor · the packed item stays behind.",
+          "返回传送带上方 · 已放好的物品留在托盘中。",
+        ),
+      };
+      message = stages[pose.motionStage];
+    }
+    sequence.update(
+      phrases.map((title) => ({ title, detail: "" })),
+      progress ? Math.min(3, Math.floor(progress * 4)) : -1,
+      progress === 1 ? "done" : playing || progress > 0 ? "playing" : "ready",
+      language,
+    );
+    host.dataset.playing = String(playing);
     if (status.textContent !== message) status.textContent = message;
-    if (active && phase === "watch") {
+    if (active) {
       renderer ??= createRobotTypeScene(stage);
       fallback.hidden = renderer.available;
       setText(
@@ -244,25 +325,32 @@ export function createTypeSimulations(host) {
     }
   }
   return {
-    update(lang, visible, p = "watch", tr) {
-      const entered = (!active && visible) || phase !== p;
-      const changed = language !== lang || active !== visible || phase !== p;
+    update(lang, visible, p = "watch", tr, selectedIndex = 0) {
+      const entered =
+        (!active && visible) || phase !== p || index !== selectedIndex;
+      const changed =
+        language !== lang ||
+        active !== visible ||
+        phase !== p ||
+        index !== selectedIndex;
+      index = selectedIndex;
       language = lang;
       active = visible;
       phase = p;
       translate = tr;
       if (!active) playing = false;
       else if (entered) {
-        index = 0;
         progress = 0;
         playing =
           p === "watch" &&
           !matchMedia("(prefers-reduced-motion: reduce)").matches;
       }
       if (changed) render();
+      if (entered || !active) demoFocus.clear();
+      if (entered && playing) demoFocus.focus();
     },
     tick(ms) {
-      if (!active || phase !== "watch" || !playing) return;
+      if (!active || !playing) return;
       progress = Math.min(1, progress + ms / 12000);
       if (progress === 1) playing = false;
       render();
