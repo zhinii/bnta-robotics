@@ -37,7 +37,6 @@ import {
 import { t } from "./i18n.mjs";
 import { createLearningFlow, word } from "./learning-flow.mjs";
 import { parseProgressFile } from "./storage.mjs";
-import { bodyPlanDrawing } from "./body-plan-drawings.mjs";
 const $ = (id) => document.getElementById(id),
   el = (tag, text, cls) => {
     const e = document.createElement(tag);
@@ -528,7 +527,6 @@ function renderTeaching(id) {
         heading = el("summary", tr(`bodyPlans.${type}.title`));
       item.append(
         heading,
-        bodyPlanDrawing(type, tr(`bodyPlans.${type}.title`)),
         ...["description", "job", "tradeoff"].map((k) =>
           el("p", tr(`bodyPlans.${type}.${k}`)),
         ),
@@ -693,7 +691,7 @@ function startLesson(id, { transfer = false } = {}) {
   });
   currentAttempt(learning).curriculumVersion = 2;
   learning.presentation = {
-    phase: transfer ? "try" : "understand",
+    phase: transfer ? "try" : "vocabulary",
     lessonId: id,
   };
   view.labels = id === "anatomy";

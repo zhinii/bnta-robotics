@@ -1,5 +1,32 @@
 # Local integration verification — 12 October 2026
 
+## Learn / Explore presentation revision — 12 October 2026
+
+- Learn now follows Vocabulary → Concept → Demo → Assessment. Practical assessment
+  has Operate and Explain & check substeps. Reading and written assessment omit
+  the 3D workspace; relevant arm demos and practical operation show it again.
+- The types lesson has five playable/scrubbable 2D mechanism models, replacing
+  its static diagrams. Captions distinguish simplified views and non-modelled
+  physical behaviour. Explore keeps the actual three-axis arm and existing tools.
+- **84 Node tests passed**, including sampled fixed-link geometry, connected delta
+  chains, differential-drive motion and continuous phase transitions.
+- **Seven-lesson DOM journey passed**, extended to all five mechanism play/pause,
+  reset/scrub controls, pausing on phase exit, four-stage navigation, conditional
+  scene visibility and protection of learner scene/program state during demos.
+- In-app browser: tested robot-type playback, pause and scrubbing; switching Learn
+  to Explore; anatomy's real 3D joint demo and practical assessment; English and
+  Chinese; desktop 1280×720/960, phone 390×844, tablet 768×1024. Phone document had
+  no horizontal overflow. Demo controls and mechanism could be viewed together
+  after scrolling. Fixed inherited mobile rules that hid the lesson selector and
+  title on written assessment. Physical touch-device acceptance remains pending.
+- Browser automation stalled on the pre-existing native confirmation when changing
+  lessons with a nonempty test program. Closed that agent-owned tab, reopened the
+  preview and used the app's explicit Clear program dialog for the previously
+  exported test program; then verified the anatomy transition. Native-confirmation
+  automation is not counted as a passed browser check.
+- Preview remains **http://127.0.0.1:4204/beginner-3axis/**, localhost only. No
+  root-app edits, main merge or public deployment were made.
+
 ## Latest learner-brief revision — 12 October 2026
 
 This section supersedes the older UI/learning limitations below where explicitly

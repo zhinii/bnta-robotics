@@ -1,5 +1,175 @@
 /* Layout contract: a visible scene and a scrollable lesson/operation rail.
    Instructions never occupy the robot canvas. Phone uses the same DOM order. */
+/* Learn is a lesson page. The machine workspace appears only for relevant demos/practice. */
+body[data-mode="learn"][data-lesson-scene="false"] .workspace {
+  display: block;
+}
+body[data-mode="learn"][data-lesson-scene="false"] .inspector {
+  height: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
+  border: 0;
+  display: block;
+}
+body[data-mode="learn"][data-lesson-scene="false"] .control-card,
+body[data-mode="learn"][data-lesson-scene="false"] .coach-card,
+body[data-mode="learn"][data-lesson-scene="false"] #six-axis {
+  display: none;
+}
+body[data-mode="learn"][data-lesson-scene="false"] .learning {
+  padding: clamp(16px, 3vw, 32px);
+}
+body[data-mode="learn"][data-lesson-scene="false"] .learning h1 {
+  display: block;
+  font-size: clamp(22px, 3vw, 30px);
+}
+body[data-mode="learn"][data-lesson-scene="false"] .learning .section-head {
+  display: flex;
+}
+body[data-mode="learn"][data-lesson-scene="false"] .lesson-goal {
+  display: block;
+}
+body[data-mode="learn"][data-lesson-scene="false"] .phase-nav {
+  margin: 18px 0 24px;
+}
+.vocabulary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 20px 0;
+}
+.vocabulary-term {
+  padding: 18px;
+  border: 1px solid #dce3ee;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+.vocabulary-term dt {
+  font-weight: 700;
+  color: #1e3a5f;
+  margin-bottom: 8px;
+}
+.vocabulary-term dd {
+  margin: 0;
+  line-height: 1.55;
+  color: #4b5f75;
+}
+.course-robot {
+  padding: 14px 18px;
+  margin: 16px 0;
+  background: #edf4ff;
+  border-left: 4px solid #2563eb;
+  border-radius: 6px;
+  line-height: 1.6;
+}
+.type-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 16px 0;
+}
+.type-picker button {
+  min-height: 44px;
+  flex: 1 1 120px;
+  font-size: 13px;
+}
+.type-picker button[aria-pressed="true"] {
+  background: #245de8;
+  color: white;
+  border-color: #245de8;
+}
+.mechanism-stage {
+  display: block;
+  width: 100%;
+  height: clamp(220px, 36dvh, 350px);
+  background: #f5f7fb;
+  border: 1px solid #dce3ee;
+  border-radius: 12px;
+}
+.type-simulations h3 {
+  font-size: 22px;
+  margin: 18px 0 6px;
+}
+.mechanism-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0;
+  flex-wrap: wrap;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: white;
+  padding: 4px 0;
+}
+.mechanism-controls button {
+  min-height: 44px;
+  min-width: 88px;
+}
+.mechanism-controls input {
+  flex: 1;
+  min-width: 120px;
+  min-height: 44px;
+  padding: 0;
+}
+.mechanism-status {
+  font-size: 12px;
+  color: #27559a;
+  min-height: 20px;
+}
+.assessment-nav {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0 16px;
+}
+.assessment-nav button {
+  flex: 1;
+  min-height: 44px;
+  font-size: 12px;
+}
+.assessment-nav button[aria-current="true"] {
+  background: #edf4ff;
+  border-color: #7aa3ef;
+}
+@media (max-width: 600px) {
+  .vocabulary-grid {
+    grid-template-columns: 1fr;
+  }
+  .vocabulary-term {
+    padding: 14px;
+  }
+  .type-picker button {
+    flex-basis: 85px;
+    font-size: 12px;
+    padding: 6px;
+  }
+  .mechanism-controls {
+    top: 60px;
+    gap: 6px;
+    flex-wrap: nowrap;
+  }
+  .mechanism-controls label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .mechanism-controls input {
+    min-width: 60px;
+    width: auto;
+  }
+  .mechanism-controls button {
+    min-width: 72px;
+    padding: 6px;
+  }
+  .mechanism-stage {
+    height: clamp(200px, 28dvh, 260px);
+  }
+  .type-simulations h3 {
+    font-size: 20px;
+  }
+}
 .workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(330px, 390px);
@@ -661,11 +831,16 @@ input:focus-visible {
   .lesson-footer button {
     min-height: 44px;
   }
-  body[data-mode="learn"][data-phase="try"] .learning h1,
-  body[data-mode="learn"][data-phase="try"] .lesson-goal {
+  body[data-mode="learn"][data-phase="try"][data-lesson-scene="true"]
+    .learning
+    h1,
+  body[data-mode="learn"][data-phase="try"][data-lesson-scene="true"]
+    .lesson-goal {
     display: none;
   }
-  body[data-mode="learn"][data-phase="try"] .learning .section-head {
+  body[data-mode="learn"][data-phase="try"][data-lesson-scene="true"]
+    .learning
+    .section-head {
     display: none;
   }
   .practice-route {
@@ -784,5 +959,11 @@ input:focus-visible {
   #scene,
   .robot-scene-renderer {
     min-height: 100px !important;
+  }
+}
+/* The lesson-only page has no pinned canvas to reserve. */
+@media (max-width: 899px) {
+  html[data-lesson-scene="false"] {
+    scroll-padding-top: 70px;
   }
 }

@@ -183,6 +183,18 @@ for (const [id, answers] of [
   ["anatomy", ANATOMY_ANSWERS],
 ]) {
   chooseLesson(id);
+  assert.equal(document.querySelector(".scene-card").hidden, true);
+  assert.equal($("lesson-vocabulary").hidden, false);
+  assert.equal(document.querySelectorAll(".phase-nav > button").length, 4);
+  assert.deepEqual(
+    [...document.querySelectorAll(".phase-nav > button")].map(
+      (b) => b.textContent,
+    ),
+    ["Vocabulary", "Concept", "Demo", "Assessment"],
+  );
+  click("phase-understand");
+  assert.equal($("lesson-vocabulary").hidden, true);
+  assert.equal(document.querySelector(".scene-card").hidden, true);
   assert.ok(
     $("lesson-content").textContent.includes(
       id === "types" ? "Morphology" : "physical sensors",
@@ -195,7 +207,40 @@ for (const [id, answers] of [
   predict();
   click("phase-watch");
   const exampleBefore = structuredClone(saved());
-  click("watch-example");
+  if (id === "types") {
+    assert.equal(document.querySelector(".scene-card").hidden, true);
+    assert.equal($("type-simulations").hidden, false);
+    assert.equal($("watch-example").closest(".example-pane").hidden, true);
+    for (const button of document.querySelectorAll("[data-robot-type]")) {
+      button.click();
+      const svgBefore = document.querySelector(".mechanism-stage").innerHTML;
+      click("type-play");
+      advance(4000);
+      click("type-play");
+      assert.notEqual(
+        document.querySelector(".mechanism-stage").innerHTML,
+        svgBefore,
+      );
+      const paused = $("type-progress").value;
+      advance(1500);
+      assert.equal($("type-progress").value, paused);
+      change("type-progress", "500");
+      assert.equal($("type-progress").value, "500");
+      click("type-reset");
+      assert.equal($("type-progress").value, "0");
+    }
+    click("type-play");
+    advance(500);
+    click("phase-understand");
+    advance(500);
+    const paused = $("type-progress").value;
+    advance(1500);
+    assert.equal($("type-progress").value, paused);
+    click("phase-watch");
+  } else {
+    assert.equal(document.querySelector(".scene-card").hidden, false);
+    click("watch-example");
+  }
   advance(120000);
   assert.deepEqual(
     saved().program,

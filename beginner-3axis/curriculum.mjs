@@ -6,7 +6,8 @@ import { Controller } from "./controller.mjs";
 import { initialScene, teachingRoute } from "./planner.mjs";
 import { fk, degreesToRadians as rad } from "./model.mjs";
 
-export const PHASES = ["understand", "watch", "try", "review"];
+// Assessment has practical and reflection substages; the visible navigation has four stages.
+export const PHASES = ["vocabulary", "understand", "watch", "try", "review"];
 const pair = (en, zh) => ({ en, zh });
 export const COURSE = {
   types: {
@@ -23,8 +24,8 @@ export const COURSE = {
       "沿笔直的图书架搬运书籍，你会选择哪种结构？为什么？",
     ),
     task: pair(
-      "Watch the example, then match each robot type to one suitable job in Review. There can be other suitable choices in real life; these matches use the examples taught here.",
-      "先观看示例，再到“回顾”把每种机器人与本课介绍的工作配对。现实中可能有多种合适选择，这里使用本课的例子。",
+      "Watch the example, then match each robot type to one suitable job in Assessment. There can be other suitable choices in real life; these matches use the examples taught here.",
+      "先观看示例，再到“评估”把每种机器人与本课介绍的工作配对。现实中可能有多种合适选择，这里使用本课的例子。",
     ),
     reflect: pair(
       "Why might a gantry be useful in a store? When might an articulated arm be better?",
@@ -49,8 +50,8 @@ export const COURSE = {
       "只转动J1，哪些部件会跟着移动？",
     ),
     task: pair(
-      "Open Joint controls. Change one angle by about 10°, then press Move joint. Watch which parts move. Return to XYZ controls when finished. In Review, identify the parts.",
-      "打开“关节控制”，将一个角度改变约10°，按“移动关节”。观察哪些部件移动。完成后返回XYZ控制，再到“回顾”辨认部件。",
+      "Open Joint controls. Change one angle by about 10°, then press Move joint. Watch which parts move. Return to XYZ controls when finished. In Explain & check, identify the parts.",
+      "打开“关节控制”，将一个角度改变约10°，按“移动关节”。观察哪些部件移动。完成后返回XYZ控制，再到“评估”辨认部件。",
     ),
     reflect: pair(
       "How is a joint different from a link? Explain why the gripper is not a fourth positioning axis.",
@@ -75,8 +76,8 @@ export const COURSE = {
       "X、Y不变，Z增加10毫米，工具会移到哪里？只需一个关节运动吗？",
     ),
     task: pair(
-      "Keep X and Y unchanged. Increase Z by 10 mm, press Move, then Inspect joint changes. In Review calculate displacement, distance and average speed from this actual move.",
-      "保持X、Y不变，Z增加10毫米，按“移动”，再按“查看关节变化”。在“回顾”中根据这次实际运动计算位移、路程和平均速度。",
+      "Keep X and Y unchanged. Increase Z by 10 mm, press Move, then Inspect joint changes. In Explain & check calculate displacement, distance and average speed from this actual move.",
+      "保持X、Y不变，Z增加10毫米，按“移动”，再按“查看关节变化”。在“评估”中根据这次实际运动计算位移、路程和平均速度。",
     ),
     reflect: pair(
       "Use the before/after angles to explain why a straight tool path can require more than one joint.",
@@ -124,8 +125,8 @@ export const COURSE = {
       "写出从起点搬运到目标A所需动作的顺序。为什么起始状态必须一致？",
     ),
     task: pair(
-      "Save prediction → Reset → Record ON → perform the route → Record OFF → Reset → Run. Use Steps to review or reorder. Test Pause and Stop, then Reset and Run the complete program. Record a problem and your improvement in Review.",
-      "保存预测→重置→开启录制→执行路线→关闭录制→重置→运行。在“步骤”中查看或调整顺序。测试暂停和停止，再重置并完整运行。在“回顾”记录问题与改进。",
+      "Save prediction → Reset → Record ON → perform the route → Record OFF → Reset → Run. Use Steps to review or reorder. Test Pause and Stop, then Reset and Run the complete program. Record a problem and your improvement in Assessment.",
+      "保存预测→重置→开启录制→执行路线→关闭录制→重置→运行。在“步骤”中查看或调整顺序。测试暂停和停止，再重置并完整运行。在“评估”记录问题与改进。",
     ),
     reflect: pair(
       "What did your first test reveal? What did you change, and what happened in the next test? Explain why order matters.",
@@ -176,8 +177,8 @@ export const COURSE = {
       "谁能从可重复的抓取搬运中受益？可能出现什么问题？",
     ),
     task: pair(
-      "Watch the example. Choose an interest, a person’s task, a body plan, a benefit and a limitation in Review. Refer to your tested program or obstacle result. Save your project JSON and a scene image for a teacher to discuss with you.",
-      "观看示例。在“回顾”选择兴趣、人的任务、机器人结构、好处和限制，并引用测试程序或避障结果。保存项目JSON和场景图片，与老师讨论。",
+      "Watch the example. Choose an interest, a person’s task, a body plan, a benefit and a limitation in Assessment. Refer to your tested program or obstacle result. Save your project JSON and a scene image for a teacher to discuss with you.",
+      "观看示例。在“评估”选择兴趣、人的任务、机器人结构、好处和限制，并引用测试程序或避障结果。保存项目JSON和场景图片，与老师讨论。",
     ),
     reflect: pair(
       "Which part interested you: building, coding, design, maths, science or helping people? What would you investigate next, and what evidence supports your proposal?",

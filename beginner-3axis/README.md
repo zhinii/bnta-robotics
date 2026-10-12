@@ -2,14 +2,14 @@
 
 An isolated beginner entry for **Robot Lab, developed by Christopher Hansen**. The original six-axis simulator and all nine original repository files are unchanged. Open `beginner-3axis/` directly; this branch does not add a root-page link or deploy a site.
 
-**Review build: automated model/controller/lesson and DOM integration checks pass. Real-browser visual, responsive, keyboard and touch acceptance remains outstanding.** See [BUILD_PROGRESS.md](BUILD_PROGRESS.md).
+**Local review build:** automated tests and in-app browser learner checks are documented in [LOCAL_VERIFICATION.md](LOCAL_VERIFICATION.md). Physical phone/tablet touch and full assistive-technology acceptance remain outstanding. This feature branch is not a deployed public preview.
 
 ## Run locally
 
 From the repository root:
 
 ```sh
-python -m http.server 8000
+python -m http.server 8000 --bind 127.0.0.1
 ```
 
 Open `http://localhost:8000/beginner-3axis/` in a current WebGL2-capable browser. To test a GitHub Pages-style project subpath, serve the parent of the repository and open `/bnta-robotics/beginner-3axis/` (or the actual checkout folder name). Assets and module imports are relative. Do not open `index.html` through `file://`.
@@ -72,6 +72,8 @@ Wireframe markers are abstract support/capture fixtures. Pickup requires the act
 - Camera Orbit, Grid, Axes and Home view never change the robot frame or program.
 
 ## Learning and privacy
+
+Learn uses **Vocabulary → Concept → Demo → Assessment**. Robot types use five interactive mechanism simulations, with Play/Pause, Reset and scrubbing. Reading and written assessment pages omit the 3D workspace; arm-specific examples and hands-on assessment bring it back. Explore remains the full three-axis operating workspace. Practical assessment separates operation from explanation/checking, and both contribute to the portfolio.
 
 Seven short lessons introduce body plans, anatomy, joint-vs-XYZ movement, actual grasping, recording/replay, obstacle planning and an interest-led design proposal. Body-plan definitions, example jobs, trade-offs, morphology/cobot distinctions, sensor caveats and a post-replay six-axis comparison are visible teaching content. Answer checks and actual controller events supply evidence; predictions and learner-authored reflections remain separate. The scripted coach does not grade open-ended reasoning or operate the robot.
 
