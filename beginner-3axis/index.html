@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>Robot Lab · Three-axis learning lab</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./learning-flow.css" />
+    <link rel="stylesheet" href="./interaction-theme.css" />
+    <script type="importmap">
+      { "imports": { "three": "./vendor/three/build/three.module.js" } }
+    </script>
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="../"
+        ><span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" width="24" height="24" focusable="false">
+            <g fill="currentColor">
+              <path d="M4 27h15v3H4zM7 22h9v5H7z" />
+              <path d="m8 22 3-12 5 2-3 11zM14 6l12 8-3 4-12-8z" />
+              <circle cx="13" cy="9" r="4" />
+              <circle cx="11" cy="23" r="4" />
+              <circle cx="24" cy="16" r="3" />
+              <path d="M22 17h4v5h-4zM19 21h10v3h-3v3h-2v-4h-2v4h-3z" />
+            </g>
+          </svg>
+        </span>
+        Robot Lab</a
+      ><span class="edition" data-i18n="app.title"></span>
+      <nav aria-label="Mode">
+        <button id="learn" data-i18n="mode.learn"></button
+        ><button
+          id="explore"
+          data-i18n="mode.explore"
+          aria-pressed="true"
+        ></button>
+      </nav>
+      <label class="language"
+        ><span>Language / 语言</span
+        ><select id="language">
+          <option value="en">English</option>
+          <option value="zh">简体中文</option>
+        </select></label
+      >
+    </header>
+    <main>
+      <div class="workspace">
+        <section class="scene-column">
+          <div class="card scene-card">
+            <div class="section-head">
+              <h2 data-i18n="scene.title"></h2>
+              <div class="view-tools">
+                <button
+                  id="ghost"
+                  aria-pressed="true"
+                  data-i18n="control.ghost"
+                ></button>
+                <button
+                  id="clear-trail"
+                  data-i18n="control.clearTrail"
+                ></button>
+                <button
+                  id="grid"
+                  aria-pressed="true"
+                  data-i18n="control.grid"
+                ></button
+                ><button
+                  id="axes"
+                  aria-pressed="true"
+                  data-i18n="control.axes"
+                ></button
+                ><button id="home" data-i18n="control.homeView"></button>
+              </div>
+            </div>
+            <div class="current-readout">
+              <strong data-i18n="control.current"></strong
+              ><output id="current"></output><span data-i18n="units.mm"></span>
+            </div>
+            <div id="scene" aria-label="Three-axis robot scene">
+              <div class="scene-view-options">
+                <label
+                  ><input id="trail" type="checkbox" checked /><span
+                    data-i18n="control.trail"
+                  ></span
+                ></label>
+                <label
+                  ><input id="path" type="checkbox" checked /><span
+                    data-i18n="control.path"
+                  ></span
+                ></label>
+              </div>
+            </div>
+            <div class="scene-key">
+              <span class="current-dot"></span
+              ><span data-i18n="control.current"></span
+              ><span class="target-dot"></span
+              ><span data-i18n="control.target"></span
+              ><span class="model-badge">3R · J1 / J2 / J3</span>
+            </div>
+            <p class="path-key" data-i18n="scene.pathKey"></p>
+            <p id="fixture-reference" class="subtle"></p>
+          </div>
+          <details class="card route-card">
+            <summary data-i18n="route.title"></summary>
+            <div>
+              <div class="section-head">
+                <h2 data-i18n="route.title"></h2>
+                <button
+                  id="route-toggle"
+                  data-i18n="control.workedExample"
+                ></button>
+              </div>
+              <p data-i18n="route.previewOnly"></p>
+              <div id="waypoints" hidden></div>
+            </div>
+          </details>
+          <details class="card coach-card">
+            <summary data-i18n="coach.title"></summary>
+            <p id="coach-text"></p>
+            <button id="hint" data-i18n="control.hint"></button>
+          </details>
+        </section>
+        <section class="card control-card">
+          <h2 data-i18n="control.move"></h2>
+          <p class="subtle" data-i18n="control.frame"></p>
+          <div class="section-head">
+            <h3 data-i18n="control.target"></h3>
+            <label
+              ><span data-i18n="control.stepSize"></span
+              ><select id="step">
+                <option value="1">1 mm</option>
+                <option value="5">5 mm</option>
+                <option value="10" selected>10 mm</option>
+              </select></label
+            >
+          </div>
+          <div id="coordinates"></div>
+          <p id="joint-readout" class="subtle"></p>
+          <p id="next-action" class="next-action"></p>
+          <div class="motion-actions">
+            <button
+              id="move"
+              class="primary wide"
+              data-i18n="control.move"
+            ></button>
+            <div class="grip-row">
+              <button id="open" data-i18n="control.open"></button
+              ><button id="close" data-i18n="control.close"></button>
+            </div>
+          </div>
+          <p id="held" class="held"></p>
+          <div class="record-bar">
+            <label class="switch-label"
+              ><span data-i18n="control.record"></span
+              ><input id="record" type="checkbox" role="switch" /><strong
+                id="record-state"
+              ></strong></label
+            ><button id="steps" data-i18n="control.steps"></button>
+          </div>
+          <p id="record-note" class="subtle"></p>
+          <details>
+            <summary data-i18n="control.jointDemo"></summary>
+            <p data-i18n="demo.explanation"></p>
+            <button id="demo-toggle" data-i18n="control.jointDemo"></button>
+            <div id="joint-controls" hidden></div>
+          </details>
+          <details>
+            <summary data-i18n="help.title"></summary>
+            <p data-i18n="help.model"></p>
+            <p data-i18n="help.fixtures"></p>
+            <p data-i18n="help.collision"></p>
+            <p data-i18n="help.noSafety"></p>
+            <label
+              ><input id="labels" type="checkbox" /><span
+                data-i18n="control.labels"
+              ></span></label
+            ><label
+              ><input id="proxies" type="checkbox" /><span
+                data-i18n="control.proxies"
+              ></span
+            ></label>
+          </details>
+        </section>
+        <section id="learning" class="card learning" hidden>
+          <div class="section-head">
+            <nav id="lesson-nav" aria-label="Lessons / 课程"></nav>
+            <select
+              id="lesson-select"
+              aria-label="Lesson / 课程"
+              hidden
+            ></select>
+            <button id="new-attempt" data-i18n="control.newAttempt"></button>
+          </div>
+          <h1 id="task-title"></h1>
+          <p id="task-description"></p>
+          <p id="lesson-status" class="badge"></p>
+          <div class="predict-row">
+            <label
+              ><span data-i18n="control.prediction"></span
+              ><textarea
+                id="prediction"
+                maxlength="1200"
+                rows="2"
+              ></textarea></label
+            ><button
+              id="save-prediction"
+              data-i18n="control.savePrediction"
+            ></button>
+          </div>
+          <div id="lesson-content"></div>
+          <p id="joint-deltas" class="subtle" hidden></p>
+          <div id="answer-form"></div>
+          <div class="lesson-actions">
+            <button
+              id="inspect-joints"
+              data-i18n="control.inspectJoints"
+            ></button
+            ><button
+              id="changed-target"
+              data-i18n="control.changedTarget"
+            ></button>
+          </div>
+          <details>
+            <summary data-i18n="control.reflection"></summary>
+            <label
+              ><span data-i18n="control.reflection"></span
+              ><textarea
+                id="reflection"
+                maxlength="1200"
+                rows="2"
+              ></textarea></label
+            ><button
+              id="save-reflection"
+              data-i18n="control.saveReflection"
+            ></button>
+          </details>
+        </section>
+      </div>
+      <section id="six-axis" class="card" hidden>
+        <p data-i18n="demo.sixAxis"></p>
+      </section>
+      <details class="card portfolio">
+        <summary data-i18n="portfolio.title"></summary>
+        <div class="portfolio-content">
+          <label
+            ><span data-i18n="control.learnerName"></span
+            ><input
+              id="learner-name"
+              maxlength="80"
+              autocomplete="off" /></label
+          ><button id="export-json" data-i18n="control.exportJson"></button
+          ><button id="export-text" data-i18n="control.exportText"></button>
+          <p id="storage-status" class="subtle"></p>
+        </div>
+      </details>
+      <p class="attribution">
+        Robot Lab — developed by Christopher Hansen.
+        <a href="../LICENSE">MIT license</a> ·
+        <a href="./README.md">Model & verification notes</a>
+      </p>
+    </main>
+    <footer class="playback">
+      <div class="playback-actions">
+        <button id="run" class="primary" data-i18n="control.run"></button
+        ><button id="pause" data-i18n="control.pause"></button
+        ><button id="stop" class="danger" data-i18n="control.stop"></button>
+      </div>
+      <p id="feedback" role="status" aria-live="polite"></p>
+    </footer>
+    <dialog id="steps-dialog" aria-labelledby="steps-title">
+      <div class="section-head">
+        <h2 id="steps-title" data-i18n="control.steps"></h2>
+        <button id="close-steps" aria-label="Close / 关闭">×</button>
+      </div>
+      <p id="program-validation"></p>
+      <ol id="program-list"></ol>
+      <div class="dialog-footer">
+        <div class="drawer-playback">
+          <button id="drawer-run" data-i18n="control.run"></button
+          ><button id="drawer-pause" data-i18n="control.pause"></button
+          ><button id="drawer-stop" data-i18n="control.stop"></button>
+        </div>
+        <button id="reset" data-i18n="control.reset"></button
+        ><button id="clear" class="danger" data-i18n="control.clear"></button>
+      </div>
+    </dialog>
+    <dialog id="confirm-dialog" aria-labelledby="confirm-title">
+      <h2 id="confirm-title" data-i18n="control.confirmClear"></h2>
+      <p id="confirm-text"></p>
+      <div class="grip-row">
+        <button id="cancel-clear" data-i18n="control.cancel"></button
+        ><button
+          id="confirm-clear"
+          class="danger"
+          data-i18n="control.clear"
+        ></button>
+      </div>
+    </dialog>
+    <script type="module" src="./main.mjs"></script>
+  </body>
+</html>

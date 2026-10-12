@@ -1,0 +1,280 @@
+/* Semantic color roles. This layer changes affordances, not compact layout.
+   Blue = interactive; gray = read-only; amber = guidance; green = complete.
+   Labels, borders, checkboxes and selection marks carry meaning without color. */
+:root {
+  --action: #194fbc;
+  --action-hover: #123c91;
+  --action-edge: #7399d4;
+  --action-soft: #f2f6ff;
+  --readout: #f1f2f4;
+  --readout-edge: #d7dbe1;
+  --ink: #283241;
+  --guide: #fff6df;
+  --guide-edge: #ba8019;
+  --success: #17633c;
+  --success-soft: #edf8f1;
+  --error: #a12632;
+  --error-soft: #fff0f1;
+  --teal: var(--action);
+}
+
+/* Outlined actions remain visibly different from plain information panels. */
+body button:not(.glossary-term) {
+  color: var(--action);
+  background: #fff;
+  border-color: var(--action-edge);
+  box-shadow: 0 1px 1px #193f7812;
+}
+body button:not(.glossary-term):enabled:hover {
+  color: var(--action-hover);
+  background: #eaf1ff;
+  border-color: var(--action);
+}
+body button.primary,
+body button.primary:enabled:hover {
+  color: #fff;
+  background: var(--action);
+  border-color: var(--action);
+}
+body button.primary:enabled:hover {
+  background: var(--action-hover);
+}
+body
+  :is(
+    button[aria-pressed="true"],
+    button[aria-current="step"],
+    .phase-nav button[aria-current="true"],
+    .assessment-nav button[aria-current="true"]
+  ),
+body #lesson-nav button[aria-current="step"] {
+  color: #fff;
+  background: var(--action);
+  border-color: var(--action);
+  box-shadow: inset 0 -3px 0 #0e327a;
+}
+body
+  :is(
+    button[aria-pressed="true"],
+    button[aria-current="step"],
+    .phase-nav button[aria-current="true"],
+    .assessment-nav button[aria-current="true"]
+  ):enabled:hover {
+  color: #fff;
+  background: var(--action-hover);
+}
+body button.danger {
+  color: var(--error);
+  border-color: #c8878e;
+}
+body button.danger:enabled:hover {
+  color: var(--error);
+  background: var(--error-soft);
+  border-color: var(--error);
+}
+body button:disabled,
+body #lesson-nav button:disabled {
+  opacity: 1;
+  color: #707780;
+  background: #edeff2;
+  border-color: #d5d9df;
+  box-shadow: none;
+}
+body :is(input, select, textarea):not([type="checkbox"]):not([type="range"]) {
+  background: #fff;
+  border-color: #7f8ea3;
+  color: var(--ink);
+}
+body :is(input, select, textarea):disabled {
+  color: #707780;
+  background: #edeff2;
+  border-color: #d5d9df;
+}
+body input[aria-invalid="true"] {
+  border-color: var(--error) !important;
+  background: var(--error-soft) !important;
+}
+body input[type="checkbox"],
+body input[type="range"] {
+  accent-color: var(--action);
+}
+body :is(select, summary),
+body label:has(input[type="checkbox"]) {
+  cursor: pointer;
+}
+body summary {
+  color: var(--action);
+  text-decoration: underline;
+  text-decoration-color: #a5bce3;
+  text-underline-offset: 3px;
+}
+body .glossary-term {
+  color: var(--action) !important;
+  text-decoration: underline dotted var(--action) !important;
+  text-underline-offset: 3px;
+}
+body .glossary-term:hover {
+  background: #eaf1ff !important;
+}
+body :focus-visible {
+  outline: 3px solid #9b4ec5;
+  outline-offset: 2px;
+}
+
+/* Facts and current readings are matte, unraised, and never action blue. */
+body
+  :is(
+    .vocabulary-term,
+    .robot-slide-facts section,
+    .course-robot,
+    .task-preview figcaption,
+    .transfer-reference,
+    .math-pane,
+    .current-readout,
+    .evidence-card,
+    .slide-counter,
+    .model-badge,
+    .mechanism-status
+  ),
+body #focused-controls .practice-current,
+body #reflection-pane.practical-reflection,
+body .practical-prediction {
+  color: var(--ink);
+  background: var(--readout);
+  border-color: var(--readout-edge);
+  box-shadow: none;
+}
+body #focused-controls .practice-current {
+  border-style: dashed;
+}
+body .control-card .next-action {
+  color: var(--ink);
+  background: var(--readout);
+  border-color: var(--readout-edge);
+  box-shadow: none;
+}
+body .practice-setup {
+  color: #664812;
+  background: var(--guide);
+  border-color: var(--guide-edge);
+  border-left: 3px solid var(--guide-edge);
+  box-shadow: none;
+}
+body .scene-view-options {
+  color: var(--action);
+  border-color: var(--action-edge);
+  background: #ffffffee;
+}
+
+/* Demonstration rows describe actual progress; they are not buttons. */
+body .demo-step-status,
+body .demo-sequence li {
+  color: var(--ink);
+  background: var(--readout);
+  border-color: var(--readout-edge);
+  box-shadow: none;
+}
+body .demo-step-status {
+  border-width: 0 0 0 3px;
+  border-radius: 0;
+}
+body .demo-sequence li {
+  border-width: 0 0 1px;
+  border-radius: 0;
+}
+body .demo-sequence[data-state="playing"] .demo-step-status,
+body .demo-sequence li[data-state="current"] {
+  color: #664812;
+  background: var(--guide);
+  border-color: var(--guide-edge);
+  box-shadow: inset 3px 0 0 var(--guide-edge);
+}
+body .demo-sequence li[data-state="current"] .demo-step-number {
+  color: #fff;
+  background: #805812;
+}
+body .demo-sequence[data-state="done"] .demo-step-status,
+body .demo-sequence li[data-state="complete"],
+body .evidence-card[data-complete="true"] {
+  color: var(--success);
+  background: var(--success-soft);
+  border-color: #80b697;
+}
+body .demo-sequence li[data-state="complete"] .demo-step-number {
+  color: var(--success);
+  border-color: #80b697;
+}
+body :is(#feedback, .focused-feedback) {
+  color: var(--ink);
+  background: var(--readout);
+  border-left: 3px solid #9ca5b1;
+  border-radius: 0;
+}
+body :is(#feedback, .focused-feedback)[data-tone="active"] {
+  color: #664812;
+  background: var(--guide);
+  border-color: var(--guide-edge);
+}
+body :is(#feedback, .focused-feedback)[data-tone="success"] {
+  color: var(--success);
+  background: var(--success-soft);
+  border-color: #398559;
+}
+body :is(#feedback, .focused-feedback)[data-tone="error"] {
+  color: var(--error);
+  background: var(--error-soft);
+  border-color: var(--error);
+}
+
+/* Navigation is context, not the next task: keep it below lesson actions. */
+body header :is(#learn, #explore) {
+  color: #4c5664;
+  background: #fff;
+  border-color: #c7cdd5;
+  box-shadow: none;
+}
+body header :is(#learn, #explore)[aria-pressed="true"] {
+  color: #202b3b;
+  background: #e4e8ed;
+  border-color: #8d98a6;
+  box-shadow: inset 0 -2px 0 #596577;
+}
+body header :is(#learn, #explore):enabled:hover {
+  color: #202b3b;
+  background: #edf0f4;
+  border-color: #8d98a6;
+}
+body #lesson-nav button,
+body #new-attempt,
+body .learning :is(.phase-nav, .assessment-nav) button {
+  color: #4c5664;
+  background: #f7f8fa;
+  border-color: #c7cdd5;
+  box-shadow: none;
+}
+body #lesson-nav button[aria-current="step"] {
+  color: #202b3b;
+  background: #e4e8ed;
+  border-color: #8d98a6;
+  box-shadow: inset 0 -3px 0 #596577;
+}
+body .learning :is(.phase-nav, .assessment-nav) button[aria-current="true"] {
+  color: var(--action);
+  background: #edf2fa;
+  border-color: #9bb0cf;
+  box-shadow: inset 0 -2px 0 #547ba9;
+}
+body #lesson-nav button:enabled:hover,
+body #new-attempt:enabled:hover,
+body .learning :is(.phase-nav, .assessment-nav) button:enabled:hover {
+  color: #253e60;
+  background: #e7edf5;
+  border-color: #8d98a6;
+}
+body #lesson-nav button:disabled {
+  color: #707780;
+  background: #edeff2;
+  border-color: #d5d9df;
+}
+body #lesson-nav button:disabled:not([aria-current="step"]) {
+  box-shadow: none;
+}
