@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="./learning-flow.css" />
     <link rel="stylesheet" href="./interaction-theme.css" />
     <link rel="stylesheet" href="./explore.css" />
+    <link rel="stylesheet" href="./motion-controls.css" />
     <script type="importmap">
       { "imports": { "three": "./vendor/three/build/three.module.js" } }
     </script>
@@ -161,28 +162,12 @@
             ><button id="steps" data-i18n="control.steps"></button>
           </div>
           <p id="record-note" class="subtle"></p>
-          <details>
-            <summary data-i18n="control.jointDemo"></summary>
-            <p data-i18n="demo.explanation"></p>
-            <button id="demo-toggle" data-i18n="control.jointDemo"></button>
-            <div id="joint-controls" hidden></div>
-          </details>
-          <details>
-            <summary data-i18n="help.title"></summary>
-            <p data-i18n="help.model"></p>
-            <p data-i18n="help.fixtures"></p>
-            <p data-i18n="help.collision"></p>
-            <p data-i18n="help.noSafety"></p>
-            <label
-              ><input id="labels" type="checkbox" /><span
-                data-i18n="control.labels"
-              ></span></label
-            ><label
-              ><input id="proxies" type="checkbox" /><span
-                data-i18n="control.proxies"
-              ></span
-            ></label>
-          </details>
+          <div hidden>
+            <input id="labels" type="checkbox" /><input
+              id="proxies"
+              type="checkbox"
+            />
+          </div>
         </section>
         <section id="learning" class="card learning" hidden>
           <div class="section-head">
@@ -242,8 +227,15 @@
       <section id="six-axis" class="card" hidden>
         <p data-i18n="demo.sixAxis"></p>
       </section>
-      <details class="card portfolio">
-        <summary data-i18n="portfolio.title"></summary>
+      <dialog
+        class="portfolio"
+        id="project-dialog"
+        aria-labelledby="project-title"
+      >
+        <div class="section-head">
+          <h2 id="project-title">Save &amp; load</h2>
+          <button id="close-project" aria-label="Close / 关闭">×</button>
+        </div>
         <div class="portfolio-content">
           <label
             ><span data-i18n="control.learnerName"></span
@@ -255,7 +247,7 @@
           ><button id="export-text" data-i18n="control.exportText"></button>
           <p id="storage-status" class="subtle"></p>
         </div>
-      </details>
+      </dialog>
       <p class="attribution">
         Robot Lab — developed by Christopher Hansen.
         <a href="../LICENSE">MIT license</a> ·

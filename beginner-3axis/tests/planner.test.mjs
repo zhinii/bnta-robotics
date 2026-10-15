@@ -10,6 +10,7 @@ import {
   validateInterval,
   clone,
   alignment,
+  validateApproach,
 } from "../planner.mjs";
 import {
   fk,
@@ -111,15 +112,16 @@ test("P2-05 invalid paths preserve input", () => {
     assert.equal(planMove(s, target).ok, false);
   assert.deepEqual(s, before);
 });
-test("P2-06 grasp needs position, alignment and approach; no teleport", () => {
+test("P2-06 grasp needs position and alignment, not approach history; no teleport", () => {
   let s = initialScene(),
     r = preflightAction(s, { type: "gripper", gripperState: "closed" });
   assert.equal(r.ok, true);
   assert.equal(r.value.endScene.objects[0].heldByGripper, false);
   s = sceneAtJoints(s, [-30, 45, -90].map(rad));
   assert.equal(
-    preflightAction(s, { type: "gripper", gripperState: "closed" }).error.code,
-    "GRASP_APPROACH_REQUIRED",
+    preflightAction(s, { type: "gripper", gripperState: "closed" }).value
+      .endScene.objects[0].heldByGripper,
+    true,
   );
   const held = carry();
   assert.ok(
@@ -131,7 +133,7 @@ test("P2-06 grasp needs position, alignment and approach; no teleport", () => {
   stale.gripperState = "open";
   assert.equal(
     preflightAction(stale, { type: "gripper", gripperState: "closed" }).ok,
-    false,
+    true,
   );
 });
 test("P2-07 unsupported release and duplicate commands", () => {
@@ -173,8 +175,7 @@ test("Approach provenance rejects corrupted shapes, endpoints and stale geometry
     const bad = clone(s);
     mutate(bad.approachEvidence);
     assert.equal(
-      preflightAction(bad, { type: "gripper", gripperState: "closed" }).error
-        .code,
+      validateApproach(bad, bad.objects[0]).error.code,
       "GRASP_APPROACH_REQUIRED",
     );
   }

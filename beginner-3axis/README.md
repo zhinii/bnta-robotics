@@ -1,8 +1,8 @@
 # BNTA Robotics · Three-axis learning lab
 
-An isolated beginner entry for **Robot Lab, developed by Christopher Hansen**. The original six-axis simulator and all nine original repository files are unchanged. Open `beginner-3axis/` directly; this branch does not add a root-page link or deploy a site.
+An isolated beginner entry for **Robot Lab, developed by Christopher Hansen**. The original six-axis simulator and all nine original repository files are unchanged. Open `beginner-3axis/` directly; the original root application remains separate.
 
-**Local review build:** automated tests and in-app browser learner checks are documented in [LOCAL_VERIFICATION.md](LOCAL_VERIFICATION.md). Physical phone/tablet touch and full assistive-technology acceptance remain outstanding. This feature branch is not a deployed public preview.
+**Verification:** automated tests and in-app browser learner checks are documented in [LOCAL_VERIFICATION.md](LOCAL_VERIFICATION.md). Physical phone/tablet touch and full assistive-technology acceptance remain outstanding. The published module is at https://zhinii.github.io/bnta-robotics/beginner-3axis/.
 
 ## Explore first, lessons when ready
 
@@ -11,6 +11,12 @@ First visits show a language selector and three brief feature descriptions: Expl
 New learners land in **Explore**, with recording off and a simple Z-plus/Move suggestion. **Start lessons** opens the seven lessons voluntarily. The free exploration tab is not graded; the three optional exercise tabs retain their tested completion checks. Existing projects and recorded steps are preserved when switching between Learn and Explore.
 
 Guided practice highlights the actual next control in green and gives one short action at a time. Examples show target entry separately from Move. The recording example demonstrates Reset, Record on, movements/gripper actions, Record off, Reset and Run on an isolated controller. Correcting a target refreshes its preview and feedback; invalid saved steps display a specific explanation in the program list. Progress remains exportable as JSON, with no database requirement.
+
+## Movement and program controls
+
+XYZ sets a world-position target in millimetres; press Move to execute it. Joints turns one joint to a selected angle in degrees. Jog moves the actual TCP one selected 1, 5 or 10 mm step per tap along a world axis. All three modes use collision checking and can record completed movements when Record is on. Jog does not use a pending XYZ target. Joint movements replay as joint movements, preserving their curved tool path; they are not silently converted to straight XYZ moves.
+
+Test program, Pause and Stop sit directly beneath Record at the top of the control panel. Test restores the recorded starting scene and disables recording before playback. Save / load in the header opens JSON import/export and image/learning-evidence export. Model notes remain in this document rather than another controls dropdown.
 
 ## Run locally
 
@@ -83,7 +89,7 @@ The UI says “Path checked against simplified geometry”, not “collision saf
 
 ### Virtual grasp and support
 
-Wireframe markers are abstract support/capture fixtures. Pickup requires the actual part centre within 2 mm, forward-axis alignment within 10°, compatible opening and a verified final approach of at least 20 mm in a 2 mm corridor. Approach provenance is part of scene snapshots; it is rechecked and consumed on grasp. A held part preserves its actual local transform and tilts with the tool. No snapping occurs. Opening while held is accepted only at a known compatible fixture; free dropping is intentionally not simulated.
+Wireframe markers are abstract support/capture fixtures. Pickup requires the actual part centre within 2 mm, forward-axis alignment within 10°, a compatible opening and a collision-free jaw closing sweep. Any collision-free approach is accepted; there is no hidden corridor or waypoint prerequisite. Legacy approach metadata is validated when loading older files but is not required to grasp. A held part preserves its actual local transform and tilts with the tool. No snapping occurs. Opening while held is accepted only at a known compatible fixture; free dropping is intentionally not simulated.
 
 ## Controls and recording
 

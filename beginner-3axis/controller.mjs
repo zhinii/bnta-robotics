@@ -83,6 +83,7 @@ export class Controller {
   }
   editTarget(axis, value) {
     if (this.busy) return failure("BUSY");
+    delete this.state.target.jointTarget;
     this.state.target.draft[axis] = String(value);
     const draft = this.state.target.draft,
       parsed = {};
@@ -180,6 +181,41 @@ export class Controller {
       type: "move",
       targetMm: clone(this.state.target.parsed),
     });
+  }
+  moveJoint(jointIndex, angleRad) {
+    if (this.busy) return failure("BUSY");
+    if (
+      !Number.isInteger(jointIndex) ||
+      jointIndex < 0 ||
+      jointIndex > 2 ||
+      !Number.isFinite(angleRad)
+    )
+      return failure("INVALID_INPUT");
+    const joints = [...this.state.scene.actualJoints];
+    joints[jointIndex] = angleRad;
+    const targetMm = fk(joints).C;
+    for (const axis of ["x", "y", "z"]) this.editTarget(axis, targetMm[axis]);
+    this.state.target.jointTarget = { jointIndex, angleRad };
+    return this.startAction({
+      type: "move",
+      motion: "joint",
+      jointIndex,
+      angleRad,
+      targetMm,
+    });
+  }
+  jog(axis, increment) {
+    if (this.busy) return failure("BUSY");
+    if (
+      !["x", "y", "z"].includes(axis) ||
+      !Number.isFinite(increment) ||
+      Math.abs(increment) > 10
+    )
+      return failure("INVALID_INPUT");
+    // Jog starts from the actual TCP, never an unexecuted target draft.
+    this.syncTarget();
+    this.editTarget(axis, this.state.target.parsed[axis] + increment);
+    return this.move();
   }
   grip(gripperState) {
     return this.startAction({ type: "gripper", gripperState });

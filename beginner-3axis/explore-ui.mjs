@@ -106,8 +106,8 @@ export function createExploreUI(api) {
               "录制已开启：完成的移动和夹爪动作将保存。关闭录制即可自由尝试。",
             )
           : w(
-              "Try Z +, then Move. Record is OFF: experiment first; start lessons when ready.",
-              "试试 Z +，再按移动。录制已关闭，先自由探索；准备好再开始课程。",
+              "Choose XYZ, Joints or Jog to move. Record is OFF; start lessons when ready.",
+              "选择XYZ、关节或方向键来移动。录制已关闭；准备好再开始课程。",
             )
         : id === "reach"
           ? w(
@@ -192,8 +192,8 @@ export function createExploreUI(api) {
               "中间点由你决定。虚影和预计路径用于预览，点击“移动”才会执行。",
             )
           : w(
-              "Approach the pickup along the tool direction from “Before pickup”. Close only at Pickup. Choose a clear route above the workspace; release only at the destination.",
-              "从“抓取前”沿工具方向接近抓取点，到达后再闭合夹爪。选择工作区上方的通畅路线，在目标处释放。",
+              "Move to Pickup with the gripper open, then Close. “Before pickup” is one possible approach, not a required checkpoint. Avoid obstacles and release at the destination.",
+              "张开夹爪，移动到抓取点，再闭合。“抓取前”只是一个参考位置，并非必经点。避开障碍物，在目标处释放。",
             );
       references.append(hint);
     }

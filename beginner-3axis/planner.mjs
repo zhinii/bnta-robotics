@@ -202,7 +202,27 @@ export function planMove(scene, target, c = CONFIG) {
   });
 }
 export function preflightAction(scene, action, c = CONFIG) {
-  if (action.type === "move") return planMove(scene, action.targetMm, c);
+  if (action.type === "move") {
+    if (action.motion === "joint") {
+      const result = planJointDemo(
+        scene,
+        action.jointIndex,
+        action.angleRad,
+        c,
+      );
+      if (!result.ok) return result;
+      if (
+        !finiteVec(action.targetMm) ||
+        distance(result.value.target, action.targetMm) > 0.01
+      )
+        return failure("INVALID_PROGRAM");
+      result.value.demo = false;
+      return result;
+    }
+    if (action.motion != null && action.motion !== "linear")
+      return failure("INVALID_PROGRAM");
+    return planMove(scene, action.targetMm, c);
+  }
   if (action.type === "jointDemo")
     return planJointDemo(scene, action.jointIndex, action.angleRad, c);
   if (
@@ -230,10 +250,8 @@ export function preflightAction(scene, action, c = CONFIG) {
         o.radiusMm * 2 <= 18,
     );
     if (object) {
-      const f = end.fixtures.find((f) => f.id === object.supportedByFixtureId),
-        approach = scene.approachEvidence;
-      if (!f || !validateApproach(scene, object).ok)
-        return failure("GRASP_APPROACH_REQUIRED");
+      // Grasp depends on the current contact geometry, not the path history.
+      // Motion and the closing jaw sweep are independently collision checked.
       object.relativePosition = localVector(sub(object.worldPosition, p.C), p);
       object.relativeForward = localVector(object.worldForward, p);
       object.heldByGripper = true;
@@ -388,6 +406,17 @@ export function planJointDemo(scene, jointIndex, angleRad, c = CONFIG) {
   q[jointIndex] = angleRad;
   const valid = validateJointPose(q, c);
   if (!valid.ok) return valid;
+  if (Math.abs(angleRad - scene.actualJoints[jointIndex]) < 1e-9)
+    return success({
+      kind: "move",
+      noop: true,
+      demo: true,
+      samples: [clone(q)],
+      durations: [],
+      durationMs: 0,
+      endScene: clone(scene),
+      target: fk(q).C,
+    });
   const samples = [[...scene.actualJoints]];
   let count = 0;
   function split(a, b, depth = 0) {

@@ -1,3 +1,4 @@
+import { createMotionControls } from "./motion-controls.mjs";
 import { nextPracticeAction, ACTION_COPY } from "./action-guide.mjs";
 import { createScene } from "./scene.mjs";
 import { initialScene, teachingRoute } from "./planner.mjs";
@@ -156,6 +157,15 @@ export function createPracticeControls(api) {
     views.append(label);
   }
   root.append(coordinates, actions, held, program, feedback);
+  const motion = createMotionControls({
+    root,
+    coordinates,
+    move: buttons.move,
+    c: api.get().c,
+    report: api.report,
+    preview: api.preview,
+    prefix: "practice-",
+  });
   return {
     root,
     guide({ step, complete, language, lesson, events, transfer }) {
@@ -306,6 +316,7 @@ export function createPracticeControls(api) {
           step = demoStep(op.commands[op.index], language);
         programNote.textContent = `${zh ? "播放步骤" : "Playing step"} ${op.index + 1} / ${op.commands.length} · ${step.title}`;
       }
+      motion.update(language, c.busy || !active);
       toggles.trail.span.textContent = zh ? "实际轨迹" : "Trail";
       toggles.path.span.textContent = zh ? "预期路径" : "Expected path";
     },

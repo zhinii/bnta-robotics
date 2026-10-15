@@ -12,7 +12,13 @@ import {
   degreesToRadians,
   distance,
 } from "./model.mjs";
-import { initialScene, teachingRoute, planMove, clone } from "./planner.mjs";
+import {
+  initialScene,
+  teachingRoute,
+  planMove,
+  preflightProgram,
+  clone,
+} from "./planner.mjs";
 import { revalidateProgram, sceneDifference } from "./program.mjs";
 import {
   createExerciseState,
@@ -20,6 +26,7 @@ import {
   recordExerciseRun,
 } from "./exercises.mjs";
 import { createStartingGuides } from "./starting-guide.mjs";
+import { createMotionControls } from "./motion-controls.mjs";
 import { createExploreUI } from "./explore-ui.mjs";
 import { createScene } from "./scene.mjs";
 import {
@@ -75,6 +82,8 @@ let learning = createLearningState(),
   },
   renderer,
   journey,
+  motionControls = null,
+  programPathPoints = [],
   uiReady = false,
   lastRevision = -1,
   lastProgramLanguage = "",
@@ -102,6 +111,14 @@ const c = new Controller({
       STOPPED: "status.stopped",
     };
     if (map[event.type]) feedbackKey = map[event.type];
+    if (event.type === "GRIPPER_CHANGED") {
+      feedbackKey =
+        event.gripperState === "open"
+          ? "status.gripperOpened"
+          : event.after.objects.some((o) => o.heldByGripper)
+            ? "status.attached"
+            : "status.emptyGrip";
+    }
     if (event.type === "TARGET_EDITED") {
       feedbackKey = "status.previewUpdated";
       feedbackParams = {};
@@ -270,6 +287,11 @@ function translate() {
     .querySelectorAll("[data-i18n]")
     .forEach((e) => (e.textContent = tr(e.dataset.i18n)));
   $("language").value = language;
+  if ($("project-files"))
+    $("project-files").textContent =
+      language === "zh" ? "保存 / 载入" : "Save / load";
+  $("project-title").textContent =
+    language === "zh" ? "保存与载入作品" : "Save & load your work";
   $("lesson-select").replaceChildren(
     ...LESSONS.map((l) => {
       const o = el("option", tr(l.titleKey));
@@ -413,7 +435,7 @@ function render() {
   $("stop").disabled = !busy;
   $("reset").disabled = false;
   $("clear").disabled = busy || !s.program.steps.length;
-  $("demo-toggle").disabled = busy;
+
   const target = playbackTarget || s.target.parsed;
   $("next-action").textContent = s.target.error
     ? tr(s.target.error.messageKey || `error.${s.target.error.code}`)
@@ -459,7 +481,16 @@ function render() {
             valid: true,
           }
         : target
-          ? { parsed: target, valid: !s.target.error, error: s.target.error }
+          ? {
+              parsed: target,
+              valid: !s.target.error,
+              error: s.target.error,
+              jointTarget: playbackCommand
+                ? playbackCommand.motion === "joint"
+                  ? playbackCommand
+                  : null
+                : s.target.jointTarget,
+            }
           : null,
       {
         ...view,
@@ -478,12 +509,7 @@ function render() {
           view.focusJoint,
         programPoints:
           ($("steps-dialog").open || playbackCommand) && s.program.startScene
-            ? [
-                fk(s.program.startScene.actualJoints).C,
-                ...s.program.steps
-                  .filter((step) => step.type === "move")
-                  .map((step) => step.targetMm),
-              ]
+            ? programPathPoints
             : [],
         programValid: s.program.validationStatus !== "invalid",
       },
@@ -546,7 +572,6 @@ function render() {
       "record",
       "run",
       "drawer-run",
-      "demo-toggle",
       "new-attempt",
       "lesson-select",
       "steps",
@@ -567,9 +592,34 @@ function render() {
     $("lesson-select").disabled = busy;
     $("steps").disabled = false;
   }
+  motionControls?.update(language, busy || !!journey?.demo);
   renderLessonNavigation();
 }
 function renderProgram() {
+  const program = c.state.program;
+  const planned =
+    program.steps.length && program.startScene
+      ? preflightProgram(program.startScene, program.steps)
+      : null;
+  programPathPoints = planned?.ok
+    ? planned.value.actions.flatMap((action) =>
+        (action.samples || [])
+          .filter(
+            (_, i, samples) =>
+              i % Math.max(1, Math.ceil(samples.length / 64)) === 0 ||
+              i === samples.length - 1,
+          )
+          .map((q) => fk(q).C),
+      )
+    : program.startScene
+      ? [
+          fk(program.startScene.actualJoints).C,
+          ...program.steps
+            .filter((s) => s.type === "move")
+            .map((s) => s.targetMm),
+        ]
+      : [];
+
   $("program-list").replaceChildren();
   c.state.program.steps.forEach((step, i) => {
     const li = el("li"),
@@ -602,7 +652,9 @@ function renderProgram() {
     const detail = el(
         "p",
         step.type === "move"
-          ? formatPosition(step.targetMm)
+          ? (step.motion === "joint"
+              ? `J${step.jointIndex + 1} ${radiansToDegrees(step.angleRad).toFixed(1)}° · `
+              : "") + formatPosition(step.targetMm)
           : tr(step.gripperState === "open" ? "control.open" : "control.close"),
         "step-detail",
       ),
@@ -956,7 +1008,7 @@ function startExercise(id, restart = false, confirmed = false) {
   view.focusJoint = undefined;
   view.labels = false;
   $("labels").checked = false;
-  $("joint-controls").hidden = true;
+
   renderer?.clearTrail();
   lastRevision = -1;
   feedbackKey = "status.ready";
@@ -1017,7 +1069,7 @@ function startLesson(id, { transfer = false, confirmed = false } = {}) {
   $("waypoints").hidden = true;
   $("lesson-select").value = id;
   demo = false;
-  $("joint-controls").hidden = true;
+
   renderAnswers();
   renderWaypoints();
   persist();
@@ -1183,60 +1235,6 @@ $("confirm-clear").addEventListener("click", () => {
 $("confirm-dialog").addEventListener("close", () =>
   ($("clear").disabled ? $("close-steps") : $("clear")).focus(),
 );
-$("demo-toggle").addEventListener("click", () => {
-  if (c.busy) return;
-  if (!demo && c.state.program.steps.length) {
-    report({ ok: false, error: { code: "START_STATE_MISMATCH" } });
-    return;
-  }
-  demo = !demo;
-  c.setRecording(false);
-  $("joint-controls").hidden = !demo;
-  $("demo-toggle").textContent = tr(
-    demo ? "control.exitDemo" : "control.jointDemo",
-  );
-  if (demo) renderJointControls();
-  else {
-    c.syncTarget();
-    preview();
-  }
-  render();
-});
-function renderJointControls() {
-  $("joint-controls").replaceChildren();
-  c.state.scene.actualJoints.forEach((q, i) => {
-    const row = el("div", undefined, "joint-row"),
-      label = el("label", `J${i + 1}`),
-      range = el("input"),
-      number = el("input"),
-      button = el("button", tr("control.moveJoint"));
-    range.type = "range";
-    number.type = "number";
-    for (const e of [range, number]) {
-      e.min = radiansToDegrees(CONFIG.limits[i][0]);
-      e.max = radiansToDegrees(CONFIG.limits[i][1]);
-      e.step = ".1";
-      e.value = radiansToDegrees(q).toFixed(1);
-      e.setAttribute("aria-label", `J${i + 1} ${tr("unit.degrees")}`);
-    }
-    range.addEventListener("input", () => (number.value = range.value));
-    number.addEventListener("input", () => (range.value = number.value));
-    button.addEventListener("click", () => {
-      view.focusJoint = i;
-      if (number.value.trim() === "")
-        return report({ ok: false, error: { code: "INVALID_INPUT" } });
-      report(
-        c.startAction({
-          type: "jointDemo",
-          jointIndex: i,
-          angleRad: degreesToRadians(Number(number.value)),
-        }),
-      );
-    });
-    row.append(label, range, number, button);
-    $("joint-controls").append(row);
-  });
-}
 function download(kind) {
   const r = portfolioBlobs(
     exportPortfolio({
@@ -1283,6 +1281,23 @@ exploreUI = createExploreUI({
     preview();
   },
 });
+motionControls = createMotionControls({
+  root: document.querySelector(".control-card"),
+  coordinates: $("coordinates"),
+  move: $("move"),
+  heading: $("coordinates").previousElementSibling,
+  c,
+  report,
+  preview,
+});
+const playbackActions = document.querySelector(".playback-actions");
+document.querySelector(".record-bar").after(playbackActions);
+const projectButton = el("button");
+projectButton.id = "project-files";
+projectButton.textContent = "Save / load";
+document.querySelector("header").append(projectButton);
+projectButton.onclick = () => $("project-dialog").showModal();
+$("close-project").onclick = () => $("project-dialog").close();
 startingGuides = createStartingGuides({ get: () => ({ language, mode }) });
 
 document.querySelector(".attribution").before($("steps-dialog"));
@@ -1368,7 +1383,7 @@ fileInput.onchange = async () => {
   c.syncTarget();
   lastRevision = -1;
   demo = false;
-  $("joint-controls").hidden = true;
+
   $("prediction").value = currentAttempt(learning)?.prediction || "";
   $("reflection").value = currentAttempt(learning)?.reflection || "";
   translate();

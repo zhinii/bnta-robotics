@@ -106,7 +106,6 @@
 - Browser at localhost:4204: verified articulated concept/demo followed by gantry concept/demo, gantry reload restoration, SCARA replay from assessment and return. Checked the new replay controls and fixed return button at 390 × 844; no horizontal overflow. Normal viewport restored. Existing learner state on port 4203 was not changed.
 - No push, merge or public deployment for this revision.
 
-
 ## Robot-type slides, Three.js examples and vocabulary — 12 October 2026
 
 This supersedes the earlier 2D robot-type demos below. Concept now uses one
@@ -427,3 +426,13 @@ root app remains unchanged; publishing this feature branch does not deploy Pages
 Pre-commit checks: 98/98 Node tests, welcome DOM checks and all three Explore
 exercise DOM journeys passed.
 The complete seven-lesson DOM journey and reload/reset integration checks also passed.
+
+## 2026-10-15 — grasp repair and unified movement controls
+
+Reproduced Challenge 3 in the browser: from home, move to X147 / Y−84.9 / Z130, lower to Z80, Close. The original version rejected this physically valid contact with GRASP_APPROACH_REQUIRED, despite instructing the learner to approach from above. That hidden history check also affected Pick & place. Grasp now uses current position, alignment, opening, and checked jaw clearance. Collision and unsupported-release checks remain active; objects do not teleport.
+
+Added XYZ, Joints and incremental Jog controls to exploration and practical lessons. Joint actions record and replay their actual joint motion. Their expected path curves with the joint, and the program preview uses sampled plans. Moved Test program/Pause/Stop next to Record. Removed the three dropdowns; Save / load in the header retains JSON, text, image and learning-evidence export.
+
+Verification: 103 Node tests passed, plus the seven-lesson DOM journey, extended Explore DOM journey, and welcome DOM test. Regressions cover rounded displayed pickup coordinates, incremental vertical approaches, both delivery tasks, blocked routes, recording/joint/jog playback, pause/stop/reset, invalid imported joint commands, and joint preview geometry. Browser: completed all three tasks through visible controls; tested Challenge 3 pause/resume, pickup and release; confirmed stop/reset preserve recorded steps. Tested movement modes and scrolling at 390×844, waypoint/pick-and-place at 820×1180, and desktop at 1280×720. These are browser viewport checks, not physical-device touch certification. No new errors on the final localhost server.
+
+Local review: http://127.0.0.1:4209/beginner-3axis/ (localhost-only, no-cache server). The original root simulator is unchanged.

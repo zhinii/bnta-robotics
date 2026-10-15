@@ -1194,6 +1194,13 @@ export function createLearningFlow(api) {
                 }
               : {
                   parsed: c.state.target.parsed,
+                  jointTarget:
+                    c.operation?.source === "replay"
+                      ? c.operation.commands[c.operation.index]?.motion ===
+                        "joint"
+                        ? c.operation.commands[c.operation.index]
+                        : null
+                      : c.state.target.jointTarget,
                   valid: !c.state.target.error,
                   error: c.state.target.error,
                 }

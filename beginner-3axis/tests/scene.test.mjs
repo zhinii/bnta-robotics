@@ -32,6 +32,40 @@ const {
 } = await import("../scene.mjs");
 hook.deregister();
 
+test("Joint movement expected path curves with the actual joint, then returns to linear XYZ", () => {
+  const scene = initialScene(),
+    graph = buildSceneGraph();
+  const q = [...scene.actualJoints];
+  q[0] = rad(40);
+  updateSceneGraph(
+    graph,
+    scene,
+    {
+      parsed: fk(q).C,
+      valid: true,
+      jointTarget: { jointIndex: 0, angleRad: q[0] },
+    },
+    { path: true },
+  );
+  const points = graph.targetPath.geometry.attributes.position;
+  assert.equal(points.count, 33);
+  const mid = fk([rad(20), ...q.slice(1)]).C;
+  assert.ok(
+    distance(
+      { x: points.getX(16), y: points.getY(16), z: points.getZ(16) },
+      mid,
+    ) < 0.001,
+  );
+  updateSceneGraph(
+    graph,
+    scene,
+    { parsed: fk(q).C, valid: true },
+    { path: true },
+  );
+  assert.equal(graph.targetPath.geometry.attributes.position.count, 2);
+  disposeObject(graph.root || graph.scene);
+});
+
 const poses = [
   [0, 45, -90],
   [90, 45, -90],

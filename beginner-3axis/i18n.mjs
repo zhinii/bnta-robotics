@@ -136,9 +136,10 @@ const entries = [
   ["status.moveComplete", "Move completed.", "移动完成。"],
   [
     "status.emptyGrip",
-    "Gripper closed; object held: no.",
-    "夹爪已闭合；已夹持物体：否。",
+    "Gripper closed, nothing held. Open it, align the TCP with the pickup coordinates, then close again.",
+    "夹爪已闭合，但没有夹住零件。张开夹爪，将TCP对准抓取坐标，再闭合。",
   ],
+  ["status.gripperOpened", "Gripper opened.", "夹爪已张开。"],
   ["status.attached", "Part attached to the gripper.", "零件已由夹爪夹持。"],
   [
     "status.released",

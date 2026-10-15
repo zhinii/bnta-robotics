@@ -639,14 +639,27 @@ export function updateSceneGraph(graph, state, target, options = {}) {
     (options.path ?? true) &&
     preview.finite &&
     point(preview.position).distanceTo(point(pose.C)) > 0.05;
+  const joint = target?.jointTarget;
+  const pathPoints =
+    Number.isInteger(joint?.jointIndex) &&
+    joint.jointIndex >= 0 &&
+    joint.jointIndex < 3 &&
+    Number.isFinite(joint.angleRad)
+      ? Array.from({ length: 33 }, (_, i) => {
+          const q = [...state.actualJoints];
+          q[joint.jointIndex] +=
+            ((joint.angleRad - q[joint.jointIndex]) * i) / 32;
+          return fk(q).C;
+        })
+      : [pose.C, preview.position];
+  const previous = graph.targetPath.geometry.attributes.position;
+  if (previous.count !== pathPoints.length)
+    graph.targetPath.geometry.setAttribute(
+      "position",
+      new THREE.BufferAttribute(new Float32Array(pathPoints.length * 3), 3),
+    );
   const positions = graph.targetPath.geometry.attributes.position;
-  positions.setXYZ(0, pose.C.x, pose.C.y, pose.C.z);
-  positions.setXYZ(
-    1,
-    preview.position.x,
-    preview.position.y,
-    preview.position.z,
-  );
+  pathPoints.forEach((p, i) => positions.setXYZ(i, p.x, p.y, p.z));
   positions.needsUpdate = true;
   graph.targetPath.geometry.computeBoundingSphere();
   graph.targetPath.computeLineDistances();

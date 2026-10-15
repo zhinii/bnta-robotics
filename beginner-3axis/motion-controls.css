@@ -1,0 +1,195 @@
+/* Same compact, explicit movement modes in exercises and practical lessons. */
+.motion-mode-bar {
+  display: flex;
+  gap: 4px;
+  margin: 6px 0 0;
+}
+.motion-mode-bar button {
+  flex: 1;
+  min-height: 40px;
+  padding: 5px 8px;
+  background: #edf1f6;
+  color: #3c4c62;
+  border: 1px solid #c3cfde;
+}
+.motion-mode-bar button[aria-pressed="true"] {
+  background: #e6efff;
+  border: 2px solid #2563eb;
+  color: #1647aa;
+  font-weight: 750;
+}
+.motion-mode-note {
+  font-size: 12px;
+  color: #526174;
+  margin: 5px 0 7px;
+  line-height: 1.4;
+}
+.motion-joint-row {
+  display: grid;
+  grid-template-columns: 40px minmax(40px, 1fr) 70px 56px;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0;
+}
+.motion-joint-row input {
+  min-width: 0;
+  width: 100%;
+}
+.motion-joint-row input[type="number"] {
+  padding: 5px;
+}
+.motion-joint-row button {
+  padding: 4px;
+  min-height: 40px;
+}
+.motion-joint-row label {
+  font-size: 12px;
+  font-weight: 700;
+}
+.jog-step {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  gap: 6px;
+}
+.jog-step select {
+  width: 90px;
+  min-height: 36px;
+  padding: 4px 8px;
+}
+.jog-pad {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(44px, 1fr)) 12px minmax(55px, 1fr);
+  grid-template-rows: repeat(3, 44px);
+  gap: 4px;
+  margin: 8px 0;
+}
+.jog-pad button {
+  min-width: 0;
+  min-height: 44px;
+  padding: 4px;
+  font-weight: 700;
+  background: #edf3fd;
+  color: #194b93;
+  border: 1px solid #b8c9e3;
+  touch-action: manipulation;
+}
+.jog-yplus {
+  grid-area: 1/2;
+}
+.jog-yminus {
+  grid-area: 3/2;
+}
+.jog-xminus {
+  grid-area: 2/1;
+}
+.jog-xplus {
+  grid-area: 2/3;
+}
+.jog-zplus {
+  grid-area: 1/5;
+}
+.jog-zminus {
+  grid-area: 3/5;
+}
+.joint-mode-controls[hidden],
+.jog-mode-controls[hidden],
+#coordinates[hidden],
+.focused-coordinates[hidden],
+#move[hidden],
+#practice-move[hidden],
+.control-card > .section-head[hidden] {
+  display: none !important;
+}
+body[data-mode="explore"] .control-card > * {
+  order: 0;
+  flex-shrink: 0;
+}
+body[data-mode="explore"] .control-card > .record-bar {
+  order: -3;
+}
+body[data-mode="explore"] .control-card > .motion-mode-bar {
+  order: -1;
+}
+body[data-mode="explore"] .control-card > .playback-actions {
+  order: -2;
+  display: flex;
+  gap: 6px;
+  padding: 4px 0 9px;
+  border-bottom: 1px solid #dce3ec;
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: white;
+}
+body[data-mode="explore"] .inspector {
+  scroll-padding-top: 64px;
+}
+.control-card > .playback-actions #run {
+  flex: 1;
+  min-height: 44px;
+  font-size: 14px;
+  font-weight: 750;
+}
+.control-card > .playback-actions :is(#pause, #stop) {
+  min-height: 44px;
+  padding: 5px 9px;
+}
+#project-files {
+  min-height: 36px;
+  padding: 4px 9px;
+  white-space: nowrap;
+}
+#project-dialog {
+  width: min(480px, calc(100vw - 24px));
+  padding: 16px;
+  border: 1px solid #c8d1dd;
+  border-radius: 12px;
+  max-height: 85dvh;
+  overflow: auto;
+}
+#project-dialog:not([open]) {
+  display: none !important;
+}
+#project-dialog::backdrop {
+  background: #17233866;
+}
+#project-dialog .portfolio-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+#project-dialog .portfolio-content button {
+  min-height: 40px;
+}
+#project-dialog label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+@media (max-width: 599px) {
+  header {
+    flex-wrap: wrap;
+  }
+  #project-files {
+    font-size: 11px;
+    padding: 3px 6px;
+  }
+  .control-card > .playback-actions #run {
+    font-size: 13px;
+  }
+  #exercise-progress {
+    display: none;
+  }
+  #exercise-bar {
+    padding: 4px 6px;
+  }
+  #exercise-nav button {
+    min-height: 32px;
+    padding: 3px 6px;
+  }
+  #exercise-goal {
+    font-size: 12px;
+  }
+}
