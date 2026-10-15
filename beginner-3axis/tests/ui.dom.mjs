@@ -72,6 +72,7 @@ function advance(ms) {
   }
 }
 const saved = () => JSON.parse(w.localStorage.getItem("bnta3axis:v1"));
+click("learn");
 assert.equal($("record").checked, false);
 assert.match($("scene").textContent, /WebGL2/);
 assert.ok($("move").textContent);

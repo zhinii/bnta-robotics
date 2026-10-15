@@ -272,6 +272,24 @@ export class LessonDemo {
       this.commands = this.commands.slice(0, 2);
     if (id === "obstacle" && segment === "blocked")
       this.commands = this.commands.slice(0, 4);
+    // The demo operates an isolated controller through the same sequence as practice.
+    this.commands = this.commands.flatMap((command) =>
+      command.type === "move"
+        ? [
+            { type: "target", targetMm: command.targetMm, name: "Enter XYZ" },
+            command,
+          ]
+        : [command],
+    );
+    if (id === "program")
+      this.commands = [
+        { type: "reset", name: "Reset" },
+        { type: "record", enabled: true, name: "Record ON" },
+        ...this.commands,
+        { type: "record", enabled: false, name: "Record OFF" },
+        { type: "reset", name: "Reset" },
+        { type: "run", name: "Run" },
+      ];
     this.index = -1;
     this.wait = 0;
     this.done = false;
@@ -290,10 +308,22 @@ export class LessonDemo {
       this.done = true;
       return;
     }
-    const command = this.commands[this.index],
-      result = this.controller.startAction(command);
+    const command = this.commands[this.index];
+    let result;
+    if (command.type === "target") {
+      for (const axis of ["x", "y", "z"])
+        result = this.controller.editTarget(axis, command.targetMm[axis]);
+    } else if (command.type === "reset") result = this.controller.reset();
+    else if (command.type === "record")
+      result = this.controller.setRecording(command.enabled);
+    else if (command.type === "run") result = this.controller.run();
+    else result = this.controller.startAction(command);
     this.error = result.ok ? null : result.error;
-    this.wait = command.expectedError ? 1600 : 700;
+    this.wait = command.expectedError
+      ? 1600
+      : ["target", "record", "reset"].includes(command.type)
+        ? 1100
+        : 700;
     if (!result.ok && result.error.code !== command.expectedError)
       this.done = true;
   }

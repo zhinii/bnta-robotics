@@ -676,6 +676,9 @@ export function updateSceneGraph(graph, state, target, options = {}) {
       );
     graph.fixtureSignature = fixtureSignature;
   }
+  for (const fixture of graph.fixtures.children)
+    fixture.visible =
+      !options.fixtureIds || options.fixtureIds.includes(fixture.name);
   const obstacleSignature = JSON.stringify(state.obstacles);
   if (obstacleSignature !== graph.obstacleSignature) {
     clearGroup(graph.obstacles);
@@ -1117,6 +1120,7 @@ export function createScene(container, options = {}) {
           });
         const position = point(label.point).project(camera);
         const visible =
+          (!label.fixture || currentOptions.fixtureLabels !== false) &&
           (!(label.id === "current" || label.id === "target") ||
             currentOptions.toolLabels !== false) &&
           (!currentOptions.anatomyOnly ||

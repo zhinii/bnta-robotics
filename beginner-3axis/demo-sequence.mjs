@@ -14,6 +14,23 @@ const titles = {
 };
 export function demoStep(command, language = "en") {
   const zh = language === "zh";
+  const labels = {
+    target: ["Enter XYZ · preview only", "输入XYZ · 仅预览"],
+    reset: ["Reset · keep saved steps", "重置 · 保留步骤"],
+    record: command.enabled
+      ? ["Record ON", "开启录制"]
+      : ["Record OFF", "关闭录制"],
+    run: ["Run the saved program", "运行已保存程序"],
+  };
+  if (labels[command.type])
+    return {
+      title: labels[command.type][zh ? 1 : 0],
+      detail: command.targetMm
+        ? ["x", "y", "z"]
+            .map((k) => `${k.toUpperCase()} ${command.targetMm[k].toFixed(1)}`)
+            .join(" · ") + " mm"
+        : "",
+    };
   if (command.type === "gripper")
     return {
       title:
@@ -36,7 +53,9 @@ export function demoStep(command, language = "en") {
       detail: `${radiansToDegrees(command.angleRad).toFixed(0)}°`,
     };
   return {
-    title: titles[command.name]?.[zh ? 1 : 0] ?? command.name,
+    title:
+      (command.type === "move" ? (zh ? "移动 · " : "Move · ") : "") +
+      (titles[command.name]?.[zh ? 1 : 0] ?? command.name),
     detail: command.targetMm
       ? ["x", "y", "z"]
           .map((k) => `${k.toUpperCase()} ${command.targetMm[k].toFixed(1)}`)

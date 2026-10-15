@@ -222,6 +222,20 @@ export class Controller {
     this.notify();
     return success({ token });
   }
+  // Explicit simulator test action. Keep run() strict for the lesson contract;
+  // the Explore button is labelled "Reset & test" whenever a restore is needed.
+  testProgram() {
+    if (this.state.execution.status === "paused") return this.resume();
+    if (this.busy) return failure("BUSY");
+    const p = this.state.program;
+    if (!p.steps.length || !p.startScene)
+      return this.reject(failure("INVALID_PROGRAM"));
+    const plan = preflightProgram(clone(p.startScene), p.steps);
+    if (!plan.ok) return this.reject(plan); // Never reset for an invalid program.
+    this.setRecording(false);
+    if (sceneDifference(this.state.scene, p.startScene)) this.reset();
+    return this.run();
+  }
   tick(deltaMs, token = this.state.execution.operationId) {
     const op = this.operation;
     if (

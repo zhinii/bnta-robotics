@@ -278,3 +278,58 @@ body #lesson-nav button:disabled {
 body #lesson-nav button:disabled:not([aria-current="step"]) {
   box-shadow: none;
 }
+
+/* The immediate action has priority over navigation and information. */
+body [data-next-action="true"] {
+  outline: 3px solid #18864b;
+  outline-offset: 2px;
+  background: #e5f6e9;
+}
+body button.primary[data-next-action="true"] {
+  background: #146b3d;
+  color: #fff;
+  border-color: #105631;
+}
+.demo-control-preview {
+  display: grid;
+  gap: 3px;
+  padding: 7px 9px;
+  margin: 4px 0;
+  border: 2px solid #b17b18;
+  border-radius: 7px;
+  background: #fff3cf;
+  color: #382c17;
+}
+.demo-control-preview small {
+  color: #675437;
+}
+.demo-control-preview span {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+#program-list li[data-invalid="true"] {
+  border: 2px solid #b3261e;
+  background: #fff0ef;
+}
+.step-error {
+  color: #8b211b;
+  margin: 4px;
+  font-size: 13px;
+}
+
+/* Short, dismissible first-visit overview in normal page flow. */
+body .welcome-overview {
+  flex: none;
+  padding: 10px 12px;
+  margin: 0 0 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #f3f6fb;
+}
+.welcome-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+body .welcome-overview h2 { margin: 0; font-size: 17px; }
+body .welcome-overview label { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+body .welcome-overview select, body .welcome-overview button { min-height: 40px; }
+body .welcome-overview ul { margin: 8px 0; padding-left: 18px; font-size: 13px; line-height: 1.45; }
+body .welcome-overview li + li { margin-top: 3px; }

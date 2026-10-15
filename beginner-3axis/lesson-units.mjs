@@ -122,8 +122,8 @@ export const LESSON_UNITS = {
         zh: "程序是有顺序的动作列表。录制开启时保存成功移动及夹爪动作，关闭时可自由探索。搬运需要接近、抓取、抬起、平移、降低、释放和撤离。",
       },
       demo: {
-        en: "Watch the complete transfer and its numbered actions. The example uses a separate robot and never writes your program.",
-        zh: "观察完整搬运和编号动作。示例使用独立机器人，不会写入你的程序。",
+        en: "Watch Reset → Record ON → enter XYZ → Move and gripper actions → Record OFF → Reset → Run. The example controls show each action; your own program stays unchanged.",
+        zh: "观察重置→开启录制→输入XYZ→移动和夹爪动作→关闭录制→重置→运行。示范控制显示每个动作，不会修改你的程序。",
       },
       kind: "full",
     },
@@ -137,8 +137,8 @@ export const LESSON_UNITS = {
         zh: "录制后关闭录制。重置让机器人与零件回到起点并保留步骤。运行重放，暂停冻结播放，停止结束执行。比较结果、改进程序，再试一次。",
       },
       demo: {
-        en: "Replay the same transfer. Notice that a repeat starts with the part back at the source. You will record and test your own sequence in the assessment.",
-        zh: "重看同一搬运。注意每次开始时零件都回到起点。评估时录制并测试你自己的程序。",
+        en: "Watch Record OFF, Reset and Run after the moves are saved. Reset restores the part to Source; Run performs the saved actions again.",
+        zh: "观察动作保存后的关闭录制、重置和运行。重置把零件放回起点；运行重新执行已保存动作。",
       },
       kind: "full",
     },

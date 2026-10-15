@@ -1,0 +1,36 @@
+import assert from "node:assert/strict";
+const { JSDOM } = await import(process.env.BNTA_JSDOM_PATH || "jsdom");
+import { createStartingGuides } from "../starting-guide.mjs";
+const dom = new JSDOM("", {url: "http://localhost/"});
+globalThis.document = dom.window.document;
+globalThis.Event = dom.window.Event;
+const storage = dom.window.localStorage;
+let language = "en", mode = "explore";
+function mount(store = storage) {
+  document.body.innerHTML = '<main><section id="exercise-bar"></section><button id="plus-z">+</button></main><select id="language"><option value="en">English</option><option value="zh">中文</option></select>';
+  const guide = createStartingGuides({get:()=>({language,mode}), storage:store});
+  document.querySelector('#language').onchange = event => { language = event.target.value; guide.render(); };
+  guide.render();
+  return guide;
+}
+let guide = mount();
+assert.equal(document.querySelector('#welcome-overview').hidden, false);
+const selection = document.querySelector('#welcome-language');
+selection.value = 'zh';
+selection.dispatchEvent(new Event('change'));
+assert.equal(language, 'zh');
+assert.match(document.querySelector('#welcome-title').textContent, /欢迎/);
+mode = 'learn'; guide.render();
+assert.ok(document.querySelector('#welcome-overview').hidden);
+assert.equal(document.querySelector('#starting-guide-learn'), null);
+mode = 'explore'; guide.render();
+document.querySelector('#welcome-continue').click();
+assert.ok(document.querySelector('#welcome-overview').hidden);
+assert.equal(document.activeElement.id, 'plus-z');
+mount();
+assert.ok(document.querySelector('#welcome-overview').hidden);
+mount({getItem(){throw Error('Blocked')},setItem(){throw Error('Blocked')}});
+assert.equal(document.querySelector('#welcome-overview').hidden, false);
+document.querySelector('#welcome-continue').click();
+assert.ok(document.querySelector('#welcome-overview').hidden);
+console.log('PASS: brief welcome, shared language selection, no Learn guide, dismissal persistence and unavailable storage. DOM only.');
