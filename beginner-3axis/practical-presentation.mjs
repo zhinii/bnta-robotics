@@ -1,3 +1,4 @@
+import { nextPracticeAction, ACTION_COPY } from "./action-guide.mjs";
 import { createScene } from "./scene.mjs";
 import { initialScene, teachingRoute } from "./planner.mjs";
 import { fk } from "./model.mjs";
@@ -75,7 +76,10 @@ export function createPracticeControls(api) {
     input.step = "0.1";
     input.inputMode = "decimal";
     input.id = `practice-${axis}`;
-    input.oninput = () => api.report(api.get().c.editTarget(axis, input.value));
+    input.oninput = () => {
+      api.report(api.get().c.editTarget(axis, input.value));
+      api.preview();
+    };
     fields[axis] = input;
     label.append(text, input);
     coordinates.append(label);
@@ -154,6 +158,35 @@ export function createPracticeControls(api) {
   root.append(coordinates, actions, held, program, feedback);
   return {
     root,
+    guide({ step, complete, language, lesson, events, transfer }) {
+      for (const b of Object.values(buttons)) {
+        b.classList.remove("primary");
+        b.removeAttribute("data-next-action");
+      }
+      for (const e of [recordLabel, coordinates])
+        e.removeAttribute("data-next-action");
+      if (transfer) return;
+      setupNote.hidden = true;
+      const action = nextPracticeAction({
+        state: api.get().c.state,
+        events,
+        step,
+        complete,
+        programLesson: lesson === "program",
+      });
+      instruction.textContent = ACTION_COPY[action][language === "zh" ? 1 : 0];
+      const control =
+        action === "target"
+          ? coordinates
+          : ["record", "recordOff"].includes(action)
+            ? recordLabel
+            : buttons[action];
+      if (control) {
+        control.dataset.nextAction = "true";
+        if (control.tagName === "BUTTON") control.classList.add("primary");
+      }
+      root.dataset.nextAction = action;
+    },
     viewControls: views,
     views: () => ({
       trail: toggles.trail.input.checked,
@@ -266,8 +299,8 @@ export function createPracticeControls(api) {
         ? `录制 ${record.checked ? "开" : "关"}`
         : `Record ${record.checked ? "ON" : "OFF"}`;
       programNote.textContent = zh
-        ? `${c.state.program.steps.length}步 · 录制完成：关 → 重置 → 运行。试试暂停、继续和停止；重置后完整运行。`
-        : `${c.state.program.steps.length} steps · After recording: OFF → Reset → Run. Try Pause, Resume and Stop; reset and run the whole sequence.`;
+        ? `${c.state.program.steps.length}步已保存`
+        : `${c.state.program.steps.length} saved steps`;
       if (c.operation?.source === "replay") {
         const op = c.operation,
           step = demoStep(op.commands[op.index], language);

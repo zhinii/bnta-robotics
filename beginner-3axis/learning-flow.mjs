@@ -274,7 +274,10 @@ export function createLearningFlow(api) {
   const exampleBody = node("div", null, "example-body");
   exampleBody.append(exampleText, demoActions, caption);
   const demoSequence = createDemoSequence("lesson-demo-sequence");
-  exampleBody.append(demoSequence.root);
+  const demoControls = node("div", null, "demo-control-preview");
+  demoControls.id = "demo-control-preview";
+  demoControls.setAttribute("aria-live", "polite");
+  exampleBody.append(demoControls, demoSequence.root);
   example.append(exampleBody);
   const demoFocus = createDemoFocus(
     example,
@@ -550,7 +553,11 @@ export function createLearningFlow(api) {
   const reset = node("button");
   reset.id = "quick-reset";
   document.querySelector(".record-bar").append(reset);
-  reset.onclick = () => api.report(api.get().c.reset());
+  reset.onclick = () => {
+    const { c, mode } = api.get();
+    if (mode === "explore") c.setRecording(false);
+    api.report(c.reset());
+  };
   const modelNote = node("p", null, "subtle");
   document.querySelector(".coach-card").append(modelNote);
   watchButton.onclick = () => {
@@ -1006,6 +1013,41 @@ export function createLearningFlow(api) {
         demoState,
         language,
       );
+    }
+    demoControls.hidden = !demo || id === "types";
+    if (demo) {
+      const state = demo.controller.state,
+        command = demo.commands[demo.index];
+      const action = command
+        ? demoStep(command, language).title
+        : language === "zh"
+          ? "准备示例"
+          : "Preparing example";
+      const draft = state.target.parsed;
+      const live = demo.controller.operation;
+      const target = live?.commands[live.index]?.targetMm ?? draft;
+      const top =
+        language === "zh"
+          ? "示范控制 · 不会修改你的程序"
+          : "Example controls · your program is unchanged";
+      const record = language === "zh" ? "录制" : "Record";
+      const count = language === "zh" ? "已保存步骤" : "saved steps";
+      const values = [
+        top,
+        action,
+        target ? pos(target) : "",
+        `${record} ${state.recording.enabled ? "ON" : "OFF"} · ${state.program.steps.length} ${count}`,
+      ];
+      const signature = JSON.stringify(values);
+      if (demoControls.dataset.signature !== signature) {
+        demoControls.replaceChildren(
+          ...values.map((text, i) =>
+            node(i === 0 ? "small" : i === 1 ? "strong" : "span", text),
+          ),
+        );
+        demoControls.dataset.signature = signature;
+      }
+      demoControls.dataset.action = command?.type ?? "ready";
     }
     demoSequence.root.hidden = id === "design";
     example.classList.toggle("anatomy-example", id !== "types");
@@ -1497,6 +1539,21 @@ export function createLearningFlow(api) {
         .querySelectorAll("button:not(.glossary-term)")
         .forEach((b) => (b.disabled = c.busy || !!demo));
     }
+    if (taskLesson && phase === "try" && attempt?.prediction)
+      taskControls.guide({
+        step: activeStep
+          ? route[[...routeList.children].indexOf(activeStep)]
+          : null,
+        complete: !activeStep,
+        language,
+        lesson: id,
+        events: learning.evidenceEvents.filter(
+          (e) =>
+            e.attemptId === attempt?.id &&
+            e.sequence > (attempt?.predictionSequence ?? Infinity),
+        ),
+        transfer: !!attempt?.transfer,
+      });
     math.hidden = phase !== "review" || id !== "coordinates";
     mathTitle.textContent = word("math", language);
     const m = latestMeasurement(learning);
@@ -1712,7 +1769,7 @@ export function createLearningFlow(api) {
         command = demo.commands[demo.index];
       let text = demo.done
         ? word("demoDone", language)
-        : `${demo.index + 1}/${demo.commands.length} · ${command?.type === "gripper" ? tr(command.gripperState === "closed" ? "control.close" : "control.open") : command?.targetMm ? pos(command.targetMm) : (command?.name ?? "")}${demo.error ? " · " + tr(`error.${demo.error.code}`) : ""}`;
+        : `${demo.index + 1}/${demo.commands.length} · ${command?.type === "gripper" ? tr(command.gripperState === "closed" ? "control.close" : "control.open") : command?.targetMm ? pos(command.targetMm) : command ? demoStep(command, language).title : ""}${demo.error ? " · " + tr(`error.${demo.error.code}`) : ""}`;
       if (demo.done && api.get().learning.currentLessonId === "coordinates") {
         const m = demo.controller.state.events
           .map(moveMeasurement)

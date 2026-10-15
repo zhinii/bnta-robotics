@@ -4,6 +4,14 @@ An isolated beginner entry for **Robot Lab, developed by Christopher Hansen**. T
 
 **Local review build:** automated tests and in-app browser learner checks are documented in [LOCAL_VERIFICATION.md](LOCAL_VERIFICATION.md). Physical phone/tablet touch and full assistive-technology acceptance remain outstanding. This feature branch is not a deployed public preview.
 
+## Explore first, lessons when ready
+
+First visits show a language selector and three brief feature descriptions: Explore, Learn, and Program & save. Start exploring dismisses the welcome, with that preference remembered locally. Learn opens directly without an additional introduction.
+
+New learners land in **Explore**, with recording off and a simple Z-plus/Move suggestion. **Start lessons** opens the seven lessons voluntarily. The free exploration tab is not graded; the three optional exercise tabs retain their tested completion checks. Existing projects and recorded steps are preserved when switching between Learn and Explore.
+
+Guided practice highlights the actual next control in green and gives one short action at a time. Examples show target entry separately from Move. The recording example demonstrates Reset, Record on, movements/gripper actions, Record off, Reset and Run on an isolated controller. Correcting a target refreshes its preview and feedback; invalid saved steps display a specific explanation in the program list. Progress remains exportable as JSON, with no database requirement.
+
 ## Run locally
 
 From the repository root:
@@ -89,6 +97,12 @@ Wireframe markers are abstract support/capture fixtures. Pickup requires the act
 - Camera Orbit, Grid, Axes and Home view never change the robot frame or program.
 
 ## Learning and privacy
+
+Explore is an exercise workspace with three task tabs: **Reach a point**, **Pick & place**, and **Avoid an obstacle**. A status strip reports Programming, Testing, Paused, Complete, or a revision needed. Task reference contains coordinates and hints; Use target previews a position without moving the robot. Current coordinates stay outside the canvas so they cannot cover the tool.
+
+Explore's **Reset & test** explicitly restores the recorded starting scene and runs the program after preflight succeeds. Recording turns off for replay. Learn retains its separate, strict Run/Reset teaching behavior. Completion requires a successful recorded replay that meets the selected exercise's goal; manual positioning alone does not complete it. Completed programs and final scenes are retained per task in exported project JSON. Switching tasks warns before clearing the current program and offers Save JSON.
+
+On phones, Explore keeps a smaller square scene while programming and enlarges it while testing or paused. Controls scroll independently. Run `node beginner-3axis/tests/explore.dom.mjs` for the three-exercise DOM journey, in addition to the model tests and seven-lesson DOM journey.
 
 Examples in Lessons 1–6 now show a numbered action list with a synchronised current-step highlight. On phones, programming keeps a compact scene; replay (including Pause) enlarges it and exposes playback controls. World axes originate at the model's (0,0,0), with larger directional arrows and a tighter camera fit.
 

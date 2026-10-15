@@ -31,6 +31,7 @@ import {
 } from "./lessons.mjs";
 import { t } from "./i18n.mjs";
 import { sceneDifference } from "./program.mjs";
+import { validExerciseState } from "./exercises.mjs";
 export const STORAGE_KEY = "bnta3axis:v1";
 export const STORAGE_VERSION = 1;
 export const CONFIG_ID =
@@ -384,6 +385,7 @@ export function createProgressPayload(
     language = "en",
     learnerName = "",
     scene = null,
+    exercise = null,
   } = {},
   now = new Date().toISOString(),
 ) {
@@ -398,6 +400,7 @@ export function createProgressPayload(
     program: clone(program),
     learning: clone(learning),
     scene: scene ? clone(scene) : null,
+    exercise: exercise ? clone(exercise) : null,
   };
 }
 export function validateProgressPayload(payload, evaluationOptions = {}) {
@@ -415,6 +418,11 @@ export function validateProgressPayload(payload, evaluationOptions = {}) {
         finiteTree(payload) &&
         validateLearningState(payload.learning, evaluationOptions) &&
         validateStoredProgram(payload.program) &&
+        validExerciseState(
+          payload.exercise,
+          validateStoredProgram,
+          validateStoredScene,
+        ) &&
         (payload.scene === null || validateStoredScene(payload.scene)),
     );
   } catch {
@@ -574,6 +582,7 @@ export function exportPortfolio(
     learnerName = "",
     language = "en",
     scene = null,
+    exercise = null,
   } = {},
   now = new Date().toISOString(),
 ) {
@@ -581,7 +590,8 @@ export function exportPortfolio(
     typeof learnerName !== "string" ||
     learnerName.length > 80 ||
     !validateLearningState(learning) ||
-    !validateStoredProgram(program)
+    !validateStoredProgram(program) ||
+    !validExerciseState(exercise, validateStoredProgram, validateStoredScene)
   )
     return failure("INVALID_INPUT", { reason: "invalidPortfolio" });
   const lessonEvidence = LESSONS.map(({ id }) => ({
@@ -611,10 +621,11 @@ export function exportPortfolio(
     timestamp: now,
     learnerName,
     program: clone(program),
+    exercise: exercise ? clone(exercise) : null,
     lessonEvidence,
     evidenceEvents: clone(learning.evidenceEvents),
     resume: createProgressPayload(
-      { program, learning, learnerName, language, scene },
+      { program, learning, learnerName, language, scene, exercise },
       now,
     ),
     verification,

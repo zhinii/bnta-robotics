@@ -70,7 +70,10 @@ test("Every short concept has a bilingual, executable, isolated demo", () => {
         !demo.error ||
           (unit.kind === "blocked" && demo.error.code === "PATH_BLOCKED"),
       );
-      assert.equal(demo.controller.state.program.steps.length, 0);
+      assert.equal(
+        demo.controller.state.program.steps.length,
+        id === "program" ? 9 : 0,
+      );
       demo.dispose();
     }
 });

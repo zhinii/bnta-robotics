@@ -353,3 +353,77 @@ and FANUC DR series (https://www.fanucamerica.com/products/series/dr).
 The demonstrator is deliberately three-axis, with a separate suction action.
 Local preview: http://127.0.0.1:4205/beginner-3axis/ . No GitHub push or deployment
 was performed for this revision.
+
+## Explore exercise workspace — 12 October 2026
+
+Added three selectable exercises with current operation status and verified
+completion checkmarks. Removed tool/fixture text overlays from Explore's canvas;
+coordinates remain in dedicated strips. Reset & test preflights the recorded
+program before restoring its start, disables recording, and then replays it.
+During replay, the target ghost follows the active step instead of the stale
+starting target. Lesson Run/Reset behavior is unchanged.
+
+Verification: 96/96 Node tests passed, the seven-lesson DOM journey passed, and
+the new three-exercise DOM journey passed. Tests cover recording, all three task
+goals, replay, pause/resume, stop/restart, invalid-program preservation, task
+switch confirmation, bilingual labels, JSON result roundtrip and rejection of
+tampered completion evidence.
+
+Real browser checks at 390×844, 768×1024 and 1280×900 covered layout and visible
+controls. Recorded and completed the two-move task at phone width, replayed it,
+reloaded its result, switched to Pick & place, and used a reference target to
+preview without moving. No horizontal overflow at phone width or console errors
+were observed. The full pickup/obstacle journeys were checked in the DOM harness;
+physical touchscreen testing remains outstanding. Preview server remains on
+127.0.0.1:4205. This exercise revision has not been pushed or deployed.
+
+## Exploration-first entry and actionable guidance — 14 October 2026
+
+Default entry is free Explore with recording off and a visible Start lessons action.
+Saved project/task state is retained. Guided practice derives its green next-action
+highlight from actual reset, recording, target, action and replay evidence. Examples
+use an isolated controller and demonstrate the same target/Move and recording
+workflow as practice. Preview feedback updates after corrections; invalid program
+steps have translated explanations.
+
+Verification: 98/98 Node tests passed, including the next-action progression and
+actual isolated demo recording/reset/replay. Seven-lesson DOM and three-exercise
+DOM journeys passed. Browser checks at phone width (390 by 844) verified demo
+control output, Reset → Record → target → Move highlighting, movement/recording,
+and return to Explore with the saved step retained. Fresh entry, Z-plus movement,
+invalid-target rejection and corrected feedback were also checked in-browser.
+Physical touch and assistive-technology acceptance are still outstanding.
+
+Local preview: http://127.0.0.1:4206/beginner-3axis/ . Server is localhost-only.
+This revision has not been pushed or deployed to GitHub.
+
+### Self-learning introductions — 14 October 2026
+
+Added separate in-flow welcome and Learn guides, initially expanded and always
+reopenable. They explain the first control action, preview versus movement,
+recording, course order, glossary, navigation and JSON export. Acknowledgement
+only stores an orientation preference; it does not award lesson completion.
+
+98 Node tests passed. The focused starting-guide DOM check passed for independent
+first visits, dismissal persistence, Chinese text, focus handoff and blocked
+storage. Browser checks covered opening both guides, dismissing, reopening,
+reload persistence and reaching Z-plus controls at 390×844, plus desktop layout
+at 1280×900. No real touchscreen or screen-reader acceptance claim. No deployment.
+
+### Welcome simplified — 14 October 2026
+
+Supersedes the two introductions above: one first-visit language selection and
+brief feature overview, dismissed by Start exploring. No Learn introduction.
+Focused DOM checks passed for language synchronization, mode visibility, dismissal
+persistence and blocked storage. No deployment.
+
+## Feature-branch release validation — 15 October 2026
+
+The exploration-first workspace, exercise replay/progress, actionable lesson
+guidance and brief bilingual welcome are included in this release. Earlier
+not-pushed statements above describe their review-stage status. The original
+root app remains unchanged; publishing this feature branch does not deploy Pages.
+
+Pre-commit checks: 98/98 Node tests, welcome DOM checks and all three Explore
+exercise DOM journeys passed.
+The complete seven-lesson DOM journey and reload/reset integration checks also passed.

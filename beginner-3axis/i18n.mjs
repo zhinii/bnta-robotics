@@ -842,6 +842,16 @@ const entries = [
     "这会替换此模拟器保存的进度。请先导出仍可使用的成果。",
   ],
   [
+    "status.previewUpdated",
+    "Target changed. Check the preview before pressing Move.",
+    "目标已修改。先检查预览，再按移动。",
+  ],
+  [
+    "status.previewReady",
+    "Path checked. Press Move to go there; the robot has not moved yet.",
+    "路径已检查。按移动前往；机器人尚未移动。",
+  ],
+  [
     "error.INVALID_INPUT",
     "Enter a finite number for every coordinate. Empty values are not zero.",
     "请为每个坐标输入有限数值。空值不等于零。",
@@ -853,8 +863,8 @@ const entries = [
   ],
   [
     "error.SINGULAR",
-    "That pose is at or too near a singularity. Choose a less extended, offset target.",
-    "该位形处于或过于接近奇异位形。请选择伸展程度较小、偏离该位置的目标。",
+    "The arm is too straight or folded here. Move the target a little toward the middle of its reach, then check the ghost.",
+    "机械臂在此处过于伸直或折叠。将目标稍微移向工作范围中间，再检查虚影。",
   ],
   [
     "error.WORKSPACE_LIMIT",
@@ -873,8 +883,8 @@ const entries = [
   ],
   [
     "error.PATH_BLOCKED",
-    "The full route cannot be cleared against an obstacle or another solid object. Try a different waypoint.",
-    "整条路线无法通过障碍物或其他实体的间隙检查。请尝试其他途经点。",
+    "Something blocks this route; the robot has not moved. Try an intermediate position with more clearance, then check the expected path.",
+    "此路线被物体挡住，机器人未移动。尝试空间更大的中间位置，再检查预期路径。",
   ],
   [
     "error.SELF_COLLISION",
@@ -902,14 +912,19 @@ const entries = [
     "场景与程序录制的初始状态不一致。运行前请重置场景。",
   ],
   [
+    "error.RECORD_END_MISMATCH",
+    "To add steps, test the program to its end, then turn Record on. Or clear the program to start a new sequence.",
+    "如需添加步骤，请先测试到程序末尾，再开启录制。也可以清空程序，重新编写。",
+  ],
+  [
     "error.INVALID_PROGRAM",
     "This program contains an unsupported or invalid step. Check the steps before running.",
     "此程序包含不受支持或无效的步骤。运行前请检查各步骤。",
   ],
   [
     "error.GRASP_APPROACH_REQUIRED",
-    "Use the valid source approach before closing at the part. A nearby closed gripper alone cannot attach it.",
-    "在零件处闭合夹爪前，必须完成有效的取件接近动作。仅在附近闭合夹爪不能夹持零件。",
+    "The part was not gripped. Open the gripper, move above the part first, then lower to its pickup position and close.",
+    "没有夹住零件。张开夹爪，参考任务中的“抓取前”位置，再移动到“抓取点”并闭合。",
   ],
   [
     "error.UNSUPPORTED_RELEASE",

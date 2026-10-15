@@ -38,8 +38,8 @@ test("All seven demonstrations execute through the real planner, including the e
     assert.ok(!demo.error, `${id}: ${demo.error?.code}`);
     assert.equal(
       demo.controller.state.program.steps.length,
-      0,
-      "demonstration never records",
+      id === "program" ? 9 : 0,
+      "only the recording example records into its isolated controller",
     );
     if (["types", "program", "obstacle", "design"].includes(id))
       assert.equal(

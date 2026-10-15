@@ -13,7 +13,14 @@ import {
   distance,
 } from "./model.mjs";
 import { initialScene, teachingRoute, planMove, clone } from "./planner.mjs";
-import { revalidateProgram } from "./program.mjs";
+import { revalidateProgram, sceneDifference } from "./program.mjs";
+import {
+  createExerciseState,
+  exerciseScene,
+  recordExerciseRun,
+} from "./exercises.mjs";
+import { createStartingGuides } from "./starting-guide.mjs";
+import { createExploreUI } from "./explore-ui.mjs";
 import { createScene } from "./scene.mjs";
 import {
   LESSONS,
@@ -50,8 +57,12 @@ const $ = (id) => document.getElementById(id),
     return e;
   };
 let learning = createLearningState(),
+  exercise = createExerciseState(),
+  exploreUI,
+  startingGuides,
+  exploreStarted = false,
   language = "en",
-  mode = "learn",
+  mode = "explore",
   demo = false,
   view = {
     grid: true,
@@ -79,6 +90,8 @@ const c = new Controller({
     if (["SCENE_RESET", "SCENE_CHANGED"].includes(event.type))
       renderer?.clearTrail();
     if (mode === "learn") learning = recordLearningEvent(learning, event);
+    if (mode === "explore") exercise = recordExerciseRun(exercise, event);
+    if (mode === "explore" && event.type === "RUN_COMPLETED") c.syncTarget();
     const map = {
       MOVE_COMPLETED: "status.moveComplete",
       OBJECT_ATTACHED: "status.attached",
@@ -89,6 +102,10 @@ const c = new Controller({
       STOPPED: "status.stopped",
     };
     if (map[event.type]) feedbackKey = map[event.type];
+    if (event.type === "TARGET_EDITED") {
+      feedbackKey = "status.previewUpdated";
+      feedbackParams = {};
+    }
     if (uiReady && event.type !== "TARGET_EDITED") persist();
   },
   onChange: () => {
@@ -136,6 +153,7 @@ function persist() {
     createProgressPayload({
       program: c.state.program,
       scene: c.state.scene,
+      exercise,
       learning,
       language,
       learnerName: $("learner-name")?.value || "",
@@ -152,6 +170,7 @@ if (saved.ok && saved.value) {
   const s = saved.value;
   language = s.language;
   learning = s.learning;
+  exercise = s.exercise || createExerciseState();
   if (s.scene) {
     c.state.scene = clone(s.scene);
     c.initialScene = initialScene({
@@ -214,6 +233,8 @@ function preview() {
   }
   const r = planMove(c.state.scene, target);
   c.state.target.error = r.ok ? null : r.error;
+  feedbackKey = r.ok ? "status.previewReady" : `error.${r.error.code}`;
+  feedbackParams = {};
   render();
 }
 // Keep buttons stable so simulation updates do not replace keyboard focus.
@@ -275,6 +296,15 @@ function render() {
         s.scene.actualJoints,
     ).C,
     busy = c.busy;
+  const playbackCommand =
+    mode === "explore" && c.operation?.source === "replay"
+      ? c.operation.commands[c.operation.index]
+      : null;
+  const playbackTarget = playbackCommand
+    ? playbackCommand.type === "move"
+      ? playbackCommand.targetMm
+      : current
+    : null;
   $("current").textContent = formatPosition(current);
   $("joint-readout").textContent = (
     journey?.demo?.controller.state.scene.actualJoints ?? s.scene.actualJoints
@@ -301,16 +331,22 @@ function render() {
       .join(" · ");
   const displayedScene = journey?.demo?.controller.state.scene || s.scene;
   $("fixture-reference").textContent = displayedScene.fixtures
-    .filter((f) => f.id === "source" || f.id === displayedScene.destination)
+    .filter(
+      (f) =>
+        (f.id === "source" &&
+          !(mode === "explore" && exercise.taskId === "reach")) ||
+        f.id === displayedScene.destination,
+    )
     .map(
       (f) => `${tr(`scene.${f.id}`)}: ${formatPosition(f.targetPosition)} mm`,
     )
     .join(" · ");
   for (const axis of ["x", "y", "z"]) {
     if (document.activeElement !== $(`target-${axis}`))
-      $(`target-${axis}`).value =
-        Number.isFinite(Number(s.target.draft[axis])) &&
-        String(s.target.draft[axis]).trim() !== ""
+      $(`target-${axis}`).value = playbackTarget
+        ? String(Math.round(playbackTarget[axis] * 10) / 10)
+        : Number.isFinite(Number(s.target.draft[axis])) &&
+            String(s.target.draft[axis]).trim() !== ""
           ? String(Math.round(Number(s.target.draft[axis]) * 10) / 10)
           : s.target.draft[axis];
     for (const sign of ["minus", "plus"]) {
@@ -338,7 +374,11 @@ function render() {
   );
   $("record-note").hidden = !s.recording.blockedReason;
   $("record-note").textContent = s.recording.blockedReason
-    ? tr("error.START_STATE_MISMATCH")
+    ? mode === "explore"
+      ? language === "zh"
+        ? "先测试到程序末尾，再开启录制来添加步骤；或清空程序重新开始。"
+        : "Test to the end before recording more steps, or clear the program to start fresh."
+      : tr("error.START_STATE_MISMATCH")
     : tr("status.pathChecked");
   $("steps").textContent = `${tr("control.steps")} ${s.program.steps.length}`;
   $("held").textContent =
@@ -346,6 +386,20 @@ function render() {
   $("run").textContent = tr(
     s.execution.status === "paused" ? "control.resume" : "control.run",
   );
+  if (mode === "explore" && s.execution.status !== "paused") {
+    const resetNeeded =
+      s.program.steps.length && sceneDifference(s.scene, s.program.startScene);
+    $("run").textContent =
+      language === "zh"
+        ? resetNeeded
+          ? "重置并测试"
+          : "测试程序"
+        : resetNeeded
+          ? "Reset & test"
+          : "Test program";
+    if (s.execution.status === "running")
+      $("run").textContent = language === "zh" ? "测试中…" : "Testing…";
+  }
   $("run").disabled =
     s.execution.status === "movingManual" ||
     s.execution.status === "running" ||
@@ -360,12 +414,13 @@ function render() {
   $("reset").disabled = false;
   $("clear").disabled = busy || !s.program.steps.length;
   $("demo-toggle").disabled = busy;
-  const target = s.target.parsed;
+  const target = playbackTarget || s.target.parsed;
   $("next-action").textContent = s.target.error
     ? tr(s.target.error.messageKey || `error.${s.target.error.code}`)
     : target
       ? `${tr("control.target")}: ${["x", "y", "z"].map((k) => `${k.toUpperCase()} ${target[k] - current[k] >= 0 ? "+" : ""}${(target[k] - current[k]).toFixed(1)}`).join(" · ")} mm`
       : tr("error.INVALID_INPUT");
+  $("next-action").hidden = mode === "explore" && !s.target.error;
   $("feedback").textContent = busy
     ? `${tr(`status.${s.execution.status === "movingManual" ? "moving" : s.execution.status}`)} · ${tr("status.step", { current: s.execution.stepIndex + 1, total: s.execution.status === "movingManual" ? 1 : s.program.steps.length })}`
     : tr(feedbackKey, feedbackParams);
@@ -387,6 +442,12 @@ function render() {
     (e) => e.type === "RUN_COMPLETED" && e.verified,
   );
   $("learning").hidden = mode !== "learn";
+  $("learn").textContent =
+    mode === "explore"
+      ? language === "zh"
+        ? "开始课程"
+        : "Start lessons"
+      : tr("mode.learn");
   $("learn").setAttribute("aria-pressed", String(mode === "learn"));
   $("explore").setAttribute("aria-pressed", String(mode === "explore"));
   if (renderer)
@@ -403,12 +464,20 @@ function render() {
       {
         ...view,
         language,
+        toolLabels: mode === "explore" ? false : undefined,
+        fixtureLabels: mode === "explore" ? false : undefined,
+        fixtureIds:
+          mode === "explore"
+            ? exercise.taskId === "reach"
+              ? [s.scene.destination]
+              : ["source", s.scene.destination]
+            : undefined,
         demonstration: !!journey?.demo,
         focusJoint:
           journey?.demo?.commands[journey.demo.index]?.jointIndex ??
           view.focusJoint,
         programPoints:
-          $("steps-dialog").open && s.program.startScene
+          ($("steps-dialog").open || playbackCommand) && s.program.startScene
             ? [
                 fk(s.program.startScene.actualJoints).C,
                 ...s.program.steps
@@ -436,7 +505,7 @@ function render() {
     s.program.validationStatus === "invalid"
       ? tr("program.invalid", {
           step: (s.program.validationError?.details?.stepIndex ?? 0) + 1,
-          code: s.program.validationError?.code,
+          code: tr(`error.${s.program.validationError?.code}`),
         })
       : tr("program.count", { count: s.program.steps.length });
   if (mode === "learn") {
@@ -460,6 +529,8 @@ function render() {
     storageWarning ? "status.storageWarning" : "status.saved",
   );
   journey?.render();
+  startingGuides?.render();
+  exploreUI?.render();
   for (const id of [
     "export-json",
     "export-text",
@@ -547,6 +618,18 @@ function renderProgram() {
     const expanded = el("div", undefined, "step-expanded");
     expanded.hidden = selectedProgram !== i;
     expanded.append(input, detail, actions);
+    const invalid = c.state.program.validationError?.details?.stepIndex === i;
+    li.dataset.invalid = String(invalid);
+    if (invalid) {
+      select.textContent = "⚠ " + select.textContent;
+      li.append(
+        el(
+          "p",
+          tr(`error.${c.state.program.validationError.code}`),
+          "step-error",
+        ),
+      );
+    }
     li.append(select, expanded);
     $("program-list").append(li);
   });
@@ -792,6 +875,21 @@ function setMode(value) {
   c.setRecording(false);
   mode = value;
   c.state.mode = value;
+  if (mode === "explore") {
+    view.labels = false;
+    view.focusJoint = undefined;
+    $("labels").checked = false;
+    document.querySelector(".coach-card").open = false;
+    if (!exploreStarted) {
+      exploreStarted = true;
+      if (!c.state.program.steps.length && !saved.value?.exercise)
+        startExercise(exercise.taskId);
+      else if (!saved.value?.exercise)
+        exercise.taskId = c.state.scene.obstacles.length
+          ? "obstacle"
+          : "transfer";
+    }
+  }
   if (mode === "learn" && !currentAttempt(learning)) {
     learning = beginLessonAttempt(learning, learning.currentLessonId);
     currentAttempt(learning).curriculumVersion = 2;
@@ -826,9 +924,47 @@ lessonSwitch.addEventListener("close", () => {
 confirmLesson.addEventListener("click", () => {
   const target = pendingLesson;
   lessonSwitch.close();
-  if (target)
+  if (target?.exercise) startExercise(target.id, true, true);
+  else if (target)
     startLesson(target.id, { transfer: target.transfer, confirmed: true });
 });
+function startExercise(id, restart = false, confirmed = false) {
+  if (c.busy) return;
+  if (c.state.program.steps.length && !confirmed) {
+    pendingLesson = { id, exercise: true };
+    const zh = language === "zh";
+    lessonSwitchTitle.textContent = zh
+      ? "设置练习场景？"
+      : "Set up this exercise?";
+    lessonSwitchText.textContent = zh
+      ? "新场景会清空当前程序，已完成的任务记录保留。可先保存JSON。"
+      : "This sets up the task and clears the current program. Completed exercise results are kept. Save JSON first to keep your current work.";
+    keepLesson.textContent = zh ? "继续当前任务" : "Keep working";
+    saveLesson.textContent = zh ? "保存JSON" : "Save JSON";
+    confirmLesson.textContent = zh ? "设置任务" : "Set up task";
+    lessonSwitch.showModal();
+    keepLesson.focus();
+    return;
+  }
+  c.setRecording(false);
+  if ($("steps-dialog").open) $("steps-dialog").close();
+  if (c.state.program.steps.length) c.clearProgram(true);
+  exercise = { ...exercise, taskId: id };
+  c.changeScene(exerciseScene(id));
+  c.state.events = [];
+  demo = false;
+  view.focusJoint = undefined;
+  view.labels = false;
+  $("labels").checked = false;
+  $("joint-controls").hidden = true;
+  renderer?.clearTrail();
+  lastRevision = -1;
+  feedbackKey = "status.ready";
+  renderWaypoints();
+  persist();
+  render();
+  renderer?.home?.();
+}
 function startLesson(id, { transfer = false, confirmed = false } = {}) {
   journey?.endDemo(false);
   const resetsScene = !["types", "design"].includes(id);
@@ -890,16 +1026,22 @@ function startLesson(id, { transfer = false, confirmed = false } = {}) {
 $("move").addEventListener("click", () => report(c.move()));
 $("open").addEventListener("click", () => report(c.grip("open")));
 $("close").addEventListener("click", () => report(c.grip("closed")));
-$("record").addEventListener("change", () =>
-  report(c.setRecording($("record").checked)),
-);
-$("run").addEventListener("click", () => report(c.run()));
+$("record").addEventListener("change", () => {
+  const result = report(c.setRecording($("record").checked));
+  if (mode === "explore" && result.error?.code === "START_STATE_MISMATCH") {
+    feedbackKey = "error.RECORD_END_MISMATCH";
+    render();
+  }
+});
+const runProgram = () => report(mode === "explore" ? c.testProgram() : c.run());
+$("run").addEventListener("click", runProgram);
 $("pause").addEventListener("click", () => report(c.pause()));
-$("drawer-run").addEventListener("click", () => report(c.run()));
+$("drawer-run").addEventListener("click", runProgram);
 $("drawer-pause").addEventListener("click", () => report(c.pause()));
 $("drawer-stop").addEventListener("click", () => report(c.stop()));
 $("stop").addEventListener("click", () => report(c.stop()));
 $("reset").addEventListener("click", () => {
+  if (mode === "explore") c.setRecording(false);
   report(c.reset());
   persist();
 });
@@ -1103,6 +1245,7 @@ function download(kind) {
       language,
       learnerName: $("learner-name").value,
       scene: c.state.scene,
+      exercise,
     }),
   );
   if (!r.ok) return report(r);
@@ -1132,6 +1275,16 @@ journey = createLearningFlow({
   render,
   preview,
 });
+exploreUI = createExploreUI({
+  get: () => ({ c, exercise, mode, language }),
+  start: startExercise,
+  target: (target) => {
+    for (const axis of ["x", "y", "z"]) c.editTarget(axis, target[axis]);
+    preview();
+  },
+});
+startingGuides = createStartingGuides({ get: () => ({ language, mode }) });
+
 document.querySelector(".attribution").before($("steps-dialog"));
 $("program-validation").before(
   $("steps-dialog").querySelector(".dialog-footer"),
@@ -1202,6 +1355,7 @@ fileInput.onchange = async () => {
   });
   if (data.program) c.state.program = revalidateProgram(data.program);
   learning = data.learning;
+  exercise = data.exercise || createExerciseState();
   language = data.language;
   $("learner-name").value = data.learnerName;
   c.sequence = Math.max(
@@ -1256,7 +1410,7 @@ $("reflection").value = currentAttempt(learning)?.reflection || "";
 translate();
 translateFiles();
 $("coach-text").textContent = tr(`lessons.${learning.currentLessonId}.hint`);
-render();
+setMode("explore");
 const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 function animate(now) {
   const delta = lastFrame === null ? 0 : Math.min(now - lastFrame, 100);
