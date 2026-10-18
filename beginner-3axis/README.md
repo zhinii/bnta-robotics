@@ -4,6 +4,10 @@ An isolated beginner entry for **Robot Lab, developed by Christopher Hansen**. T
 
 **Verification:** automated tests and in-app browser learner checks are documented in [LOCAL_VERIFICATION.md](LOCAL_VERIFICATION.md). Physical phone/tablet touch and full assistive-technology acceptance remain outstanding. The published module is at https://zhinii.github.io/bnta-robotics/beginner-3axis/.
 
+## Game-style HUD (NOVA)
+
+A World-of-Warcraft-inspired presentation layer (`game-ui.css` + `game-hud.mjs`) sits on top of the existing workspace without changing any mechanic: the scene dominates the screen, the coach card becomes **NOVA's dialogue panel** (panda avatar, lower-left, always-open), a quest-style **objective chip** in the header names the current mode and activity (`LESSON · …`, `CHALLENGE · …` for the Explore exercises, `OPEN DESIGN · Explore` for the sandbox), and a monospace **robot state chip** mirrors the live TCP/joint/held readouts. The control card becomes a sticky right rail; Run is cyan and Stop is a large, always-visible red button. The HUD only mirrors existing DOM state through observers — it never moves the robot, changes programs or grades. On narrow screens the anchored panels return to normal flow. `tests/game-hud.dom.mjs` covers the panel, avatar, chips and mode/exercise labels.
+
 ## Explore first, lessons when ready
 
 First visits show a language selector and three brief feature descriptions: Explore, Learn, and Program & save. Start exploring dismisses the welcome, with that preference remembered locally. Learn opens directly without an additional introduction.
@@ -146,3 +150,5 @@ Runtime renderer: official **three@0.180.0**, MIT, from `https://registry.npmjs.
 Registry SHA-512 integrity, tarball SHA-512 and individual SHA-256 hashes are recorded in [vendor/three/PROVENANCE.json](vendor/three/PROVENANCE.json) and tested. The browser import map binds `three` locally; the original minified root bundle is never imported. jsdom@26.1.0 is pinned in package-lock.json for development-only DOM checks.
 
 Robot Lab — developed by Christopher Hansen. Original MIT copyright/permission and Three.js/cannon-es notices remain at the repository root unchanged. This additive educational variant retains that attribution. No FAIRINO affiliation or physical hardware certification is claimed.
+
+`assets/nova-avatar.png` (NOVA the panda guide portrait) is an original AI-generated image created for this project; it is bundled for offline use and carries no external license.

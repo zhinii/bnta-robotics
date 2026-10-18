@@ -1,0 +1,249 @@
+/* Game-style HUD skin (concept: scene dominates, NOVA dialogue lower-left,
+   contextual right rail, quest objective, big red STOP).
+   Loaded last; overrides the light instrument theme chrome only. The 3D scene
+   card keeps its light backdrop so the robot stays the visual anchor. */
+
+:root {
+  --hud-bg: #0b1220;
+  --hud-deep: #060b14;
+  --hud-panel: #111e30f2;
+  --hud-line: #33506e;
+  --hud-cyan: #39d5e8;
+  --hud-orange: #f59e0b;
+  --hud-red: #e5484d;
+  --hud-text: #eef4fb;
+  --hud-muted: #8ca3b8;
+}
+
+body {
+  background: var(--hud-bg);
+  color: var(--hud-text);
+}
+
+/* ---- top HUD bar ---- */
+header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: #0e1930f2;
+  border-bottom: 1px solid var(--hud-line);
+  backdrop-filter: blur(6px);
+}
+header .brand,
+header .edition {
+  color: var(--hud-text);
+}
+header nav button {
+  border-radius: 999px;
+  padding: 6px 16px;
+}
+header nav button[aria-pressed="true"] {
+  border-color: var(--hud-cyan);
+  color: var(--hud-cyan);
+  background: #39d5e814;
+  font-weight: 700;
+}
+header label.language {
+  color: var(--hud-muted);
+}
+
+/* ---- layout: scene dominates, controls become a right rail ---- */
+.workspace {
+  grid-template-columns: minmax(0, 1fr) 336px;
+}
+.scene-column {
+  grid-template-columns: 1fr;
+}
+.control-card {
+  position: sticky;
+  top: 64px;
+  max-height: calc(100dvh - var(--footer) - 84px);
+  overflow: auto;
+}
+
+/* ---- dark chrome panels (scene card keeps its light backdrop) ---- */
+main .card:not(.scene-card) {
+  background: var(--hud-panel);
+  border-color: var(--hud-line);
+  color: var(--hud-text);
+  backdrop-filter: blur(4px);
+}
+main .card:not(.scene-card) .subtle {
+  color: var(--hud-muted);
+}
+main .card:not(.scene-card) h1,
+main .card:not(.scene-card) h2,
+main .card:not(.scene-card) h3 {
+  color: var(--hud-text);
+}
+main .card:not(.scene-card) textarea,
+main .card:not(.scene-card) input:not([type="checkbox"]),
+main .card:not(.scene-card) select {
+  background: #0b1526;
+  border-color: var(--hud-line);
+  color: var(--hud-text);
+}
+
+/* primary actions read cyan, danger stays red */
+button.primary {
+  background: #0e7490;
+  border-color: #0e7490;
+  color: #ffffff;
+}
+button.danger,
+#clear.danger {
+  background: var(--hud-red);
+  border-color: var(--hud-red);
+  color: #ffffff;
+}
+
+/* ---- NOVA dialogue panel (existing coach card, restyled + anchored) ---- */
+.nova-panel {
+  position: fixed;
+  left: 16px;
+  bottom: calc(var(--footer) + 16px);
+  width: min(400px, calc(100vw - 32px));
+  z-index: 35;
+  border-top: 3px solid var(--hud-cyan);
+  border-radius: 10px;
+  padding: 10px 14px 12px;
+  box-shadow: 0 10px 28px #00000099;
+}
+.nova-panel summary {
+  min-height: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--hud-muted);
+}
+.nova-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 6px 0 2px;
+}
+.nova-head img {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 2px solid var(--hud-cyan);
+  background: var(--hud-deep);
+  flex: none;
+}
+.nova-name {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--hud-orange);
+}
+.nova-panel p#coach-text {
+  margin: 4px 0 8px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--hud-text);
+}
+.nova-panel #hint {
+  border-color: var(--hud-cyan);
+  color: var(--hud-cyan);
+  background: transparent;
+  min-height: 34px;
+}
+
+/* ---- HUD chips ---- */
+#hud-objective {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 40vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--hud-text);
+  background: var(--hud-deep);
+  border: 1px solid var(--hud-line);
+  border-left: 3px solid var(--hud-cyan);
+  border-radius: 8px;
+  padding: 6px 12px;
+  pointer-events: none;
+}
+#hud-state {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--footer) + 20px);
+  transform: translateX(-50%);
+  z-index: 34;
+  max-width: 90vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 12px;
+  color: var(--hud-cyan);
+  background: #060b14e6;
+  border: 1px solid var(--hud-line);
+  border-radius: 8px;
+  padding: 8px 14px;
+}
+
+/* ---- playback bar: floating controls, unmistakable STOP ---- */
+footer.playback {
+  background: transparent;
+  border-top: none;
+}
+.playback-actions {
+  gap: 10px;
+}
+.playback-actions button {
+  border-radius: 10px;
+  padding: 10px 22px;
+  min-height: 46px;
+}
+.playback #run {
+  background: var(--hud-cyan);
+  border-color: var(--hud-cyan);
+  color: #06222a;
+  font-weight: 800;
+}
+.playback #stop {
+  background: var(--hud-red);
+  border-color: var(--hud-red);
+  color: #ffffff;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  padding: 10px 30px;
+}
+.playback #feedback {
+  color: var(--hud-muted);
+}
+
+/* ---- dialogs keep the dark chrome ---- */
+dialog {
+  background: #0e1930;
+  border: 1px solid var(--hud-line);
+  color: var(--hud-text);
+}
+
+/* ---- narrow screens: panels return to flow, chips that would collide hide ---- */
+@media (max-width: 900px) {
+  #hud-objective {
+    display: none;
+  }
+  .control-card {
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
+}
+@media (max-width: 760px) {
+  .nova-panel {
+    position: static;
+    width: auto;
+  }
+  #hud-state {
+    display: none;
+  }
+}
