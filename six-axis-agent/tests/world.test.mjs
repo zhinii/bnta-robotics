@@ -1,87 +1,98 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {initialState,planActions,applyStep,validateActions,PADS,clearPose} from '../world.mjs';
+import {initialState,planActions,applyStep,validateActions,AREAS,HOME,clearPose,reverseSteps,snapshot} from '../world.mjs';
 import {toolPose,distance} from '../kinematics.mjs';
-import {parseResponse,askAgent,DEFAULTS,RELAY,validateConnection} from '../agent.mjs';
-
-test('all three blocks can be picked, placed on either pad and followed by home',()=>{
- for(const color of ['red','blue','yellow'])for(const target of ['left','right']){
-  const s=initialState(),before=structuredClone(s);
-  const p=planActions(s,[{type:'pick',object:color},{type:'place',target},{type:'home'}]);
-  assert.deepEqual(s,before,'preflight must not mutate scene');
-  for(const step of p.steps)applyStep(s,step);
-  assert.equal(s.held,null);assert.deepEqual(s.objects.find(o=>o.id===color).position,PADS[target]);
-  assert.ok(distance(toolPose(s.q).tip,[210,0,150])<.2);assert.equal(s.q.length,6);
+import {parseResponse,askAgent,DEFAULTS,RELAY,SYSTEM} from '../agent.mjs';
+import {createSpeech} from '../speech.mjs';
+const run=(s,actions)=>{const plan=planActions(s,actions);for(const step of plan.steps)applyStep(s,step);return plan;};
+const sameObjects=(a,b)=>{for(const object of a.objects){const other=b.objects.find(o=>o.id===object.id);assert.ok(distance(object.position,other.position)<.15,object.id);assert.ok(distance(object.rpy,other.rpy)<.02,object.id);}};
+test('all five school objects can go to every table side and return to their own starts',()=>{
+ for(const id of initialState().objects.map(o=>o.id))for(const target of Object.keys(AREAS)){
+  const s=initialState(),before=structuredClone(s),plan=planActions(s,[{type:'pick',object:id},{type:'place',target}]);assert.deepEqual(s,before);
+  for(const step of plan.steps)applyStep(s,step);
+  const object=s.objects.find(o=>o.id===id);assert.deepEqual(object.position,[...AREAS[target],object.size[2]/2]);assert.equal(s.held,null);
+  run(s,[{type:'restore'}]);sameObjects(s,before);assert.ok(distance(toolPose(s.q).tip,HOME)<.2);
  }
 });
-test('held object follows actual TCP and wrist rotation',()=>{
- const s=initialState();for(const step of planActions(s,[{type:'pick',object:'red'},{type:'rotate',angle:90}]).steps)applyStep(s,step);
- assert.equal(s.held,'red');assert.ok(distance(s.objects[0].position,toolPose(s.q).tip)<.001);assert.equal(s.yaw,90);
- assert.ok(Math.abs(s.q[5])>20,'wrist roll is actuated');assert.ok(clearPose(s.q,s));
+test('school tower stacks on flat supports, refuses a covered object, and fully restores',()=>{
+ const s=initialState(),before=structuredClone(s);
+ run(s,[{type:'pick',object:'pencilcase'},{type:'place',target:'book'},{type:'pick',object:'eraser'},{type:'place',target:'pencilcase'}]);
+ assert.equal(s.objects.find(o=>o.id==='eraser').position[2],58);assert.throws(()=>planActions(s,[{type:'pick',object:'book'}]),/covered/);
+ run(s,[{type:'restore'}]);sameObjects(s,before);
 });
-test('occupied pads, duplicate picks, empty placement and unknown actions are refused atomically',()=>{
- const s=planActions(initialState(),[{type:'pick',object:'red'},{type:'place',target:'left'}]).result;
- const before=structuredClone(s);
- assert.throws(()=>planActions(s,[{type:'pick',object:'blue'},{type:'place',target:'left'}]),/occupied/);assert.deepEqual(s,before);
- assert.throws(()=>planActions(s,[{type:'place',target:'right'}]),/empty/);
- assert.throws(()=>planActions(s,[{type:'pick',object:'blue'},{type:'pick',object:'yellow'}]),/holding/);
- for(const a of [[{type:'eval',code:'x'}],[{type:'pick',object:'purple'}],[{type:'place',target:'__proto__'}],[{type:'rotate',angle:NaN}],[{type:'home',q:[1,2]}]])assert.throws(()=>validateActions(a));
-});
-test('a multi-pick plan retreats from the correct released cube',()=>{
- assert.doesNotThrow(()=>planActions(initialState(),[{type:'pick',object:'red'},{type:'place',target:'left'},{type:'pick',object:'blue'},{type:'place',target:'right'}]));
-});
-test('stopping mid-lift preserves held object and supports a fresh place plan',()=>{
- const s=initialState();const plan=planActions(s,[{type:'pick',object:'red'}]);const index=plan.steps.findIndex(x=>x.type==='grip');
- for(const step of plan.steps.slice(0,index+4))applyStep(s,step);
- assert.equal(s.held,'red');assert.ok(s.objects[0].position[2]>18);assert.ok(s.objects[0].position[2]<120);
- assert.doesNotThrow(()=>planActions(s,[{type:'place',target:'left'}]));
-});
-test('stopping immediately after release permits a clear retreat home',()=>{
- const s=initialState();const plan=planActions(s,[{type:'pick',object:'red'},{type:'place',target:'left'}]);
- const released=plan.steps.findIndex(x=>x.type==='release');for(const step of plan.steps.slice(0,released+1))applyStep(s,step);
- assert.equal(s.held,null);assert.doesNotThrow(()=>planActions(s,[{type:'home'}]));
-});
-test('AI reply is bounded, structured and cannot inject arbitrary commands',()=>{
- assert.deepEqual(parseResponse('```json\n{"reply":"Which block?","actions":[]}\n```'),{reply:'Which block?',actions:[]});
- assert.throws(()=>parseResponse('{"reply":"Done","actions":[{"type":"run","code":"alert(1)"}]}'));
- assert.throws(()=>parseResponse('{"reply":"Hello"}'));
-});
-test('stacking supports every pair, reports occupied top faces and can unstack',()=>{
- for(const object of ['red','blue','yellow'])for(const target of ['red','blue','yellow'].filter(c=>c!==object)){
-  const s=initialState();for(const step of planActions(s,[{type:'pick',object},{type:'place',target}]).steps)applyStep(s,step);
-  const support=s.objects.find(o=>o.id===target),top=s.objects.find(o=>o.id===object);
-  assert.deepEqual(top.position,[support.position[0],support.position[1],support.position[2]+36]);assert.equal(s.held,null);
-  assert.throws(()=>planActions(s,[{type:'pick',object:target}]),/covered/);
-  assert.doesNotThrow(()=>planActions(s,[{type:'pick',object},{type:'place',target:'left'}]));
+test('all six three-block tower orders restore without reset',()=>{
+ for(const base of ['red','blue','yellow'])for(const middle of ['red','blue','yellow'].filter(c=>c!==base)){
+  const top=['red','blue','yellow'].find(c=>c!==base&&c!==middle),s=initialState(0,'blocks'),before=structuredClone(s);
+  run(s,[{type:'pick',object:middle},{type:'place',target:base},{type:'pick',object:top},{type:'place',target:middle}]);
+  assert.equal(s.objects.find(o=>o.id===top).position[2],90);run(s,[{type:'restore'}]);sameObjects(s,before);
  }
 });
-test('stacking never allows self placement or removing the middle of a tower',()=>{
- const held=planActions(initialState(),[{type:'pick',object:'blue'}]).result;
- assert.throws(()=>planActions(held,[{type:'place',target:'blue'}]),/selfStack/);
- const tower=planActions(initialState(),[{type:'pick',object:'blue'},{type:'place',target:'red'},{type:'pick',object:'yellow'},{type:'place',target:'blue'}]).result;
- assert.equal(tower.objects[2].position[2],90);assert.throws(()=>planActions(tower,[{type:'pick',object:'blue'}]),/covered/);
+test('seeded arrangements keep named rear objects reachable and reversible',()=>{
+ for(const seed of [1,42,139,896,3470])for(const object of ['book','eraser','glue','pencilcase','ruler']){
+  const s=initialState(seed),before=structuredClone(s),plan=planActions(s,[{type:'pick',object},{type:'place',target:'start'}]);
+  assert.ok(s.objects.some(o=>o.position[0]<0));
+  const inverse=reverseSteps(s,plan.steps);for(const step of [...plan.steps,...inverse])applyStep(s,step);sameObjects(s,before);assert.deepEqual(s.q,before.q);
+ }
 });
-test('dance moves joints, preserves blocks, returns home, and refuses while holding',()=>{
- const s=initialState(),plan=planActions(s,[{type:'dance'}]);assert.ok(plan.steps.some(x=>Math.abs(x.yaw)>20));
- for(const step of plan.steps)applyStep(s,step);assert.deepEqual(s.objects,initialState().objects);assert.ok(distance(toolPose(s.q).tip,[210,0,150])<.2);
- const held=planActions(s,[{type:'pick',object:'blue'}]).result;assert.throws(()=>planActions(held,[{type:'dance'}]),/holding/);
+test('return supports held objects and occupied starting locations using a temporary table position',()=>{
+ const s=initialState(),before=structuredClone(s);
+ run(s,[{type:'pick',object:'book'},{type:'place',target:'front'},{type:'pick',object:'eraser'},{type:'place',target:'book-start'},{type:'pick',object:'book'},{type:'place',target:'eraser-start'}]);
+ run(s,[{type:'restore'}]);sameObjects(s,before);
+ run(s,[{type:'pick',object:'ruler'},{type:'restore'}]);sameObjects(s,before);
 });
-test('AI schema repair retries once without executing, preserving the relay message bound',async()=>{
+test('undo reverses a full task, including grasp/release and wrist rotation',()=>{
+ for(const actions of [[{type:'pick',object:'eraser'}],[{type:'pick',object:'book'},{type:'rotate',angle:30},{type:'place',target:'front'}],[{type:'wave'},{type:'bow'}]]){
+  const s=initialState(),before=structuredClone(s),plan=planActions(s,actions),inverse=reverseSteps(s,plan.steps);
+  for(const step of [...plan.steps,...inverse])applyStep(s,step);sameObjects(s,before);assert.deepEqual(s.q,before.q);assert.equal(s.held,before.held);
+ }
+});
+test('stopping preserves the actual carried object and a fresh restore can finish',()=>{
+ const s=initialState(),before=structuredClone(s),plan=planActions(s,[{type:'pick',object:'eraser'}]),grip=plan.steps.findIndex(x=>x.type==='grip');
+ for(const step of plan.steps.slice(0,grip+4))applyStep(s,step);assert.equal(s.held,'eraser');assert.ok(distance(s.objects[1].position,toolPose(s.q).tip)<.01);
+ run(s,[{type:'restore'}]);sameObjects(s,before);
+});
+test('gestures, free tool orientation and explicit joint poses obey limits',()=>{
+ for(const action of [{type:'dance'},{type:'dance',style:'lively',repeat:2},{type:'wave',repeat:2},{type:'bow'}]){
+  const s=initialState(),objects=structuredClone(s.objects);run(s,[action]);assert.deepEqual(s.objects,objects);assert.ok(distance(toolPose(s.q).tip,HOME)<.2);
+ }
+ const s=initialState();run(s,[{type:'move',position:[220,30,160],orientation:[5,-5,20]}]);assert.ok(distance(toolPose(s.q).tip,[220,30,160])<.2);
+ const joints=[...s.q];joints[5]+=10;run(s,[{type:'pose',joints}]);assert.deepEqual(s.q,joints);
+});
+test('arbitrary table placement and relative placement use each object size',()=>{
+ const s=initialState();run(s,[{type:'pick',object:'book'},{type:'place',beside:'eraser',side:'front'}]);
+ assert.ok(s.objects[0].position[0]>s.objects[1].position[0]);run(s,[{type:'restore'},{type:'pick',object:'eraser'},{type:'place',position:[250,25]}]);
+ assert.deepEqual(s.objects[1].position,[250,25,10]);
+});
+test('rejected actions are atomic and report actionable collision or support details',()=>{
+ const s=initialState(),before=structuredClone(s);
+ assert.throws(()=>planActions(s,[{type:'pick',object:'book'},{type:'place',target:'glue'}]),e=>e.message==='unstable'&&e.detail.support==='glue');
+ assert.deepEqual(s,before);
+ assert.throws(()=>planActions(s,[{type:'move',position:[70,135,70]}]),e=>e.message==='blocked'&&!!e.detail.blocker);
+ assert.deepEqual(s,before);
+ const held=planActions(s,[{type:'pick',object:'book'}]).result;
+ assert.throws(()=>planActions(held,[{type:'dance'}]),/holding/);assert.throws(()=>planActions(held,[{type:'place',target:'book'}]),/selfStack/);
+ for(const actions of [[{type:'constructor'}],[{type:'eval',code:'x'}],[{type:'pick',object:'scissors'}],[{type:'move',position:[Infinity,0,0]}],[{type:'place',position:[1,2,200]}],[{type:'dance',repeat:100}],[{type:'place',target:'__proto__'}]])assert.throws(()=>validateActions(actions));
+});
+test('perception includes object identities, shapes, starts and obstacles without requiring vision',()=>{
+ const s=snapshot(initialState());assert.equal(s.objects.length,5);assert.ok(s.objects.every(o=>o.name&&o.origin&&o.size));assert.equal(s.obstacles.length,2);assert.ok(s.tableAreas.rear);assert.match(SYSTEM,/NO placement pads/);
+});
+test('agent replies, schema repair, planning feedback, and credential transport are bounded',async()=>{
+ assert.deepEqual(parseResponse('{"reply":"Which object?","actions":[]}'),{reply:'Which object?',actions:[]});
  let calls=0;
- const args={question:'do a dance for me',language:'en',history:Array.from({length:12},()=>({role:'user',content:'hello'})),scene:{held:null}};
- const result=await askAgent({...DEFAULTS,key:'fake-test-key'},args,undefined,async(url,init)=>{
-  assert.ok(JSON.parse(init.body).messages.length<=14);calls++;
-  return {ok:true,json:async()=>({choices:[{message:{content:JSON.stringify(calls===1?{reply:'Dance',actions:[{type:'wave'}]}:{reply:'I will dance.',actions:[{type:'dance'}]})}}]})};
+ const result=await askAgent({...DEFAULTS,key:'fake-test-key'},{question:'wave',language:'zh',history:Array.from({length:20},()=>({role:'user',content:'好'.repeat(2500)})),scene:snapshot(initialState()),feedback:{error:'blocked',detail:{blocker:'tall divider'}}},undefined,async(url,init)=>{
+  assert.equal(url,RELAY);assert.ok(!init.body.includes('fake-test-key'));assert.ok(Buffer.byteLength(init.body)<48000);
+  const data=JSON.parse(init.body);assert.ok(data.messages.length<=14);assert.equal(data.messages[0].content.length<12000,true);
+  const input=JSON.parse(data.messages.findLast(m=>m.role==='user'&&m.content.startsWith('{')).content);assert.equal(input.feedback.error,'blocked');assert.equal(input.language,'zh');
+  calls++;return {ok:true,json:async()=>({choices:[{message:{content:calls===1?'{"reply":"Hi","actions":[{"type":"fly"}]}':'{"reply":"I will wave.","actions":[{"type":"wave"}],"after":"Hello!"}'}}]})};
  });
- assert.equal(calls,2);assert.deepEqual(result.actions,[{type:'dance'}]);
- calls=0;await assert.rejects(()=>askAgent({...DEFAULTS,key:'fake-test-key'},args,undefined,async()=>{calls++;return {ok:true,json:async()=>({choices:[{message:{content:'{"reply":"Fly","actions":[{"type":"fly"}]}'}}]})};}),/invalid/);assert.equal(calls,2);
+ assert.equal(calls,2);assert.equal(result.after,'Hello!');assert.equal(result.actions[0].type,'wave');
 });
-test('Token Plan uses the designated relay with explicit language and actual scene; key stays out of messages',async()=>{
- let seen;
- const result=await askAgent({...DEFAULTS,key:'fake-test-key'},{question:'pick',language:'zh',history:[],scene:{held:'red'}},undefined,async(url,init)=>{
-  seen={url,...init};return {ok:true,json:async()=>({choices:[{message:{content:'{"reply":"放在哪里？","actions":[]}'}}]})};
- });
- assert.equal(seen.url,RELAY);assert.equal(seen.headers['X-Alibaba-Base'],DEFAULTS.base);assert.ok(!seen.body.includes('fake-test-key'));
- const payload=JSON.parse(seen.body);assert.equal(JSON.parse(payload.messages.at(-1).content).language,'zh');assert.equal(result.actions.length,0);
- assert.throws(()=>validateConnection({...DEFAULTS,key:'test',base:'https://evil.example/api'}));
+test('microphone transcribes selected language for review and never executes a command',()=>{
+ let instance,text='',active=false,messages=[];
+ class Recognition{constructor(){instance=this;}start(){}stop(){this.onend();}abort(){this.onend?.();}}
+ const speech=createSpeech({Recognition,language:()=> 'zh',onText:value=>text=value,onState:value=>active=value,onMessage:value=>messages.push(value)});
+ speech.start();assert.equal(instance.lang,'zh-CN');assert.equal(active,true);instance.onresult({results:[[{transcript:'拿起橡皮'}]]});assert.equal(text,'拿起橡皮');instance.onend();assert.equal(active,false);assert.equal(messages.at(-1),'speechReady');
+ speech.start();instance.onerror({error:'not-allowed'});instance.onend();assert.equal(messages.at(-1),'speechDenied');
+ speech.start();const old=instance;speech.abort();old.onresult({results:[[{transcript:'ignored'}]]});assert.equal(text,'拿起橡皮');
+ createSpeech({language:()=> 'en',onText(){},onState(){},onMessage:value=>messages.push(value)}).start();assert.equal(messages.at(-1),'speechUnavailable');
 });

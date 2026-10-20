@@ -1,132 +1,214 @@
-import { homeFor, ikTool, toolPose, valid, distance } from './kinematics.mjs';
+import { homeFor, ikTool, toolPose, valid, distance, transform, JOINTS } from './kinematics.mjs?v=school-20261021-1';
 
-export const PADS = { left: [175, -145, 18], right: [175, 145, 18] };
-export const HOME = [210, 0, 150];
-export const BLOCKS = ['red', 'blue', 'yellow'];
-export function blocksAbove(state, id) {
-  const support=state.objects.find(o=>o.id===id);
-  return state.objects.filter(o=>o.id!==id && o.id!==state.held && Math.hypot(o.position[0]-support.position[0],o.position[1]-support.position[1])<35 && o.position[2]>support.position[2]+1);
+export const AREAS={left:[170,-230],right:[170,230],rear:[-280,0],front:[280,0]};
+export const HOME=[210,0,150];
+export const BLOCKS=['red','blue','yellow'];
+export const CATALOG={
+  book:{name:'red book',zh:'红色书本',size:[36,58,18],color:'#c85b4e',stackable:true},
+  eraser:{name:'blue eraser',zh:'蓝色橡皮',size:[30,42,20],color:'#638fae',stackable:true},
+  glue:{name:'yellow glue stick',zh:'黄色固体胶',size:[24,24,46],color:'#d9b84c',stackable:false},
+  pencilcase:{name:'green pencil case',zh:'绿色笔袋',size:[34,60,30],color:'#71917a',stackable:true},
+  ruler:{name:'wooden ruler',zh:'木尺',size:[18,90,16],color:'#c8a475',stackable:false},
+  red:{name:'red block',zh:'红色方块',size:[36,36,36],color:'#ce6450',stackable:true},
+  blue:{name:'blue block',zh:'蓝色方块',size:[36,36,36],color:'#628ca9',stackable:true},
+  yellow:{name:'yellow block',zh:'黄色方块',size:[36,36,36],color:'#dab65b',stackable:true},
+};
+const rad=Math.PI/180;
+const footprint=(object,yaw=object.yaw)=>{const c=Math.abs(Math.cos(yaw*rad)),s=Math.abs(Math.sin(yaw*rad));return [c*object.size[0]+s*object.size[1],s*object.size[0]+c*object.size[1],object.size[2]];};
+export function initialState(seed=0,kit='school') {
+  let n=seed>>>0;
+  const random=()=>{n=(Math.imul(n,1664525)+1013904223)>>>0;return n/4294967296;};
+  const ids=kit==='blocks'?BLOCKS:['book','eraser','glue','pencilcase','ruler'];
+  const positions=[-25,150,-150,70,-75].map(a=>{const angle=(a+(seed?(random()-.5)*12:0))*rad,r=seed?250+random()*15:260;return [Math.round(r*Math.cos(angle)),Math.round(r*Math.sin(angle))];});
+  const solved=ikTool(HOME,homeFor(6),'nearest',[0,0,0]);if(!solved.q)throw Error('home');
+  return {q:solved.q,held:null,yaw:0,rpy:[0,0,0],seed,kit,objects:ids.map((id,i)=>({id,...structuredClone(CATALOG[id]),position:[...positions[i],CATALOG[id].size[2]/2],origin:[...positions[i],CATALOG[id].size[2]/2],yaw:0,rpy:[0,0,0]})),
+    obstacles:[{id:'tall divider',position:[70+(seed?Math.round(random()*20):0),135,55],size:[48,48,110]},{id:'low divider',position:[-60,-160,35],size:[65,40,70]}]};
 }
-export function initialState() {
-  const solved = ikTool(HOME, homeFor(6), 'nearest', [0, 0, 0]);
-  if (!solved.q) throw Error('home');
-  return { q: solved.q, held: null, yaw: 0, objects: [
-    { id: 'red', position: [240, -70, 18], yaw: 0 },
-    { id: 'blue', position: [275, 0, 18], yaw: 0 },
-    { id: 'yellow', position: [240, 70, 18], yaw: 0 },
-  ] };
+export function blocksAbove(state,id) {
+  const support=state.objects.find(o=>o.id===id);
+  return state.objects.filter(o=>o.id!==id&&o.id!==state.held&&[0,1].every(i=>Math.abs(o.position[i]-support.position[i])<(footprint(o)[i]+footprint(support)[i])/2-1)&&o.position[2]>support.position[2]+1);
 }
 export function snapshot(s) {
-  return { joints: s.q.map(n => +n.toFixed(2)), tool: toolPose(s.q).tip.map(n => +n.toFixed(1)),
-    held: s.held, yaw: s.yaw, objects: s.objects.map(o=>({...structuredClone(o),clearAbove:blocksAbove(s,o.id).length===0})), destinations: PADS,
-    capabilities: ['pick an uncovered block', 'place on left or right pad', 'stack on an uncovered block', 'rotate held block', 'home when empty', 'dance when empty'], units: 'mm/degrees' };
+  return {joints:s.q.map(n=>+n.toFixed(2)),tool:toolPose(s.q).tip.map(n=>+n.toFixed(1)),orientation:[...(s.rpy||[0,0,s.yaw])],held:s.held,yaw:s.yaw,
+    objects:s.objects.map(o=>({...structuredClone(o),clearAbove:blocksAbove(s,o.id).length===0})),obstacles:structuredClone(s.obstacles||[]),tableAreas:AREAS,
+    capabilities:['pick uncovered school objects','place anywhere clear on the table, beside objects, at starts, or stack on flat objects','restore starting positions','undo completed tasks','move and orient the tool','dance, wave or bow','home'],
+    coordinates:'mm, degrees; +X front, -X behind, -Y left, +Y right, +Z up; position is gripper grasp centre',limits:{position:[[-340,340],[-340,340],[8,330]],jointDegrees:JOINTS.map(j=>j.limits)},units:'mm/degrees'};
 }
-function segmentDistance(p, a, b) {
-  const ab = b.map((v,i) => v-a[i]);
-  const t = Math.max(0, Math.min(1, p.reduce((sum,v,i)=>sum+(v-a[i])*ab[i],0)/(ab.reduce((sum,v)=>sum+v*v,0)||1)));
-  return distance(p, a.map((v,i)=>v+t*ab[i]));
+function segmentBox(a,b,box,padding=0) {
+  let lo=0,hi=1;
+  for(let i=0;i<3;i++){const min=box.position[i]-box.size[i]/2-padding,max=box.position[i]+box.size[i]/2+padding,d=b[i]-a[i];if(Math.abs(d)<1e-8){if(a[i]<min||a[i]>max)return false;}else{let x=(min-a[i])/d,y=(max-a[i])/d;if(x>y)[x,y]=[y,x];lo=Math.max(lo,x);hi=Math.min(hi,y);if(lo>hi)return false;}}
+  return true;
 }
-export function clearPose(q, state, contact = null) {
-  if (!valid(q)) return false;
-  const pose = toolPose(q), tip = pose.tip;
-  if (tip[2] < 17.7) return false;
-  for (const block of state.objects) {
-    if (block.id === state.held) continue;
-    // Conservative sphere around each cube; arm links must clear all cubes.
-    for (let i=1;i<pose.points.length;i++) {
-      if (segmentDistance(block.position, pose.points[i-1], pose.points[i]) < 40) return false;
-    }
-    // A supported cube touches the top face at a centre separation of 36 mm.
-    // Keep the conservative horizontal envelope, but permit clearance above a top face.
-    const aboveTop=tip[2]-block.position[2]>=(state.held?35.7:27);
-    if (block.id !== contact && !aboveTop && distance(tip, block.position) < (state.held ? 55 : 45)) return false;
+function corners(tip,rotation,held) {
+  const points=[];
+  for(const x of [-35,35])for(const y of [-17,17])for(const z of [-7,41])points.push(transform(rotation,[x,y,z]).map((v,i)=>v+tip[i]));
+  if(held)for(const x of [-held.size[0]/2,held.size[0]/2])for(const y of [-held.size[1]/2,held.size[1]/2])for(const z of [-held.size[2]/2,held.size[2]/2])points.push(transform(rotation,[x,y,z]).map((v,i)=>v+tip[i]));
+  return points;
+}
+export function clearPose(q,state,contact=null,detail={}) {
+  const blocked=(reason,blocker)=>{Object.assign(detail,{reason,blocker});return false;};
+  if(!valid(q))return blocked('joint or table clearance limit');
+  const pose=toolPose(q),tip=pose.tip,held=state.objects.find(o=>o.id===state.held),vertices=corners(tip,pose.rotation,held);
+  if(vertices.some(p=>p[2]<-.3||Math.hypot(p[0],p[1])>400))return blocked('the gripper or held object would cross the tabletop or table edge','table');
+  if(Math.hypot(tip[0],tip[1])<85&&tip[2]<145)return blocked('the tool would enter the robot base','robot base');
+  const bounds={position:[0,1,2].map(i=>(Math.min(...vertices.map(p=>p[i]))+Math.max(...vertices.map(p=>p[i])))/2),size:[0,1,2].map(i=>Math.max(...vertices.map(p=>p[i]))-Math.min(...vertices.map(p=>p[i])))};
+  for(const obstacle of state.obstacles||[]){
+    for(let i=1;i<pose.points.length;i++)if(segmentBox(pose.points[i-1],pose.points[i],obstacle,[20,17,13,11,10][i-1]+3))return blocked('an arm link would hit this obstacle',obstacle.id);
+    if([0,1,2].every(i=>Math.abs(bounds.position[i]-obstacle.position[i])<(bounds.size[i]+obstacle.size[i])/2+3))return blocked('the gripper or held object would hit this obstacle',obstacle.id);
+  }
+  for(const block of state.objects){
+    if(block.id===state.held)continue;
+    const envelope={position:block.position,size:footprint(block)};
+    for(let i=1;i<pose.points.length;i++)if(segmentBox(pose.points[i-1],pose.points[i],envelope,[20,17,13,11,10][i-1]+2))return blocked('an arm link would hit this object',block.id);
+    const upright=Math.abs(pose.rpy[0])<1&&Math.abs(pose.rpy[1])<1;
+    const aboveTop=tip[2]-block.position[2]>=(held?(upright?(held.size[2]+block.size[2])/2-.3:Math.hypot(...held.size)/2+block.size[2]/2):block.size[2]/2+8.5);
+    if(block.id!==contact&&!aboveTop&&segmentBox(tip,tip,envelope,held?Math.hypot(held.size[0],held.size[1])/2+4:32))return blocked('the tool or carried object would collide with this object',block.id);
   }
   return true;
 }
+const vector=v=>Array.isArray(v)&&v.length===3&&v.every(Number.isFinite);
 export function validateActions(actions) {
-  if (!Array.isArray(actions) || actions.length > 6) throw Error('invalid');
-  return actions.map(a => {
-    if (!a || typeof a !== 'object' || Array.isArray(a)) throw Error('invalid');
-    const keys = { pick: ['type','object'], place: ['type','target'], rotate: ['type','angle'], home: ['type'], dance: ['type'] }[a.type];
-    if (!keys || Object.keys(a).some(k=>!keys.includes(k))) throw Error('invalid');
-    if (a.type==='pick' && !['red','blue','yellow'].includes(a.object)) throw Error('unknown');
-    if (a.type==='place' && !Object.hasOwn(PADS,a.target) && !BLOCKS.includes(a.target)) throw Error('destination');
-    if (a.type==='rotate' && (!Number.isFinite(a.angle) || Math.abs(a.angle)>180)) throw Error('angle');
-    return {...a};
+  if(!Array.isArray(actions)||actions.length>12)throw Error('invalid');
+  const schema={pick:['type','object'],place:['type','target','position','beside','side'],rotate:['type','angle'],move:['type','position','orientation'],pose:['type','joints'],home:['type'],dance:['type','style','repeat'],wave:['type','repeat'],bow:['type','repeat'],restore:['type'],undo:['type']};
+  return actions.map(a=>{
+    if(!a||typeof a!=='object'||Array.isArray(a)||!Object.hasOwn(schema,a.type)||Object.keys(a).some(k=>!schema[a.type].includes(k)))throw Error('invalid');
+    if(a.type==='pick'&&!Object.hasOwn(CATALOG,a.object))throw Error('unknown');
+    if(a.type==='place'){
+      if(['target','position','beside'].filter(k=>k in a).length!==1)throw Error('destination');
+      if('target'in a&&!Object.hasOwn(AREAS,a.target)&&!Object.hasOwn(CATALOG,a.target)&&a.target!=='start'&&!Object.keys(CATALOG).some(c=>a.target===c+'-start'))throw Error('destination');
+      if('position'in a&&(!Array.isArray(a.position)||a.position.length!==2||!a.position.every(Number.isFinite)||Math.hypot(...a.position)>330))throw Error('destination');
+      if('beside'in a&&(!Object.hasOwn(CATALOG,a.beside)||!['left','right','front','rear'].includes(a.side)))throw Error('destination');
+      if('side'in a&&!('beside'in a))throw Error('destination');
+    }
+    if(a.type==='rotate'&&(!Number.isFinite(a.angle)||Math.abs(a.angle)>180))throw Error('angle');
+    if(a.type==='move'&&(!vector(a.position)||Math.hypot(...a.position.slice(0,2))>340||a.position[2]<8||a.position[2]>330))throw Error('reach');
+    if('orientation'in a&&(!vector(a.orientation)||a.orientation.some(v=>Math.abs(v)>180)))throw Error('angle');
+    if(a.type==='pose'&&(!Array.isArray(a.joints)||a.joints.length!==6||!valid(a.joints)))throw Error('reach');
+    if('repeat'in a&&(!Number.isInteger(a.repeat)||a.repeat<1||a.repeat>3))throw Error('invalid');
+    if('style'in a&&!['gentle','lively'].includes(a.style))throw Error('invalid');
+    return structuredClone(a);
   });
 }
-// Preflight the complete request against a clone. Nothing moves until all steps pass.
-export function planActions(state, actions) {
+export function planActions(state,actions) {
   validateActions(actions);
-  const s = structuredClone(state), steps = [];
-  function move(point, yaw=s.yaw, contact=null) {
-    const start=toolPose(s.q).tip, startYaw=s.yaw;
-    const count=Math.max(1,Math.ceil(distance(start,point)/9),Math.ceil(Math.abs(yaw-startYaw)/5));
-    for(let i=1;i<=count;i++) {
-      const target=start.map((v,j)=>v+(point[j]-v)*i/count), nextYaw=startYaw+(yaw-startYaw)*i/count;
-      const result=ikTool(target,s.q,'nearest',[0,0,nextYaw]);
-      if(!result.q) throw Error('reach');
-      // Check swept joint interpolation, not just Cartesian endpoints.
-      const subdivisions=Math.max(2,Math.ceil(Math.max(...result.q.map((v,j)=>Math.abs(v-s.q[j])))/.5));
-      for(let k=1;k<=subdivisions;k++) {
-        const q=s.q.map((v,j)=>v+(result.q[j]-v)*k/subdivisions);
-        if(!clearPose(q,s,contact)) throw Error('blocked');
-      }
-      const seconds=Math.max(.045,distance(toolPose(s.q).tip,toolPose(result.q).tip)/110,Math.max(...result.q.map((v,j)=>Math.abs(v-s.q[j])))/65);
-      s.q=result.q; s.yaw=nextYaw;
-      if(s.held) { const b=s.objects.find(o=>o.id===s.held); b.position=toolPose(s.q).tip; b.yaw=nextYaw; }
-      steps.push({type:'move',q:[...s.q],yaw:nextYaw,seconds});
+  const s=structuredClone(state),steps=[];
+  function joints(q,rpy,seconds,contact=null){
+    const count=Math.max(2,Math.ceil(Math.max(...q.map((v,i)=>Math.abs(v-s.q[i])))/.5));
+    for(let i=1;i<=count;i++){const sample=s.q.map((v,j)=>v+(q[j]-v)*i/count),detail={tip:toolPose(sample).tip,contact};if(!clearPose(sample,s,contact,detail))throw Object.assign(Error('blocked'),{detail});}
+    const step={type:'move',q:[...q],rpy:[...rpy],yaw:rpy[2],seconds};applyStep(s,step);steps.push(step);
+    if(steps.length>4000)throw Error('invalid');
+  }
+  function move(point,rpy=s.rpy||[0,0,s.yaw],contact=null){
+    const start=toolPose(s.q).tip,orientation=s.rpy||[0,0,s.yaw];
+    const count=Math.max(1,Math.ceil(distance(start,point)/9),Math.ceil(Math.max(...rpy.map((v,i)=>Math.abs(v-orientation[i])))/5));
+    for(let i=1;i<=count;i++){
+      const target=start.map((v,j)=>v+(point[j]-v)*i/count),next=orientation.map((v,j)=>v+(rpy[j]-v)*i/count),result=ikTool(target,s.q,'nearest',next);
+      if(!result.q)throw Object.assign(Error('reach'),{detail:{target,orientation:next,from:s.q}});
+      const seconds=Math.max(.035,distance(toolPose(s.q).tip,toolPose(result.q).tip)/160,Math.max(...result.q.map((v,j)=>Math.abs(v-s.q[j])))/90);
+      joints(result.q,next,seconds,contact);
     }
   }
-  function cruiseTo(point,yaw=s.yaw,contact=null) {
-    const current=toolPose(s.q).tip;
-    const clearance=Math.max(120,...s.objects.filter(o=>o.id!==s.held).map(o=>o.position[2]+60));
+  function cruiseTo(point,yaw=0,contact=null){
+    const saved=structuredClone(s),length=steps.length,current=toolPose(s.q).tip;
+    const load=s.objects.find(o=>o.id===s.held),under=load?load.size[2]/2:8;
+    const clearance=Math.max(145,...s.objects.filter(o=>o.id!==s.held).map(o=>o.position[2]+o.size[2]/2+under+12),...(s.obstacles||[]).map(o=>o.position[2]+o.size[2]/2+under+12));
     const startingContact=!s.held?s.objects.find(o=>distance(o.position,current)<25)?.id:null;
-    move([current[0],current[1],Math.max(clearance,current[2])],s.yaw,startingContact||contact);
-    move([point[0],point[1],clearance],yaw,contact);
-    move(point,yaw,contact);
-  }
-  for(const action of actions) {
-    if(action.type==='pick') {
-      if(s.held) throw Error('holding');
-      const block=s.objects.find(o=>o.id===action.object);
-      if(blocksAbove(s,block.id).length) throw Error('covered');
-      cruiseTo(block.position,block.yaw,block.id);
-      s.held=block.id; steps.push({type:'grip',object:block.id});
-      move([block.position[0],block.position[1],120]);
-    } else if(action.type==='place') {
-      if(!s.held) throw Error('empty');
-      if(action.target===s.held) throw Error('selfStack');
-      const support=s.objects.find(o=>o.id===action.target);
-      if(support && blocksAbove(s,support.id).length) throw Error('covered');
-      const point=support?[support.position[0],support.position[1],support.position[2]+36]:PADS[action.target];
-      if(s.objects.some(o=>o.id!==s.held && o.id!==support?.id && Math.abs(o.position[2]-point[2])<35.7 && Math.hypot(o.position[0]-point[0],o.position[1]-point[1])<55)) throw Error('occupied');
-      cruiseTo(point,support?support.yaw:s.yaw);
-      s.objects.find(o=>o.id===s.held).position=[...point];
-      const released=s.held;
-      steps.push({type:'release',position:[...point]}); s.held=null;
-      move([point[0],point[1],120],s.yaw,released);
-    } else if(action.type==='rotate') {
-      if(!s.held) throw Error('empty');
-      const p=toolPose(s.q).tip; move([p[0],p[1],Math.max(p[2],120)]);
-      const yaw=s.yaw+action.angle;
-      if(Math.abs(yaw)>180) throw Error('angle');
-      move(toolPose(s.q).tip,yaw);
-    } else if(action.type==='dance') {
-      if(s.held) throw Error('holding');
-      cruiseTo(HOME,0);
-      for(const [point,yaw] of [[[205,-35,130],-25],[[205,35,130],25],[[205,-35,130],-25],[[210,0,150],0],[[210,0,125],0],[HOME,0]]) move(point,yaw);
-    } else {
-      if(s.held) throw Error('holding');
-      cruiseTo(HOME,0);
+    let failure;const attempts=[];
+    // Try a direct elevated transfer, then routes around the base in both directions.
+    for(const route of ['direct','short','long'])for(const level of [clearance,Math.max(clearance,160)]){
+      Object.assign(s,structuredClone(saved));steps.length=length;
+      try{
+        move([current[0],current[1],Math.max(level,current[2])],s.rpy,startingContact||contact);
+        move(toolPose(s.q).tip,[0,0,s.yaw]);
+        if(route==='direct')move([point[0],point[1],level],[0,0,yaw]);
+        else{
+          const a=Math.atan2(current[1],current[0]),b=Math.atan2(point[1],point[0]);let delta=((b-a+3*Math.PI)%(2*Math.PI))-Math.PI;
+          if(route==='long')delta+=delta>0?-2*Math.PI:2*Math.PI;
+          const radius=Math.max(225,Math.hypot(...current.slice(0,2)),Math.hypot(...point.slice(0,2))),count=Math.ceil(Math.abs(delta)/.12);
+          move([radius*Math.cos(a),radius*Math.sin(a),level],[0,0,s.yaw]);
+          const startYaw=s.yaw;
+          for(let i=1;i<=count;i++)move([radius*Math.cos(a+delta*i/count),radius*Math.sin(a+delta*i/count),level],[0,0,startYaw+(yaw-startYaw)*i/count]);
+          move([point[0],point[1],level],[0,0,yaw]);
+        }
+        move(point,[0,0,yaw],contact);return;
+      }catch(error){failure=error;attempts.push({route,level,error:error.message,detail:error.detail});}
     }
+    Object.assign(s,saved);steps.length=length;failure.attempts=attempts;throw failure;
   }
-  return {steps, result:s};
+  function pick(id){
+    if(s.held)throw Error('holding');const block=s.objects.find(o=>o.id===id);if(!block)throw Object.assign(Error('unknown'),{detail:{object:id}});if(blocksAbove(s,id).length)throw Object.assign(Error('covered'),{detail:{object:id,blocker:blocksAbove(s,id).at(-1).id}});
+    cruiseTo(block.position,block.yaw,id);const step={type:'grip',object:id};applyStep(s,step);steps.push(step);
+    move([block.position[0],block.position[1],Math.max(140,block.position[2]+45)]);
+  }
+  function place(action){
+    if(!s.held)throw Error('empty');if(action.target===s.held)throw Error('selfStack');
+    const support=s.objects.find(o=>o.id===action.target),held=s.objects.find(o=>o.id===s.held);
+    if(support&&blocksAbove(s,support.id).length)throw Error('covered');
+    const start=action.target==='start'?held:s.objects.find(o=>action.target===o.id+'-start');
+    if(support&&(!support.stackable||held.size[0]>support.size[0]*1.35||held.size[1]>support.size[1]*1.35))throw Object.assign(Error('unstable'),{detail:{object:held.id,support:support.id,reason:'the support is not flat or wide enough for stable stacking'}});
+    const anchor=s.objects.find(o=>o.id===action.beside);
+    let xy=action.position||AREAS[action.target];
+    if(action.beside){if(!anchor||anchor.id===s.held)throw Error('destination');const axis=['left','right'].includes(action.side)?1:0,sign=['left','rear'].includes(action.side)?-1:1;xy=anchor.position.slice(0,2);xy[axis]+=sign*((footprint(held)[axis]+footprint(anchor)[axis])/2+35);}
+    const point=start?[...start.origin.slice(0,2),held.size[2]/2]:(support?[support.position[0],support.position[1],support.position[2]+(support.size[2]+held.size[2])/2]:xy?[...xy,held.size[2]/2]:null);
+    if(!point)throw Error('destination');
+    const yaw=start?0:support?support.yaw:s.yaw;
+    if(s.objects.some(o=>o.id!==s.held&&o.id!==support?.id&&[0,1,2].every(i=>Math.abs(o.position[i]-point[i])<(footprint(o)[i]+footprint(held,yaw)[i])/2+(i===2?-.3:8))))throw Error('occupied');
+    cruiseTo(point,yaw);
+    const released=s.held,step={type:'release',position:[...point]};applyStep(s,step);steps.push(step);
+    move([point[0],point[1],Math.max(140,point[2]+45)],[0,0,s.yaw],released);
+  }
+  function restore(){
+    const free=(p,b=s.objects.find(o=>o.id===s.held))=>!s.objects.some(o=>o.id!==b.id&&[0,1,2].every(i=>Math.abs(o.position[i]-p[i])<(footprint(o)[i]+b.size[i])/2+(i===2?-.3:8)));
+    const buffer=()=>{const held=s.objects.find(o=>o.id===s.held),target=Object.keys(AREAS).find(id=>free([...AREAS[id],held.size[2]/2]));if(!target)throw Error('occupied');place({target});};
+    for(let i=0;i<20;i++){
+      if(s.held){const b=s.objects.find(o=>o.id===s.held);if(free(b.origin))place({target:'start'});else buffer();}
+      const remaining=s.objects.filter(o=>distance(o.position,o.origin)>.2||Math.abs(o.yaw)>.1);
+      if(!remaining.length){cruiseTo(HOME,0);return;}
+      const available=remaining.filter(o=>!blocksAbove(s,o.id).length).sort((a,b)=>b.position[2]-a.position[2]);
+      const ready=available.find(o=>free(o.origin,o));
+      if(ready){pick(ready.id);place({target:'start'});}else if(available.length){pick(available[0].id);buffer();}else throw Error('covered');
+    }
+    throw Error('blocked');
+  }
+  for(const action of actions){try{
+    if(action.type==='pick')pick(action.object);
+    else if(action.type==='place')place(action);
+    else if(action.type==='restore')restore();
+    else if(action.type==='undo')throw Error('undoOnly');
+    else if(action.type==='rotate'){if(!s.held)throw Error('empty');const p=toolPose(s.q).tip;move([p[0],p[1],Math.max(p[2],140)]);const yaw=s.yaw+action.angle;if(Math.abs(yaw)>180)throw Error('angle');move(toolPose(s.q).tip,[0,0,yaw]);}
+    else if(action.type==='move')move(action.position,action.orientation||s.rpy);
+    else if(action.type==='pose'){const rpy=toolPose(action.joints).rpy;joints(action.joints,rpy,Math.max(.4,Math.max(...action.joints.map((v,i)=>Math.abs(v-s.q[i])))/65));}
+    else {
+      if(s.held)throw Error('holding');cruiseTo(HOME,0);
+      for(let repeat=0;repeat<(action.repeat||1);repeat++){
+        if(action.type==='dance'){
+          const amplitude=action.style==='lively'?45:28;
+          for(const sign of [-1,1,-1,1])move([210,sign*amplitude,160],[0,sign*8,sign*25]);
+          move([225,0,135],[0,10,0]);move(HOME,[0,0,0]);
+        }else if(action.type==='wave'){
+          move([190,0,160],[0,0,0]);for(const angle of [-15,15,-15,15])move([190,0,160],[angle,0,0]);move(HOME,[0,0,0]);
+        }else if(action.type==='bow'){move([240,0,125],[0,15,0]);move(HOME,[0,0,0]);}
+      }
+    }
+  }catch(error){error.action=action;throw error;}}
+  return {steps,result:s};
 }
-export function applyStep(state, step) {
-  if(step.type==='move') {
-    state.q=[...step.q]; state.yaw=step.yaw;
-    if(state.held) { const block=state.objects.find(o=>o.id===state.held); block.position=toolPose(state.q).tip; block.yaw=state.yaw; }
-  } else if(step.type==='grip') state.held=step.object;
-  else if(step.type==='release') { state.objects.find(o=>o.id===state.held).position=[...step.position]; state.held=null; }
+export function applyStep(state,step){
+  if(step.type==='move'){
+    state.q=[...step.q];state.rpy=[...(step.rpy||[0,0,step.yaw])];state.yaw=state.rpy[2];
+    if(state.held){const block=state.objects.find(o=>o.id===state.held);block.position=toolPose(state.q).tip;block.yaw=state.yaw;block.rpy=[...state.rpy];}
+  }else if(step.type==='grip')state.held=step.object;
+  else if(step.type==='release'){const block=state.objects.find(o=>o.id===state.held);block.position=[...step.position];if(step.rpy){block.rpy=[...step.rpy];block.yaw=step.rpy[2];}state.held=null;}
+}
+// Reverse the actual validated trajectory, including grasp/release events.
+// The UI invalidates this history if a task is interrupted or the scene changes.
+export function reverseSteps(state,steps){
+  const s=structuredClone(state),inverse=[];
+  for(const step of steps){
+    if(step.type==='move')inverse.push({type:'move',q:[...s.q],rpy:[...s.rpy],yaw:s.yaw,seconds:step.seconds});
+    else if(step.type==='grip'){const b=s.objects.find(o=>o.id===step.object);inverse.push({type:'release',position:[...b.position],rpy:[...b.rpy]});}
+    else if(step.type==='release')inverse.push({type:'grip',object:s.held});
+    applyStep(s,step);
+  }
+  return inverse.reverse();
 }

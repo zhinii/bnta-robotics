@@ -55,7 +55,7 @@ export function ikTool(p,current=ARM.home,branch='nearest',orientation=null){
  if(!valid(current))return {error:'limits'};
  if(orientation&&(current.length!==6||!Array.isArray(orientation)||orientation.length!==3||orientation.some(v=>!Number.isFinite(v)||Math.abs(v)>180)))return {error:'orientationInvalid'};
  if(distance(p,[0,0,ARM.base])>toolReachFor(current.length)+1e-7)return {error:'reach'};
- if(p[2]<12)return {error:'limits'};
+ if(p[2]<0)return {error:'limits'};
  // Downward poses near the bed edge need wrist-aligned seeds; retain all real-start path checks.
  const base=Math.atan2(p[1],p[0])/rad,down=current.length===6&&orientation&&Math.abs(orientation[0])<.01&&Math.abs(orientation[1])<.01;
  const wrist=down?((base-orientation[2]+540)%360)-180:0;
