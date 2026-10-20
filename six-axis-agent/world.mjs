@@ -1,4 +1,4 @@
-import { homeFor, ikTool, toolPose, valid, distance, transform, rotationFromEuler, JOINTS } from './kinematics.mjs?v=dorm-20261021-1';
+import { homeFor, ikTool, toolPose, valid, distance, transform, rotationFromEuler, JOINTS } from './kinematics.mjs?v=dorm-20261021-2';
 
 export const AREAS={left:[170,-230],right:[170,230],rear:[-280,0],front:[280,0]};
 export const HOME=[210,0,150];
@@ -37,7 +37,7 @@ export function initialState(seed=0,kit='school') {
   const placed=kit==='desk'?deskPositions.map(p=>p.map(v=>v+(seed?Math.round((random()-.5)*16):0))):positions;
   return {q:solved.q,held:null,yaw:0,rpy:[0,0,0],seed,kit,objects:ids.map((id,i)=>({id,...structuredClone(CATALOG[id]),position:[...placed[i],CATALOG[id].size[2]/2],origin:[...placed[i],CATALOG[id].size[2]/2],yaw:0,rpy:[0,0,0]})),
     homes:kit==='desk'?structuredClone(HOMES):{},
-    obstacles:kit==='desk'?[structuredClone(ORGANIZER),{id:'laptop',name:'laptop',zh:'笔记本电脑',position:[70,230,50],size:[125,125,100],fixed:true},{id:'lamp',name:'desk lamp',zh:'台灯',position:[50,-260,90],size:[60,60,180],fixed:true}]:[{id:'tall divider',position:[70+(seed?Math.round(random()*20):0),135,55],size:[48,48,110]},{id:'low divider',position:[-60,-160,35],size:[65,40,70]}]};
+    obstacles:kit==='desk'?[structuredClone(ORGANIZER),{id:'laptop',name:'laptop',zh:'笔记本电脑',position:[70,230,50],size:[125,125,100],fixed:true},{id:'lamp',name:'desk lamp',zh:'台灯',position:[50,-260,90],size:[60,60,180],fixed:true},{id:'wall',name:'dorm room wall',zh:'宿舍墙壁',position:[150,320,-10],size:[1200,20,760],fixed:true}]:[{id:'tall divider',position:[70+(seed?Math.round(random()*20):0),135,55],size:[48,48,110]},{id:'low divider',position:[-60,-160,35],size:[65,40,70]}]};
 }
 export function blocksAbove(state,id) {
   const support=state.objects.find(o=>o.id===id);
@@ -49,7 +49,7 @@ export function snapshot(s) {
     context:s.kit==='desk'?'A messy desk in an ordinary student dorm room. The robot is clamped to one short side of the desk, facing across it, not mounted in its centre. The movable items and organizer are in front of the mount within its working area. The user decides where items belong and their order, including stacks or side-by-side arrangements on the low organizer. Shelf spaces are optional homes, not assigned categories. The bed, room, laptop, lamp and organizer are fixed.':'A tabletop practice scene.',
     ...(s.kit==='desk'?{deskBounds:DESK,robotMount:[0,0,0]}:{}),
     capabilities:['pick uncovered school objects','place on clear desk or organizer space, beside objects, at starts, or stack on flat objects','rotate held objects around X, Y or Z, preserving orientation when placed','restore starting positions and orientations','undo completed tasks','move and orient the tool','dance, wave, bow, circle or move up and down','home'],
-    coordinates:'mm, degrees; +X front, -X behind, -Y left, +Y right, +Z up; position is gripper grasp centre',limits:{position:[[-340,340],[-340,340],[8,330]],jointDegrees:JOINTS.map(j=>j.limits)},units:'mm/degrees'};
+    coordinates:'Robot-local mm and degrees; +X front of robot, -X behind robot, -Y robot left, +Y robot right, +Z up; position is gripper grasp centre. The whole dorm workstation is turned 90 degrees in the room and the +Y desk edge meets the wall.',limits:{position:[[-340,340],[-340,340],[8,330]],jointDegrees:JOINTS.map(j=>j.limits)},units:'mm/degrees'};
 }
 function segmentBox(a,b,box,padding=0) {
   let lo=0,hi=1;

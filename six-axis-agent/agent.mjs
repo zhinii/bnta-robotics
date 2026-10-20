@@ -1,4 +1,4 @@
-import { validateActions } from './world.mjs?v=dorm-20261021-1';
+import { validateActions } from './world.mjs?v=dorm-20261021-2';
 
 export const DEFAULTS = { base: 'https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1', model: 'qwen3.8-flash' };
 export const RELAY = 'https://bnta-robot-lab-connection.zhinii.chatgpt.site/api/chat';
@@ -18,7 +18,7 @@ Place/transfer target may also be an EXACT scene.homes ID: shelf-left, shelf-mid
 {"type":"place","beside":"object-id","side":"left|right|front|rear"}: beside an object on the table.
 {"type":"rotate","axis":"x|y|z","angle":number}: add degrees to the held object's roll (X), pitch (Y), or yaw (Z); Z is the default if no axis was requested. Each component stays within -180..180. The controller may reposition the held item to turn it. Always use the user's requested axis and angle, including follow-ups such as 'do it on Y'.
 Place/transfer PRESERVE the held orientation. They accept optional orientation:[roll,pitch,yaw] only when the user asks for a different final orientation. 'Rotate' alone does NOT authorize release or returning to the starting spot. Keep holding it and ask where to place it. 'Rotate its placement' requires a placement location; use an explicit location from the conversation, otherwise ask whether to place it back at the same spot. Never invent a placement. Restore resets both position and orientation. A rotation while held can be reachable even when placing it at that angle is not; never claim it is standing on its side unless the actual resulting orientation shows that.
-{"type":"move","position":[x,y,z],"orientation":[roll,pitch,yaw]}: move the grasp centre, optional orientation in degrees. World frame +X front, -X behind, -Y left, +Y right, +Z up.
+{"type":"move","position":[x,y,z],"orientation":[roll,pitch,yaw]}: move the grasp centre, optional orientation in degrees. Robot-local frame +X front of the robot, -X behind, -Y robot left, +Y robot right, +Z up. The whole workstation is rotated in the room; follow scene.coordinates.
 {"type":"pose","joints":[six joint angles]}: only for explicit joint-angle requests; joint limits are in scene.limits.
 {"type":"home"}; {"type":"restore"} returns every object to its own remembered start, top objects first, then homes; {"type":"undo"} reverses the last fully completed task.
 {"type":"dance","style":"gentle|lively","repeat":1}; {"type":"wave","repeat":1}; {"type":"bow","repeat":1}. style/repeat are optional. Repeat 1..3.

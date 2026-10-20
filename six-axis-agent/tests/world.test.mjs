@@ -54,13 +54,14 @@ test('side mount, desk edges and laptop are shared by perception and planning',(
  assert.ok(-DESK.min[0]<(DESK.max[0]-DESK.min[0])*.2);
  assert.deepEqual(scene.robotMount,[0,0,0]);assert.deepEqual(scene.deskBounds,DESK);assert.equal(scene.tableAreas.rear,undefined);
  assert.equal(scene.obstacles.find(o=>o.id==='laptop').fixed,true);assert.equal(scene.obstacles.some(o=>o.id==='computer'),false);
+ const wall=scene.obstacles.find(o=>o.id==='wall');assert.equal(wall.position[1]-wall.size[1]/2,DESK.max[1]);assert.equal(wall.fixed,true);
  assert.ok(s.objects.every(o=>o.position[0]>0));
  assert.throws(()=>planActions(s,[{type:'transfer',object:'book',target:'rear'}]),e=>e.message==='destination'&&e.detail.reason.includes('desk edge'));
 });
 test('bedroom gestures and randomized arrangements remain reachable',()=>{
  for(const type of ['wave','bow','dance','circle','bob']){const s=initialState(0,'desk'),before=structuredClone(s);run(s,[{type}]);sameObjects(s,before);assert.ok(distance(toolPose(s.q).tip,HOME)<.2);}
  for(const seed of [42,139,896])for(const object of initialState(0,'desk').objects.map(o=>o.id)){const s=initialState(seed,'desk'),before=structuredClone(s);run(s,[{type:'transfer',object,target:'shelf-middle'},{type:'restore'}]);sameObjects(s,before);}
- const scene=snapshot(initialState(0,'desk'));assert.equal(Object.keys(scene.homes).length,3);assert.equal(scene.obstacles.filter(o=>o.fixed).length,3);assert.match(scene.context,/user decides/i);
+ const scene=snapshot(initialState(0,'desk'));assert.equal(Object.keys(scene.homes).length,3);assert.equal(scene.obstacles.filter(o=>o.fixed).length,4);assert.match(scene.context,/user decides/i);
 });
 test('all five school objects can go to every table side and return to their own starts',()=>{
  for(const id of initialState().objects.map(o=>o.id))for(const target of Object.keys(AREAS)){
