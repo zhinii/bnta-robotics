@@ -6,6 +6,8 @@ A bilingual robotics learning environment that helps students gain confidence wi
 
 [Open Robot Lab](https://zhinii.github.io/bnta-robotics/) · [GitHub repository](https://github.com/zhinii/bnta-robotics) · [MIT license](LICENSE)
 
+**New: [Six-axis conversational simulator](https://zhinii.github.io/bnta-robotics/six-axis-agent/).** A minimal robot workspace and Alibaba Qwen chat, with key entry directly in the conversation. [Setup and implementation](six-axis-agent/README.md).
+
 The public edition uses a neutral whitebox interface, a gray 3D environment, and compact author attribution in the footer. The default camera frames the robot and task closely. Active waypoint, pickup and placement targets show their world XYZ coordinates beside the point in the scene. World X/Y/Z axes use muted colored arrows with simple +X/−X, +Y/−Y and +Z labels, plus O for the origin. The Z arrow extends above the initial robot pose; labels have no background plates. Blue marks selected controls and pose previews; a thick green outline marks the current lesson action. Orange shows actual movement and red flags blocked movement. Box colors and letter labels connect the placement plan to the scene.
 
 ## Introductory learning sequence
