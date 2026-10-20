@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {initialState,planActions,applyStep,validateActions,AREAS,HOME,HOMES,clearPose,reverseSteps,snapshot} from '../world.mjs';
+import {initialState,planActions,applyStep,validateActions,AREAS,HOME,HOMES,DESK,clearPose,reverseSteps,snapshot} from '../world.mjs';
 import {toolPose,distance} from '../kinematics.mjs';
 import {parseResponse,askAgent,DEFAULTS,RELAY,SYSTEM} from '../agent.mjs';
 import {createSpeech} from '../speech.mjs';
@@ -28,7 +28,7 @@ test('placing preserves rotation and an impossible tilted placement rejects the 
  assert.throws(()=>validateActions([{type:'rotate',axis:'w',angle:90}]),/angle/);
  assert.deepEqual(parseResponse('{"reply":"I will turn it.","actions":[{"type":"rotate","axis":"y","angle":90}]}').actions,[{type:'rotate',axis:'y',angle:90}]);
 });
-test('bedroom objects reach all organizer spaces and restore around the fixed computer and lamp',()=>{
+test('dorm desk objects reach all organizer spaces and restore around the fixed laptop and lamp',()=>{
  for(const id of initialState(0,'desk').objects.map(o=>o.id))for(const target of Object.keys(HOMES)){
   const s=initialState(0,'desk'),before=structuredClone(s);run(s,[{type:'transfer',object:id,target}]);
   const object=s.objects.find(o=>o.id===id);assert.deepEqual(object.position,[...HOMES[target].position.slice(0,2),28+object.size[2]/2]);
@@ -46,12 +46,20 @@ test('user-selected stacks and side-by-side orders preserve shelf height and can
  const s=initialState(0,'desk');run(s,[{type:'transfer',object:'pen',target:'shelf-middle'},{type:'transfer',object:'pencil',beside:'pen',side:'left'}]);
  assert.equal(s.objects.find(o=>o.id==='pencil').position[2],36);assert.ok(s.objects.find(o=>o.id==='pencil').position[1]<0);
  assert.throws(()=>planActions(s,[{type:'transfer',object:'book',beside:'pencil',side:'left'}]),e=>e.message==='destination'&&e.detail.reason.includes('overhang'));
- assert.throws(()=>planActions(s,[{type:'move',position:[0,320,100]}]),/blocked/);
- assert.throws(()=>validateActions([{type:'pick',object:'computer'}]),/unknown/);
+ assert.throws(()=>planActions(s,[{type:'move',position:[70,230,60]}]),/blocked/);
+ assert.throws(()=>validateActions([{type:'pick',object:'laptop'}]),/unknown/);
+});
+test('side mount, desk edges and laptop are shared by perception and planning',()=>{
+ const s=initialState(0,'desk'),scene=snapshot(s);
+ assert.ok(-DESK.min[0]<(DESK.max[0]-DESK.min[0])*.2);
+ assert.deepEqual(scene.robotMount,[0,0,0]);assert.deepEqual(scene.deskBounds,DESK);assert.equal(scene.tableAreas.rear,undefined);
+ assert.equal(scene.obstacles.find(o=>o.id==='laptop').fixed,true);assert.equal(scene.obstacles.some(o=>o.id==='computer'),false);
+ assert.ok(s.objects.every(o=>o.position[0]>0));
+ assert.throws(()=>planActions(s,[{type:'transfer',object:'book',target:'rear'}]),e=>e.message==='destination'&&e.detail.reason.includes('desk edge'));
 });
 test('bedroom gestures and randomized arrangements remain reachable',()=>{
  for(const type of ['wave','bow','dance','circle','bob']){const s=initialState(0,'desk'),before=structuredClone(s);run(s,[{type}]);sameObjects(s,before);assert.ok(distance(toolPose(s.q).tip,HOME)<.2);}
- for(const seed of [42,139,896])for(const object of ['book','pen','pencil','clock']){const s=initialState(seed,'desk'),before=structuredClone(s);run(s,[{type:'transfer',object,target:'shelf-middle'},{type:'restore'}]);sameObjects(s,before);}
+ for(const seed of [42,139,896])for(const object of initialState(0,'desk').objects.map(o=>o.id)){const s=initialState(seed,'desk'),before=structuredClone(s);run(s,[{type:'transfer',object,target:'shelf-middle'},{type:'restore'}]);sameObjects(s,before);}
  const scene=snapshot(initialState(0,'desk'));assert.equal(Object.keys(scene.homes).length,3);assert.equal(scene.obstacles.filter(o=>o.fixed).length,3);assert.match(scene.context,/user decides/i);
 });
 test('all five school objects can go to every table side and return to their own starts',()=>{

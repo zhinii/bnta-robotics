@@ -1,13 +1,15 @@
-import { homeFor, ikTool, toolPose, valid, distance, transform, rotationFromEuler, JOINTS } from './kinematics.mjs?v=bedroom-20261021-1';
+import { homeFor, ikTool, toolPose, valid, distance, transform, rotationFromEuler, JOINTS } from './kinematics.mjs?v=dorm-20261021-1';
 
 export const AREAS={left:[170,-230],right:[170,230],rear:[-280,0],front:[280,0]};
 export const HOME=[210,0,150];
 export const BLOCKS=['red','blue','yellow'];
-export const ORGANIZER={id:'organizer',name:'low organizer shelf',zh:'矮整理架',position:[-235,0,14],size:[150,460,28],surface:true,fixed:true};
+// Robot-local coordinates: the mount is near the short edge, facing across the desk.
+export const DESK={min:[-60,-310],max:[365,310]};
+export const ORGANIZER={id:'organizer',name:'low organizer shelf',zh:'矮整理架',position:[280,0,14],size:[100,420,28],surface:true,fixed:true};
 export const HOMES={
-  'shelf-left':{name:'left shelf space',zh:'整理架左侧',position:[-235,-145,28]},
-  'shelf-middle':{name:'middle shelf space',zh:'整理架中间',position:[-235,0,28]},
-  'shelf-right':{name:'right shelf space',zh:'整理架右侧',position:[-235,145,28]},
+  'shelf-left':{name:'left shelf space',zh:'整理架左侧',position:[280,-105,28]},
+  'shelf-middle':{name:'middle shelf space',zh:'整理架中间',position:[280,0,28]},
+  'shelf-right':{name:'right shelf space',zh:'整理架右侧',position:[280,105,28]},
 };
 export const CATALOG={
   book:{name:'red book',zh:'红色书本',size:[36,58,18],color:'#c85b4e',stackable:true},
@@ -31,11 +33,11 @@ export function initialState(seed=0,kit='school') {
   const ids=kit==='blocks'?BLOCKS:kit==='desk'?['book','notebook','pen','pencil','clock','eraser','pencilcase']:['book','eraser','glue','pencilcase','ruler'];
   const positions=[-25,150,-150,70,-75].map(a=>{const angle=(a+(seed?(random()-.5)*12:0))*rad,r=seed?250+random()*15:260;return [Math.round(r*Math.cos(angle)),Math.round(r*Math.sin(angle))];});
   const solved=ikTool(HOME,homeFor(6),'nearest',[0,0,0]);if(!solved.q)throw Error('home');
-  const deskPositions=[[250,-125],[200,175],[70,-260],[-70,230],[275,40],[-70,-235],[90,240]];
+  const deskPositions=[[170,-165],[180,165],[85,-130],[100,100],[180,-45],[95,-50],[180,65]];
   const placed=kit==='desk'?deskPositions.map(p=>p.map(v=>v+(seed?Math.round((random()-.5)*16):0))):positions;
   return {q:solved.q,held:null,yaw:0,rpy:[0,0,0],seed,kit,objects:ids.map((id,i)=>({id,...structuredClone(CATALOG[id]),position:[...placed[i],CATALOG[id].size[2]/2],origin:[...placed[i],CATALOG[id].size[2]/2],yaw:0,rpy:[0,0,0]})),
     homes:kit==='desk'?structuredClone(HOMES):{},
-    obstacles:kit==='desk'?[structuredClone(ORGANIZER),{id:'computer',name:'desktop computer',zh:'台式电脑',position:[0,345,85],size:[135,65,170],fixed:true},{id:'lamp',name:'desk lamp',zh:'台灯',position:[-110,-355,95],size:[65,55,190],fixed:true}]:[{id:'tall divider',position:[70+(seed?Math.round(random()*20):0),135,55],size:[48,48,110]},{id:'low divider',position:[-60,-160,35],size:[65,40,70]}]};
+    obstacles:kit==='desk'?[structuredClone(ORGANIZER),{id:'laptop',name:'laptop',zh:'笔记本电脑',position:[70,230,50],size:[125,125,100],fixed:true},{id:'lamp',name:'desk lamp',zh:'台灯',position:[50,-260,90],size:[60,60,180],fixed:true}]:[{id:'tall divider',position:[70+(seed?Math.round(random()*20):0),135,55],size:[48,48,110]},{id:'low divider',position:[-60,-160,35],size:[65,40,70]}]};
 }
 export function blocksAbove(state,id) {
   const support=state.objects.find(o=>o.id===id);
@@ -43,8 +45,9 @@ export function blocksAbove(state,id) {
 }
 export function snapshot(s) {
   return {joints:s.q.map(n=>+n.toFixed(2)),tool:toolPose(s.q).tip.map(n=>+n.toFixed(1)),orientation:[...(s.rpy||[0,0,s.yaw])],held:s.held,yaw:s.yaw,
-    objects:s.objects.map(o=>({...structuredClone(o),clearAbove:blocksAbove(s,o.id).length===0})),obstacles:structuredClone(s.obstacles||[]),homes:structuredClone(s.homes||{}),tableAreas:AREAS,
-    context:s.kit==='desk'?'A messy bedroom desk. The robot is fixed to the desk. The user decides where items belong and their order, including stacks or side-by-side arrangements on the low organizer. Shelf spaces are optional homes, not assigned categories. The bed, room, computer, lamp and organizer are fixed.':'A tabletop practice scene.',
+    objects:s.objects.map(o=>({...structuredClone(o),clearAbove:blocksAbove(s,o.id).length===0})),obstacles:structuredClone(s.obstacles||[]),homes:structuredClone(s.homes||{}),tableAreas:s.kit==='desk'?Object.fromEntries(Object.entries(AREAS).filter(([,p])=>p.every((v,i)=>v>=DESK.min[i]&&v<=DESK.max[i]))):AREAS,
+    context:s.kit==='desk'?'A messy desk in an ordinary student dorm room. The robot is clamped to one short side of the desk, facing across it, not mounted in its centre. The movable items and organizer are in front of the mount within its working area. The user decides where items belong and their order, including stacks or side-by-side arrangements on the low organizer. Shelf spaces are optional homes, not assigned categories. The bed, room, laptop, lamp and organizer are fixed.':'A tabletop practice scene.',
+    ...(s.kit==='desk'?{deskBounds:DESK,robotMount:[0,0,0]}:{}),
     capabilities:['pick uncovered school objects','place on clear desk or organizer space, beside objects, at starts, or stack on flat objects','rotate held objects around X, Y or Z, preserving orientation when placed','restore starting positions and orientations','undo completed tasks','move and orient the tool','dance, wave, bow, circle or move up and down','home'],
     coordinates:'mm, degrees; +X front, -X behind, -Y left, +Y right, +Z up; position is gripper grasp centre',limits:{position:[[-340,340],[-340,340],[8,330]],jointDegrees:JOINTS.map(j=>j.limits)},units:'mm/degrees'};
 }
@@ -63,7 +66,7 @@ export function clearPose(q,state,contact=null,detail={}) {
   const blocked=(reason,blocker)=>{Object.assign(detail,{reason,blocker});return false;};
   if(!valid(q))return blocked('joint or table clearance limit');
   const pose=toolPose(q),tip=pose.tip,held=state.objects.find(o=>o.id===state.held),vertices=corners(tip,pose.rotation,held);
-  if(vertices.some(p=>p[2]<-.3||Math.hypot(p[0],p[1])>400))return blocked('the gripper or held object would cross the tabletop or table edge','table');
+  if(vertices.some(p=>p[2]<-.3||Math.hypot(p[0],p[1])>400))return blocked('the gripper or held object would cross the tabletop or working envelope','table');
   if(Math.hypot(tip[0],tip[1])<85&&tip[2]<145)return blocked('the tool would enter the robot base','robot base');
   const bounds={position:[0,1,2].map(i=>(Math.min(...vertices.map(p=>p[i]))+Math.max(...vertices.map(p=>p[i])))/2),size:[0,1,2].map(i=>Math.max(...vertices.map(p=>p[i]))-Math.min(...vertices.map(p=>p[i])))};
   for(const obstacle of state.obstacles||[]){
@@ -172,6 +175,7 @@ export function planActions(state,actions) {
     if(anchor&&anchor.position[2]-footprint(anchor)[2]/2>1&&!surface)throw Object.assign(Error('destination'),{detail:{reason:'there is not enough shelf space on that side; choose another direction or a clear shelf space'}});
     const point=start?[...start.origin.slice(0,2),heldSize[2]/2]:(support?[support.position[0],support.position[1],support.position[2]+(footprint(support)[2]+heldSize[2])/2]:xy?[...xy,(surface?surface.position[2]+surface.size[2]/2:0)+heldSize[2]/2]:null);
     if(!point)throw Error('destination');
+    if(s.kit==='desk'&&[0,1].some(i=>point[i]-heldSize[i]/2<DESK.min[i]+2||point[i]+heldSize[i]/2>DESK.max[i]-2))throw Object.assign(Error('destination'),{detail:{reason:'the item would extend beyond the desk edge; choose a position on the desk or organizer'}});
     if(s.objects.some(o=>o.id!==s.held&&o.id!==support?.id&&[0,1,2].every(i=>Math.abs(o.position[i]-point[i])<(footprint(o)[i]+heldSize[i])/2+(i===2?-.3:8))))throw Error('occupied');
     cruiseTo(point,rpy);
     const released=s.held,step={type:'release',position:[...point]};applyStep(s,step);steps.push(step);
