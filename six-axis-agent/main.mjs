@@ -1,10 +1,13 @@
-import { initialState, snapshot, applyStep, CATALOG, objectPosture } from './world.mjs?v=edges-20261021-1';
-import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=edges-20261021-1';
-import { createScene } from './scene.mjs?v=edges-20261021-1';
-import { createSpeech } from './speech.mjs?v=edges-20261021-1';
-import { words, challenges } from './i18n.mjs?v=edges-20261021-1';
+import { initialState, snapshot, applyStep, CATALOG, objectPosture } from './world.mjs?v=chat-20261021-1';
+import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=chat-20261021-1';
+import { createScene } from './scene.mjs?v=chat-20261021-1';
+import { createSpeech } from './speech.mjs?v=chat-20261021-1';
+import { words, challenges } from './i18n.mjs?v=chat-20261021-1';
 
 const $=id=>document.getElementById(id);
+// API tokens are not website passwords. Keep Chrome's password-manager
+// heuristics out of chat, with native masking as a fallback in older browsers.
+if(!CSS.supports('-webkit-text-security','disc'))$('api-key').type='password';
 let language='en';try{language=localStorage.getItem('six-axis-language')==='zh'?'zh':'en';}catch{}
 let state=initialState(0,'desk'),connection=null,busy=false,epoch=0,abort=null,history=[],activity='',view=null,undo=[],worker=null,workerReject=null,challengeIndex=0;
 const t=(key,vars={})=>Object.entries(vars).reduce((s,[k,v])=>s.replaceAll('{'+k+'}',v),words[language][key]||key);
@@ -41,7 +44,7 @@ function refresh(){
   $('suggestions').hidden=!connection||busy;$('mic').hidden=!connection||busy;$('speech-note').hidden=!connection;
   $('mic').title=t(speech.active?'micStop':'mic');$('mic').setAttribute('aria-label',t(speech.active?'micStop':'mic'));$('mic').setAttribute('aria-pressed',String(speech.active));
   $('send').textContent=t(connection?'send':'connect');$('send').hidden=busy;$('send').disabled=speech.active;$('stop').hidden=!busy;
-  $('api-key').disabled=busy;$('prompt').disabled=busy;$('base-url').disabled=busy;$('model').disabled=busy;
+  $('api-key').disabled=busy||!!connection;$('prompt').disabled=busy;$('base-url').disabled=busy;$('model').disabled=busy;
   $('new-scene').disabled=busy;$('kit').disabled=busy;
   $('connection-state').textContent=t(connection?'online':'offline');$('connection-state').classList.toggle('online',!!connection);
   $('activity').textContent=activity?t(activity):'';
@@ -69,7 +72,7 @@ function prepare(actions){
     return Promise.resolve({plan:{steps:undo.at(-1)},undoing:true});
   }
   return new Promise((resolve,reject)=>{
-    const planner=new Worker(new URL('./planner-worker.mjs?v=edges-20261021-1',import.meta.url),{type:'module'});worker=planner;
+    const planner=new Worker(new URL('./planner-worker.mjs?v=chat-20261021-1',import.meta.url),{type:'module'});worker=planner;
     const finish=()=>{clearTimeout(timer);planner.terminate();if(worker===planner){worker=null;workerReject=null;}};
     const timer=setTimeout(()=>{finish();reject(Error('planningTimeout'));},45000);
     workerReject=error=>{finish();reject(error);};
@@ -149,8 +152,9 @@ async function send(question){
   }catch(error){if(id===epoch){remember('user',question);remember('assistant','Execution did not complete: '+reportError(error)+' '+JSON.stringify(perception()));}}
   finally{if(id===epoch){busy=false;activity='';refresh();$('prompt').focus();}}
 }
-$('composer').addEventListener('submit',event=>{event.preventDefault();if(!busy&&!speech.active){if(connection)void send($('prompt').value.trim());else void connect();}});
-$('prompt').addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();$('composer').requestSubmit();}});
+function submitMessage(){if(!busy&&!speech.active){if(connection)void send($('prompt').value.trim());else void connect();}}
+$('send').addEventListener('click',submitMessage);
+for(const id of ['prompt','api-key'])$(id).addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();submitMessage();}});
 $('stop').addEventListener('click',()=>cancel());
 function arrange(seed,kit,message){cancel(false);state=initialState(seed,kit);undo=[];history=[];view?.resetView();say(message,{},'system');refresh();}
 $('reset').addEventListener('click',()=>arrange(state.seed,state.kit,'resetDone'));

@@ -1,4 +1,4 @@
-import { validateActions } from './world.mjs?v=edges-20261021-1';
+import { validateActions } from './world.mjs?v=chat-20261021-1';
 
 export const DEFAULTS = { base: 'https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1', model: 'qwen3.8-flash' };
 export const RELAY = 'https://bnta-robot-lab-connection.zhinii.chatgpt.site/api/chat';

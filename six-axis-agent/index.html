@@ -5,10 +5,10 @@
   <meta name="theme-color" content="#f5f4f0">
   <meta name="description" content="This room is messy. Tell an AI-controlled robot how to organize a dorm room desk. A conversational robotics activity from Beijing New Talent Academy.">
   <title>Robot Lab — Six Axis</title>
-  <link rel="stylesheet" href="./style.css?v=edges-20261021-1">
+  <link rel="stylesheet" href="./style.css?v=chat-20261021-1">
   <script type="importmap">{"imports":{"three":"../beginner-3axis/vendor/three/build/three.module.js"}}</script>
 </head>
-<body data-version="edges-20261021-1">
+<body data-version="chat-20261021-1">
   <header><a class="brand" href="../"><span class="brand-mark">↗</span><span>BNTA <b>Robot Lab</b></span></a>
     <div class="header-actions"><span class="edition" data-i18n="edition">SIX AXIS / CONVERSATIONAL LAB</span><button id="language" aria-label="Switch to Chinese">中文</button></div>
   </header>
@@ -26,18 +26,18 @@
       <div id="messages" role="log" aria-live="polite" aria-relevant="additions text"></div>
       <div id="suggestions" hidden><button id="challenge" data-i18n="challenge">Try a challenge</button><button data-command="ask" data-i18n="suggestAsk">What can you do?</button></div>
       <div id="activity" role="status"></div>
-      <form id="composer">
+      <div id="composer" role="group">
         <label id="input-label" for="api-key" data-i18n="keyLabel">Your Alibaba API key</label>
-        <input id="api-key" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your Alibaba API key" maxlength="512">
+        <input id="api-key" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore placeholder="Paste your Alibaba API key" maxlength="512">
         <textarea id="prompt" rows="2" maxlength="1600" aria-label="Message the robot" placeholder="Tell the robot what to do…" hidden></textarea>
         <details id="connection-options"><summary data-i18n="settings">Connection settings</summary><label for="base-url">API base URL</label><input id="base-url" type="url" value="https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1"><label for="model">Model</label><input id="model" value="qwen3.8-flash" spellcheck="false"></details>
-        <div class="composer-bottom"><button type="button" id="reconnect" hidden data-i18n="reconnect">Change connection</button><span id="key-note" data-i18n="keyNote">Used for this tab only. Never added to the chat.</span><button id="mic" type="button" hidden aria-label="Dictate a command" aria-pressed="false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8"/></svg></button><button id="send" type="submit" data-i18n="connect">Connect ↗</button><button id="stop" type="button" hidden data-i18n="stop">■ Stop</button></div>
+        <div class="composer-bottom"><button type="button" id="reconnect" hidden data-i18n="reconnect">Change connection</button><span id="key-note" data-i18n="keyNote">Used for this tab only. Never added to the chat.</span><button id="mic" type="button" hidden aria-label="Dictate a command" aria-pressed="false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8"/></svg></button><button id="send" type="button" data-i18n="connect">Connect ↗</button><button id="stop" type="button" hidden data-i18n="stop">■ Stop</button></div>
         <p id="speech-note" hidden data-i18n="speechNote">Dictation uses your browser’s speech service. Review before sending.</p>
-      </form>
+      </div>
       <div class="conversation-foot" data-i18n="hint">Say what you want. The robot will ask if it needs more detail.</div>
     </section>
   </main>
   <footer><span>Beijing New Talent Academy <span class="footer-cn">/ 北京市新英才学校</span></span><a href="https://github.com/zhinii/bnta-robotics/tree/main/six-axis-agent" data-i18n="source">About & source ↗</a></footer>
-  <script type="module" src="./main.mjs?v=edges-20261021-1"></script>
+  <script type="module" src="./main.mjs?v=chat-20261021-1"></script>
 </body>
 </html>

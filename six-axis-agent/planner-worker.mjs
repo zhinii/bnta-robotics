@@ -1,4 +1,4 @@
-import { planActions, reverseSteps } from './world.mjs?v=edges-20261021-1';
+import { planActions, reverseSteps } from './world.mjs?v=chat-20261021-1';
 
 self.onmessage=({data})=>{
   try{const plan=planActions(data.state,data.actions);self.postMessage({plan,inverse:reverseSteps(data.state,plan.steps)});}
