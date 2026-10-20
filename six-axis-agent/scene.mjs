@@ -34,8 +34,21 @@ export function createScene(container) {
   const joints=Array.from({length:6},(_,i)=>cylinder([28,24,22,17,15,12][i],[38,44,39,30,27,24][i],i===3||i===5?materials.accent:materials.dark));
   const caps=Array.from({length:6},(_,i)=>cylinder([20,18,16,12,10,8][i],2,materials.shell));
   const gripper=new THREE.Group();scene.add(gripper);
-  const housing=mesh(new THREE.BoxGeometry(34,32,15),materials.dark,gripper);housing.position.z=27;
-  const fingers=[-1,1].map(()=>mesh(new THREE.BoxGeometry(7,24,30),materials.metal,gripper));
+  // The flange sits 40 mm above the grasp centre. Keep the mount and sliding
+  // carriers connected throughout the jaw travel, including the open pose.
+  const mount=cylinder(12,10,materials.metal,gripper);mount.rotation.x=Math.PI/2;mount.position.z=36;
+  const housing=mesh(new THREE.BoxGeometry(70,32,12),materials.dark,gripper);housing.position.z=29;
+  for(const y of [-16.5,16.5]) {
+    const rail=cylinder(1.8,62,materials.metal,gripper);rail.rotation.z=Math.PI/2;rail.position.set(0,y,27);
+  }
+  const pads=mat('#28302b',0);
+  const fingers=[-1,1].map(side=>{
+    const jaw=new THREE.Group();gripper.add(jaw);
+    const carrier=mesh(new THREE.BoxGeometry(12,28,8),materials.shell,jaw);carrier.position.z=22;
+    const finger=mesh(new THREE.BoxGeometry(6,24,26),materials.metal,jaw);finger.position.set(side*.5,0,6);
+    const pad=mesh(new THREE.BoxGeometry(1,22,18),pads,jaw);pad.position.set(-side*3,0,2);
+    return jaw;
+  });
   const blocks=new Map();
   for(const [id,color] of Object.entries({red:'#ce6450',blue:'#628ca9',yellow:'#dab65b'})) {
     const b=mesh(new THREE.BoxGeometry(36,36,36),mat(color,.05));blocks.set(id,b);
@@ -62,7 +75,7 @@ export function createScene(container) {
     joints.forEach((joint,i)=>{joint.position.copy(v(pose.origins[i]));joint.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),v(pose.axes[i]));caps[i].position.copy(joint.position).addScaledVector(v(pose.axes[i]),[20,23,20.5,16,14.5,13][i]);caps[i].quaternion.copy(joint.quaternion);});
     const r=tool.rotation;
     gripper.position.copy(v(tool.tip));gripper.quaternion.setFromRotationMatrix(new THREE.Matrix4().set(r[0],r[1],r[2],0,r[3],r[4],r[5],0,r[6],r[7],r[8],0,0,0,0,1));
-    fingers.forEach((finger,i)=>finger.position.set((i?1:-1)*(s.held?21.5:29),0,8));
+    fingers.forEach((finger,i)=>finger.position.set((i?1:-1)*(s.held?21.5:29),0,0));
     for(const block of s.objects) {const m=blocks.get(block.id);m.position.copy(v(block.position));m.rotation.z=block.yaw*Math.PI/180;blockLabels.get(block.id).position.set(block.position[0],block.position[1],block.position[2]+35);}
   }
   function resize(){const {width,height}=container.getBoundingClientRect();renderer.setSize(width,height);camera.aspect=width/height;camera.fov=width<600?40:34;controls.target.z=width<600?112:70;camera.updateProjectionMatrix();}
