@@ -10,6 +10,8 @@ Examples:
 
 - “Pick up the red block.” The arm picks it up, then asks where to place it.
 - “Put it on the left pad.” The current held object is used.
+- “Put it on top of the red block.” The held block is aligned and stacked on red if its top face is clear.
+- “Do a dance for me.” An empty arm performs a short sway, wrist turn and bow, then returns home.
 - “Pick up blue and put it on the right pad.” The whole plan is checked before moving.
 - “Rotate it 90 degrees clockwise.” The agent can ask which view/direction you mean.
 - “Pick up the block.” The agent asks which colour.
@@ -36,7 +38,7 @@ The frontend is entirely hosted on GitHub Pages. GitHub Pages cannot run the rel
 
 `kinematics.mjs` reuses Robot Lab's six-revolute-joint forward/inverse kinematics, joint limits and orientation solver. `scene.mjs` renders those actual joint transforms, including wrist joints and tool orientation. Every AI action is schema-checked, preflighted against a copy of the current world, then animated by the deterministic controller. Current scene snapshots and execution results accompany subsequent agent turns. Arbitrary model code never runs.
 
-The task surface uses 36 mm blocks. Motion uses elevated transfer paths, joint interpolation checks, conservative block/link clearance and occupied-pad checks. The entire requested plan is rejected if any step fails. The UI reports pickup/placement only after the corresponding simulation event. This is a simplified kinematic teaching simulator: no calibrated dynamics, payload, force, friction, full self-collision or hardware safety assessment. Object placement is restricted to empty pads; stacking and free-space release are deliberately unsupported.
+The task surface uses 36 mm blocks. Motion uses elevated transfer paths, joint interpolation checks, conservative block/link clearance and occupied-pad checks. The entire requested plan is rejected if any step fails. The UI reports pickup/placement only after the corresponding simulation event. This is a simplified kinematic teaching simulator: no calibrated dynamics, payload, force, friction, full self-collision or hardware safety assessment. Object placement is restricted to empty pads or aligned stacking on uncovered blocks. A block with another block on top cannot be moved until the top block is removed. Free-space release is unsupported. The dance is a fixed, preflighted motion and requires an empty gripper. Invalid AI action schemas receive one bounded correction attempt before the app explains its supported movements.
 
 ## Development and verification
 
@@ -50,6 +52,6 @@ node six-axis-agent/tests/browser.mjs
 
 Set `BNTA_PLAYWRIGHT_PATH` to a Playwright module URL if it is not locally installed. Set `BNTA_SCREENSHOTS` to an output directory to capture desktop/mobile views. `BNTA_PREVIEW_URL` can target a deployed frontend.
 
-Verified: all block/pad combinations, wrist rotation, occupied-pad refusal, atomic plan rejection, stopping and subsequent placement, schema enforcement, actual WebGL rendering, state-aware follow-up, clarification/refusal handling, invalid provider output, cancellation of stale replies, reset, persistent explicit language, and a 390 px mobile layout. Browser action tests use clearly marked mocked provider replies; no live successful Qwen inference was tested without the user's key.
+Verified: every ordered block-stacking pair, unstacking, covered-block and self-stacking refusal, dance motion, bounded AI schema repair, all block/pad combinations, wrist rotation, occupied-pad refusal, atomic plan rejection, stopping and subsequent placement, schema enforcement, actual WebGL rendering, state-aware follow-up, clarification/refusal handling, invalid provider output, cancellation of stale replies, reset, persistent explicit language, and a 390 px mobile layout. Browser action tests use clearly marked mocked provider replies; no live successful Qwen inference was tested without the user's key.
 
 Copyright (c) 2026 Christopher Hansen. [MIT license](../LICENSE). Three.js retains its existing license in the parent project.

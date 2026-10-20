@@ -20,7 +20,7 @@ try {
  page.on('pageerror',e=>errors.push(e.message));
  let seen=[];
  await page.route('https://bnta-robot-lab-connection.zhinii.chatgpt.site/api/chat',async route=>{
-  const request=route.request(),data=request.postDataJSON();const q=JSON.parse(data.messages.at(-1).content);seen.push(q);
+  const request=route.request(),data=request.postDataJSON();const q=JSON.parse(data.messages.findLast(m=>m.role==='user'&&m.content.startsWith('{')).content);seen.push(q);
   let response={reply:'Which block would you like me to pick up?',actions:[]};
   if(q.question==='connection_check')response={reply:'Connected',actions:[]};
   else if(q.question==='pick red')response={reply:'I will pick up the red block.',actions:[{type:'pick',object:'red'}]};
@@ -28,6 +28,8 @@ try {
   else if(q.question==='fly')response={reply:'I cannot fly. I can pick up a block.',actions:[]};
   else if(q.question==='invalid')response={reply:'Oops',actions:[{type:'execute',code:'x'}]};
   else if(q.question==='pick blue')response={reply:'I will pick up blue.',actions:[{type:'pick',object:'blue'}]};
+  else if(q.question==='put it on top of the red block')response={reply:'I will place it on the red block.',actions:[{type:'place',target:'red'}]};
+  else if(q.question==='do a dance for me')response={reply:'I will do a short dance.',actions:[{type:'dance'}]};
   else if(q.question==='slow'){await new Promise(r=>setTimeout(r,1200));response={reply:'I will pick blue.',actions:[{type:'pick',object:'blue'}]};}
   else if(q.language==='zh')response={reply:'你想让我拿起哪个颜色的方块？',actions:[]};
   await route.fulfill({json:{choices:[{message:{content:JSON.stringify(response)}}]}}).catch(()=>{});
@@ -55,6 +57,13 @@ try {
  await page.locator('#reset').click();assert.deepEqual(await page.evaluate(()=>window.robotLabSnapshot().scene),initial);
  await page.locator('#prompt').fill('slow');await page.locator('#send').click();await page.locator('#stop').click();await page.waitForTimeout(1400);
  assert.deepEqual(await page.evaluate(()=>window.robotLabSnapshot().scene),initial);
+ await send('pick blue');await send('put it on top of the red block');
+ const stacked=await page.evaluate(()=>window.robotLabSnapshot().scene);assert.equal(stacked.held,null);assert.deepEqual(stacked.objects.find(o=>o.id==='blue').position,[240,-70,54]);
+ assert.match(await page.locator('#messages').innerText(),/placed the blue block on top of the red block/);
+ if(output){await page.waitForTimeout(250);await page.screenshot({path:output+'/stacking.png'});}
+ await send('pick red');assert.deepEqual(await page.evaluate(()=>window.robotLabSnapshot().scene),stacked);assert.match(await page.locator('#messages').innerText(),/move the top block first/);
+ await send('do a dance for me');assert.match(await page.locator('#messages').innerText(),/Dance complete/);
+ assert.deepEqual((await page.evaluate(()=>window.robotLabSnapshot().scene)).objects,stacked.objects);
  await page.locator('#language').click();await send('拿起方块');assert.equal(seen.at(-1).language,'zh');
  await page.setViewportSize({width:390,height:844});
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));

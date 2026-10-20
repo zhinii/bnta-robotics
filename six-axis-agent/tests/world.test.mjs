@@ -46,6 +46,36 @@ test('AI reply is bounded, structured and cannot inject arbitrary commands',()=>
  assert.throws(()=>parseResponse('{"reply":"Done","actions":[{"type":"run","code":"alert(1)"}]}'));
  assert.throws(()=>parseResponse('{"reply":"Hello"}'));
 });
+test('stacking supports every pair, reports occupied top faces and can unstack',()=>{
+ for(const object of ['red','blue','yellow'])for(const target of ['red','blue','yellow'].filter(c=>c!==object)){
+  const s=initialState();for(const step of planActions(s,[{type:'pick',object},{type:'place',target}]).steps)applyStep(s,step);
+  const support=s.objects.find(o=>o.id===target),top=s.objects.find(o=>o.id===object);
+  assert.deepEqual(top.position,[support.position[0],support.position[1],support.position[2]+36]);assert.equal(s.held,null);
+  assert.throws(()=>planActions(s,[{type:'pick',object:target}]),/covered/);
+  assert.doesNotThrow(()=>planActions(s,[{type:'pick',object},{type:'place',target:'left'}]));
+ }
+});
+test('stacking never allows self placement or removing the middle of a tower',()=>{
+ const held=planActions(initialState(),[{type:'pick',object:'blue'}]).result;
+ assert.throws(()=>planActions(held,[{type:'place',target:'blue'}]),/selfStack/);
+ const tower=planActions(initialState(),[{type:'pick',object:'blue'},{type:'place',target:'red'},{type:'pick',object:'yellow'},{type:'place',target:'blue'}]).result;
+ assert.equal(tower.objects[2].position[2],90);assert.throws(()=>planActions(tower,[{type:'pick',object:'blue'}]),/covered/);
+});
+test('dance moves joints, preserves blocks, returns home, and refuses while holding',()=>{
+ const s=initialState(),plan=planActions(s,[{type:'dance'}]);assert.ok(plan.steps.some(x=>Math.abs(x.yaw)>20));
+ for(const step of plan.steps)applyStep(s,step);assert.deepEqual(s.objects,initialState().objects);assert.ok(distance(toolPose(s.q).tip,[210,0,150])<.2);
+ const held=planActions(s,[{type:'pick',object:'blue'}]).result;assert.throws(()=>planActions(held,[{type:'dance'}]),/holding/);
+});
+test('AI schema repair retries once without executing, preserving the relay message bound',async()=>{
+ let calls=0;
+ const args={question:'do a dance for me',language:'en',history:Array.from({length:12},()=>({role:'user',content:'hello'})),scene:{held:null}};
+ const result=await askAgent({...DEFAULTS,key:'fake-test-key'},args,undefined,async(url,init)=>{
+  assert.ok(JSON.parse(init.body).messages.length<=14);calls++;
+  return {ok:true,json:async()=>({choices:[{message:{content:JSON.stringify(calls===1?{reply:'Dance',actions:[{type:'wave'}]}:{reply:'I will dance.',actions:[{type:'dance'}]})}}]})};
+ });
+ assert.equal(calls,2);assert.deepEqual(result.actions,[{type:'dance'}]);
+ calls=0;await assert.rejects(()=>askAgent({...DEFAULTS,key:'fake-test-key'},args,undefined,async()=>{calls++;return {ok:true,json:async()=>({choices:[{message:{content:'{"reply":"Fly","actions":[{"type":"fly"}]}'}}]})};}),/invalid/);assert.equal(calls,2);
+});
 test('Token Plan uses the designated relay with explicit language and actual scene; key stays out of messages',async()=>{
  let seen;
  const result=await askAgent({...DEFAULTS,key:'fake-test-key'},{question:'pick',language:'zh',history:[],scene:{held:'red'}},undefined,async(url,init)=>{
