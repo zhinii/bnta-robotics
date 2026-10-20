@@ -1,11 +1,44 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {initialState,planActions,applyStep,validateActions,AREAS,HOME,HOMES,DESK,clearPose,reverseSteps,snapshot} from '../world.mjs';
+import {initialState,planActions,applyStep,validateActions,AREAS,HOME,HOMES,DESK,clearPose,reverseSteps,snapshot,objectPosture,postureOrientations} from '../world.mjs';
 import {toolPose,distance} from '../kinematics.mjs';
 import {parseResponse,askAgent,DEFAULTS,RELAY,SYSTEM} from '../agent.mjs';
 import {createSpeech} from '../speech.mjs';
 const run=(s,actions)=>{const plan=planActions(s,actions);for(const step of plan.steps)applyStep(s,step);return plan;};
 const sameObjects=(a,b)=>{for(const object of a.objects){const other=b.objects.find(o=>o.id===object.id);assert.ok(distance(object.position,other.position)<.15,object.id);assert.ok(distance(object.rpy,other.rpy)<.02,object.id);}};
+test('all desk objects stand upright on the shelf with geometric support, undo and restore',()=>{
+ for(const id of initialState(0,'desk').objects.map(o=>o.id)){
+  const s=initialState(0,'desk'),before=structuredClone(s),p=run(s,[{type:'transfer',object:id,target:'shelf-middle',posture:'short-edge'}]),o=s.objects.find(o=>o.id===id);
+  assert.equal(objectPosture(o),'short-edge',id);
+  assert.equal(o.position[2],28+Math.max(...o.size)/2,id);
+  const inverse=reverseSteps(before,p.steps),back=structuredClone(s);for(const step of inverse)applyStep(back,step);sameObjects(back,before);assert.equal(back.held,null);
+  run(s,[{type:'restore'}]);sameObjects(s,before);
+ }
+});
+test('held notebook can stand on its short edge at pickup or shelf and undo returns the same grip',()=>{
+ for(const target of ['start','shelf-left']){
+  const s=initialState(0,'desk');run(s,[{type:'pick',object:'notebook'}]);const before=structuredClone(s);
+  const p=run(s,[{type:'place',target,posture:'short-edge'}]);assert.equal(objectPosture(s.objects.find(o=>o.id==='notebook')),'short-edge');
+  for(const step of reverseSteps(before,p.steps))applyStep(s,step);sameObjects(s,before);assert.equal(s.held,'notebook');assert.deepEqual(s.grasp,before.grasp);
+ }
+});
+test('both books can rest on the long edge and be laid flat again without a yaw-only substitute',()=>{
+ for(const id of ['book','notebook']){
+  const s=initialState(0,'desk'),before=structuredClone(s);run(s,[{type:'transfer',object:id,target:'shelf-middle',posture:'long-edge'}]);
+  const o=s.objects.find(o=>o.id===id);assert.equal(objectPosture(o),'long-edge');assert.equal(o.position[2],28+[...o.size].sort((a,b)=>a-b)[1]/2);
+  run(s,[{type:'restore'}]);sameObjects(s,before);
+ }
+ const book=initialState().objects[0];assert.equal(objectPosture({...book,rpy:[0,0,90]}),'flat');
+ for(const orientation of postureOrientations(book,'short-edge'))assert.equal(objectPosture({...book,rpy:orientation}),'short-edge');
+ assert.throws(()=>validateActions([{type:'place',target:'start',posture:'short-edge',orientation:[0,0,90]}]),/angle/);
+ assert.equal(parseResponse('{"reply":"I will stand it up.","actions":[{"type":"transfer","object":"notebook","target":"shelf-left","posture":"short-edge"}]}').actions[0].posture,'short-edge');
+});
+test('upright books are not advertised as broad stacking supports and blocked posture tasks are atomic',()=>{
+ const s=initialState(0,'desk');run(s,[{type:'transfer',object:'book',target:'shelf-middle',posture:'short-edge'}]);const before=structuredClone(s);
+ assert.equal(snapshot(s).objects.find(o=>o.id==='book').stackable,false);
+ assert.throws(()=>planActions(s,[{type:'transfer',object:'notebook',target:'book'}]),/unstable/);assert.deepEqual(s,before);
+ assert.throws(()=>planActions(s,[{type:'transfer',object:'eraser',target:'rear',posture:'short-edge'}]),/posture/);assert.deepEqual(s,before);
+});
 test('90 degree X, Y and Z turns preserve the requested axis and can restore or undo',()=>{
  for(const [axis,index] of [['x',0],['y',1],['z',2]]){
   const s=initialState(0,'desk'),before=structuredClone(s),actions=[{type:'pick',object:'book'},{type:'rotate',axis,angle:90}];

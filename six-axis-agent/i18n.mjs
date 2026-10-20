@@ -1,5 +1,12 @@
 export const words={
  en:{
+  postureBlocked:'I couldn’t place the {object} on that edge there. I tried other grips and approaches; the last approach would touch the {blocker}. Nothing moved. Choose a clearer shelf space or move that obstacle first if it is movable.',
+  postureReach:'I couldn’t reach that location while holding the {object} on the requested edge, even with other grips. Nothing moved. Try the left or middle shelf space, or another nearby clear position; I’ll keep the requested edge.',
+  posture:'I couldn’t find a clear, reachable grip and path for that supporting edge at the requested location. Nothing moved. Choose another shelf space or clear some room beside the item; I’ll keep the orientation you requested.',
+  planningTimeout:'I ran out of planning time before finding a checked path. Nothing moved. Try one object at a time or choose a clearer shelf space.',
+  posture_flat:'lying flat', 'posture_short-edge':'standing upright on its short edge (longest dimension vertical)', 'posture_long-edge':'resting on its long edge (middle dimension vertical)',posture_tilted:'tilted',
+  postureHeld:'I’m holding the {object}, {posture}. X, Y, Z: {angles}. Where should it go?',
+  posturePlaced:'The {object} is now {posture}. X, Y, Z: {angles}.',
   rotation:'I couldn’t find a clear, reachable path to turn the {object} {angle}° around {axis}, even after checking other turning positions. Nothing moved. Try a smaller angle, or a different axis.',
   tiltedPlacement:'I couldn’t place the {object} at that destination while keeping its X, Y, Z orientation at {angles}. Nothing moved. Should I level it before placing it, or should we choose another destination?',
   orientationHeld:'I’m holding the {object}. Its X, Y, Z orientation is {angles}. Where would you like me to put it?',
@@ -21,6 +28,13 @@ export const words={
   mic:'Dictate a command',micStop:'Finish dictation',listening:'Listening… tap the microphone to finish.',speechReady:'Review the words above, then press Send.',speechUnavailable:'Speech recognition isn’t available in this browser. Open the page in a supported browser, or type your command.',speechDenied:'Microphone or speech permission was denied. Allow it in your browser’s site settings, or type your command.',speechEmpty:'I didn’t hear a command. Tap the microphone and try again, or type it.',speechDevice:'I couldn’t start the microphone. Check that a working microphone is connected and available.',speechNetwork:'The browser’s speech service could not complete recognition. Check the connection or type your command.',speechNote:'Dictation uses your browser’s speech service. Review before sending.'
  },
  zh:{
+  postureBlocked:'我无法把{object}以指定的边放在那里。我尝试了其他夹持方式和路径，最后的路径仍会碰到{blocker}。机械臂没有移动。请选择更空的位置，或先移动可移动的障碍物。',
+  postureReach:'即使尝试其他夹持方式，我仍无法在保持{object}以指定的边摆放时到达那个位置。机械臂没有移动。请尝试整理架左侧、中间或附近空位；我会保留你要求的边。',
+  posture:'我未能找到能在指定位置以所要求的边支撑、且无碰撞的夹持与移动路径。机械臂没有移动。请选择另一个整理架空位，或先腾出物品旁的空间；我会保留你要求的摆放方向。',
+  planningTimeout:'规划时间用完了，尚未找到通过检查的路径。机械臂没有移动。请一次处理一个物品，或选择更空的整理架位置。',
+  posture_flat:'平放', 'posture_short-edge':'以短边支撑直立（最长尺寸竖直）', 'posture_long-edge':'以长边支撑侧立（中间尺寸竖直）',posture_tilted:'倾斜',
+  postureHeld:'我正夹着{object}，姿态为{posture}。X、Y、Z：{angles}。你想放在哪里？',
+  posturePlaced:'{object}现在已{posture}。X、Y、Z：{angles}。',
   rotation:'即使尝试其他旋转位置，我仍找不到将{object}绕 {axis} 轴旋转 {angle}° 的可达且无碰撞路径。机械臂没有移动。请尝试较小角度或其他轴。',
   tiltedPlacement:'我无法在保持{object}的 X、Y、Z 朝向为 {angles} 时将它放到指定位置。机械臂没有移动。你希望先放平再放下，还是选择另一个位置？',
   orientationHeld:'我正夹着{object}。它的 X、Y、Z 朝向为 {angles}。你想把它放在哪里？',

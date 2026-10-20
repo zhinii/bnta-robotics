@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from '../beginner-3axis/vendor/three/examples/jsm/controls/OrbitControls.js';
-import { fk, toolPose } from './kinematics.mjs?v=dorm-20261021-4';
-import { CATALOG, HOMES, DESK } from './world.mjs?v=dorm-20261021-4';
+import { fk, toolPose } from './kinematics.mjs?v=edges-20261021-1';
+import { CATALOG, HOMES, DESK, graspWidth, footprint } from './world.mjs?v=edges-20261021-1';
 
 export function createScene(container) {
   const scene=new THREE.Scene(); scene.background=new THREE.Color('#eeeee7');
@@ -187,14 +187,14 @@ export function createScene(container) {
     const r=tool.rotation;
     gripper.position.copy(v(tool.tip));gripper.quaternion.setFromRotationMatrix(new THREE.Matrix4().set(r[0],r[1],r[2],0,r[3],r[4],r[5],0,r[6],r[7],r[8],0,0,0,0,1));
     const held=s.objects.find(o=>o.id===s.held);
-    fingers.forEach((finger,i)=>finger.position.set((i?1:-1)*(held?held.size[0]/2+3.5:29),0,0));
+    fingers.forEach((finger,i)=>finger.position.set((i?1:-1)*(held?graspWidth(s)/2+3.5:29),0,0));
     for(const [id,m] of objects){m.visible=s.objects.some(o=>o.id===id);objectLabels.get(id).visible=m.visible;}
     for(const object of s.objects){
       if(!objects.has(object.id)){objects.set(object.id,schoolObject(object.id));objectLabels.set(object.id,label(object.id==='pencilcase'?'PENCIL CASE':object.id.toUpperCase(),object.zh,[0,0,0],object.name.length*5.2+12));labels.at(-1)(currentLanguage);}
       const m=objects.get(object.id);m.position.copy(v(object.position));m.rotation.set(...(object.rpy||[0,0,object.yaw]).map(n=>n*Math.PI/180),'ZYX');
       const stack=s.objects.filter(o=>o.id!==s.held&&Math.hypot(o.position[0]-object.position[0],o.position[1]-object.position[1])<10).sort((a,b)=>a.position[2]-b.position[2]);
-      const top=Math.max(...stack.map(o=>o.position[2]+o.size[2]/2));
-      objectLabels.get(object.id).position.set(object.position[0]+(stack.length>1?65:0),object.position[1]+(stack.length>1?35:0),stack.length>1?top+22+stack.findIndex(o=>o.id===object.id)*40:object.position[2]+object.size[2]/2+22);
+      const top=Math.max(...stack.map(o=>o.position[2]+footprint(o)[2]/2));
+      objectLabels.get(object.id).position.set(object.position[0]+(stack.length>1?65:0),object.position[1]+(stack.length>1?35:0),stack.length>1?top+22+stack.findIndex(o=>o.id===object.id)*40:object.position[2]+footprint(object)[2]/2+22);
       objectLabels.get(object.id).userData.anchor.copy(objectLabels.get(object.id).position);
     }
     for(const [id,m]of obstacles)m.visible=(s.obstacles||[]).some(o=>o.id===id);

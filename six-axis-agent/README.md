@@ -9,6 +9,9 @@ Enter your Alibaba API key in the chat's password field and press **Connect**. T
 Try these requests:
 
 - “This room is messy.” The robot asks which item to start with and where it belongs, rather than inventing the user's arrangement.
+- “Stand the blue notebook on its short edge in the middle of the shelf.”
+- “Put the red book on the left shelf, resting on its long edge.”
+- “Lay it flat again”, “undo that”, or “put everything back where it started”.
 - “Put the book in the middle of the organizer, then stack the notebook on it.”
 - “Put the pen in the middle of the organizer and the pencil beside it on the left.”
 - “Put the clock on the right of the organizer.”
@@ -57,6 +60,10 @@ Named-object placement uses a `transfer` action that picks up the specified obje
 The controller supports grasp/release; placement on clear table coordinates, organizer spaces, beside objects (left/right from the seated user viewpoint in the dorm), on a suitable flat support, or at a remembered starting position; Cartesian tool poses; explicit six-joint poses; X/Y/Z rotation; home; restore; undo; wave; bow; circle; up/down; and gentle/lively dance. Rotation uses roll/pitch/yaw components, with robot-local frame +X front, +Y right and +Z up. Rotated bounds are used for clearance and placement height. Turning and placing are separate reachability problems. Orientation completion messages come from the actual simulated state, and restore resets orientation as well as position. There are at most 12 actions per request and three repetitions per named gesture. Preset gestures coexist with model-composed Cartesian sequences.
 
 Undo stores up to eight completed tasks and reverses their actual validated trajectories. Restore handles stacked objects from the top down and can use an empty table region to resolve swapped starting positions. School objects use distinct sizes and grasp widths. A glue stick or ruler cannot be used as a stacking support.
+
+Natural placement orientations use `posture: "short-edge" | "long-edge" | "flat" | "upright"` on `place` or `transfer`. Short-edge/upright puts the longest dimension vertically; long-edge uses the middle dimension; flat uses the shortest dimension. The controller selects a feasible facing and grip without substituting a flat Z spin for standing. Object orientation and offset are tracked relative to the gripper. A different grip requires a visible release on the previous support and a new pickup, never an attachment change in midair. Shelf height, collision bounds, jaw width, labels and completion text use the resulting pose. Upright books are not broad stacking supports. Undo preserves grasp transforms and restore returns original orientations.
+
+Tests cover all seven desk items standing on the middle shelf, both books resting on their long edges, the already-held notebook placed upright on the left shelf or back at its start, and undo/restore. This does not guarantee every orientation at every location: for example, a far shelf approach can still exceed the wrist range or hit the laptop. The simulation checks geometric support, not friction or balance; standing a pen on end is a kinematic exercise.
 
 This remains a simplified kinematic teaching simulator. Conservative bounding volumes and a limited family of transfer paths may reject a physically possible task; the planner is not complete. It does not model calibrated dynamics, forces, friction, detailed object deformation, all robot self-collisions, or certify physical hardware safety. The school props are illustrative scaled models. The simulated joint ranges stay unchanged; the tool solver permits low grasp centres for thin objects while the world controller checks the actual gripper/table clearance.
 

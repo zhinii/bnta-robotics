@@ -1,8 +1,8 @@
-import { initialState, snapshot, applyStep, CATALOG } from './world.mjs?v=dorm-20261021-4';
-import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=dorm-20261021-4';
-import { createScene } from './scene.mjs?v=dorm-20261021-4';
-import { createSpeech } from './speech.mjs?v=dorm-20261021-4';
-import { words, challenges } from './i18n.mjs?v=dorm-20261021-4';
+import { initialState, snapshot, applyStep, CATALOG, objectPosture } from './world.mjs?v=edges-20261021-1';
+import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=edges-20261021-1';
+import { createScene } from './scene.mjs?v=edges-20261021-1';
+import { createSpeech } from './speech.mjs?v=edges-20261021-1';
+import { words, challenges } from './i18n.mjs?v=edges-20261021-1';
 
 const $=id=>document.getElementById(id);
 let language='en';try{language=localStorage.getItem('six-axis-language')==='zh'?'zh':'en';}catch{}
@@ -69,9 +69,9 @@ function prepare(actions){
     return Promise.resolve({plan:{steps:undo.at(-1)},undoing:true});
   }
   return new Promise((resolve,reject)=>{
-    const planner=new Worker(new URL('./planner-worker.mjs?v=dorm-20261021-4',import.meta.url),{type:'module'});worker=planner;
+    const planner=new Worker(new URL('./planner-worker.mjs?v=edges-20261021-1',import.meta.url),{type:'module'});worker=planner;
     const finish=()=>{clearTimeout(timer);planner.terminate();if(worker===planner){worker=null;workerReject=null;}};
-    const timer=setTimeout(()=>{finish();reject(Error('blocked'));},15000);
+    const timer=setTimeout(()=>{finish();reject(Error('planningTimeout'));},45000);
     workerReject=error=>{finish();reject(error);};
     planner.onmessage=({data})=>{finish();if(data.error)reject(Object.assign(Error(data.error.code),{detail:data.error.detail,action:data.error.action}));else resolve(data);};
     planner.onerror=()=>{finish();reject(Error('invalid'));};
@@ -96,6 +96,8 @@ async function animate(steps,id){
 }
 function reportError(error){
   const key=error.message==='empty'?'emptyError':error.message==='holding'?'holdingError':words[language][error.message]?error.message:error instanceof TypeError?'network':'provider';
+  if(key==='posture'&&error.detail?.blocker){const vars={object:name(error.detail.object),blocker:name(error.detail.blocker)};say('postureBlocked',vars,'assistant',true);return t('postureBlocked',vars);}
+  if(key==='posture'&&error.detail?.reason==='reach'){const vars={object:name(error.detail.object)};say('postureReach',vars,'assistant',true);return t('postureReach',vars);}
   if(key==='blocked'&&error.detail?.blocker){const vars={object:name(error.detail.blocker),objectId:error.detail.blocker};say('blockedBy',vars,'assistant',true);return t('blockedBy',vars);}
   if(key==='rotation'){const vars={object:name(error.detail.held),axis:error.detail.axis.toUpperCase(),angle:error.detail.angle};say('rotation',vars,'assistant',true);return t('rotation',vars);}
   if(['reach','blocked'].includes(key)&&['place','transfer'].includes(error.action?.type)&&error.detail?.requestedOrientation?.slice(0,2).some(v=>Math.abs(v)>.1)){const vars={object:name(error.detail.held),angles:error.detail.requestedOrientation.map(v=>Math.round(v)).join('°, ')+'°'};say('tiltedPlacement',vars,'assistant',true);return t('tiltedPlacement',vars);}
@@ -131,15 +133,16 @@ async function send(question){
     remember('user',question);
     if(!response.actions.length){add('assistant',response.reply);remember('assistant',response.reply);return;}
     add('assistant',response.reply);remember('assistant',response.reply);status('moving');
+    const touched=new Set([state.held,...prepared.plan.steps.filter(step=>step.type==='grip').map(step=>step.object)]);
     await animate(prepared.plan.steps,id);if(id!==epoch)return;
     if(prepared.undoing)undo.pop();else{undo.push(prepared.inverse);undo=undo.slice(-8);}
     const last=response.actions.at(-1),key=state.held?(last.type==='pick'?'pickDone':'holdDone'):last.type==='restore'?'restoreDone':last.type==='undo'?'undoDone':['dance','wave','bow','circle','bob'].includes(last.type)?'danceDone':'done';
     const vars=state.held?{object:name(state.held),objectId:state.held}:{};
-    const rotated=response.actions.some(a=>a.type==='rotate'||a.orientation);
+    const rotated=response.actions.some(a=>a.type==='rotate'||a.orientation||a.posture);
     let completion=response.after||t(key,vars);
     if(rotated){
-      const items=state.objects.filter(o=>o.id===state.held||o.rpy.some(v=>Math.abs(v)>.1));
-      completion=items.length?items.map(o=>t(o.id===state.held?'orientationHeld':'orientationPlaced',{object:name(o.id),angles:o.rpy.map(v=>Math.round(v)).join('°, ')+'°'})).join('\n'):t(key,vars);
+      const items=state.objects.filter(o=>o.id===state.held||touched.has(o.id));
+      completion=last.type==='restore'?t('restoreDone'):items.length?items.map(o=>t(o.id===state.held?'postureHeld':'posturePlaced',{object:name(o.id),posture:t('posture_'+objectPosture(o)),angles:o.rpy.map(v=>Math.round(v)).join('°, ')+'°'})).join('\n'):t(key,vars);
     }
     add('assistant',completion);
     remember('assistant',completion+'\nExecuted actions: '+JSON.stringify(response.actions)+'\nActual scene: '+JSON.stringify(perception()));
