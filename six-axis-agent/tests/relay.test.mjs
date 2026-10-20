@@ -17,7 +17,7 @@ test('relay bounds inference and returns only assistant content',async()=>{
  globalThis.fetch=async(url,init)=>{seen={url,...init};return Response.json({choices:[{message:{content:'{"reply":"Which block?","actions":[]}'}}],debug:'private provider detail'});};
  try{
  const response=await POST(new Request(url,{method:'POST',headers,body:JSON.stringify({model:'qwen3.8-flash',messages:[{role:'user',content:'pick'}],max_tokens:99999})}));
- assert.equal(response.status,200);assert.equal(JSON.parse(seen.body).max_tokens,900);assert.equal(seen.redirect,'error');assert.equal(seen.headers.Authorization,headers.Authorization);
+ assert.equal(response.status,200);assert.equal(JSON.parse(seen.body).max_tokens,900);assert.equal(seen.redirect,'manual');assert.equal(seen.headers.Authorization,headers.Authorization);
  const result=await response.text();assert.ok(!result.includes('private'));assert.ok(!result.includes('fake-relay-test-key'));
  }finally{globalThis.fetch=original;}
 });

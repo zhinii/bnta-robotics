@@ -68,5 +68,5 @@ export function createScene(container) {
   function resize(){const {width,height}=container.getBoundingClientRect();renderer.setSize(width,height);camera.aspect=width/height;camera.fov=width<600?40:34;controls.target.z=width<600?112:70;camera.updateProjectionMatrix();}
   new ResizeObserver(resize).observe(container);resize();
   renderer.setAnimationLoop(()=>{controls.update();renderer.render(scene,camera);});
-  return {update,language:lang=>labels.forEach(draw=>draw(lang)),resetView:()=>{camera.position.set(650,-690,540);controls.target.set(125,0,60);}};
+  return {update,language:lang=>labels.forEach(draw=>draw(lang)),resetView:()=>{camera.position.set(650,-690,540);controls.target.set(125,0,container.clientWidth<600?112:70);}};
 }

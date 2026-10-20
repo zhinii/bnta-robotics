@@ -19,6 +19,7 @@ export async function POST(request:Request) {
   const authorization=request.headers.get('authorization')||'';
   if(!endpoints.has(base)||!/^Bearer [^\s]{1,512}$/.test(authorization))return reply({error:'configuration'},400);
   if(request.headers.get('content-type')?.split(';')[0]!=='application/json')return reply({error:'content_type'},400);
+  let stage='body';
   try {
     const reader=request.body?.getReader();if(!reader)return reply({error:'body'},400);
     const chunks:Uint8Array[]=[];let size=0;
@@ -26,12 +27,14 @@ export async function POST(request:Request) {
     const bytes=new Uint8Array(size);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length;}
     const body=JSON.parse(new TextDecoder().decode(bytes));
     if(!/^[\w.\-]{1,100}$/.test(body.model)||!Array.isArray(body.messages)||body.messages.length>14||body.messages.some((m:any)=>!['system','assistant','user'].includes(m.role)||typeof m.content!=='string'||m.content.length>12000))return reply({error:'request'},400);
-    const upstream=await fetch(base+'/chat/completions',{method:'POST',redirect:'error',signal:AbortSignal.timeout(25000),headers:{'Content-Type':'application/json',Authorization:authorization},body:JSON.stringify({model:body.model,messages:body.messages,max_tokens:900,temperature:.2,stream:false,enable_thinking:false})});
+    stage='provider';
+    const upstream=await fetch(base+'/chat/completions',{method:'POST',redirect:'manual',signal:AbortSignal.timeout(25000),headers:{'Content-Type':'application/json',Authorization:authorization},body:JSON.stringify({model:body.model,messages:body.messages,max_tokens:900,temperature:.2,stream:false,enable_thinking:false})});
     // No request bodies, authorization values, or provider diagnostics are logged or stored.
     if(!upstream.ok)return reply({error:'provider'},[400,401,403,404,429].includes(upstream.status)?upstream.status:502);
+    stage='parse';
     const data:any=await upstream.json();
     const content=data?.choices?.[0]?.message?.content;
     if(typeof content!=='string'||content.length>12000)return reply({error:'response'},502);
     return reply({choices:[{message:{content}}]});
-  } catch { return reply({error:'connection'},502); }
+  } catch(error) { return reply({error:'connection',stage,kind:error instanceof TypeError?'type':error instanceof SyntaxError?'json':'transport'},502); }
 }
