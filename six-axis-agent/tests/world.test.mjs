@@ -43,15 +43,19 @@ test('user-selected stacks and side-by-side orders preserve shelf height and can
   assert.equal(s.objects.find(o=>o.id===top).position[2],28+s.objects.find(o=>o.id===base).size[2]+s.objects.find(o=>o.id===top).size[2]/2);
   for(const step of inverse)applyStep(s,step);sameObjects(s,before);
  }
- const s=initialState(0,'desk');run(s,[{type:'transfer',object:'pen',target:'shelf-middle'},{type:'transfer',object:'pencil',beside:'pen',side:'left'}]);
- assert.equal(s.objects.find(o=>o.id==='pencil').position[2],36);assert.ok(s.objects.find(o=>o.id==='pencil').position[1]<0);
- assert.throws(()=>planActions(s,[{type:'transfer',object:'book',beside:'pencil',side:'left'}]),e=>e.message==='destination'&&e.detail.reason.includes('overhang'));
- assert.throws(()=>planActions(s,[{type:'move',position:[70,230,60]}]),/blocked/);
+ const s=initialState(0,'desk');run(s,[{type:'transfer',object:'pen',target:'shelf-middle'},{type:'transfer',object:'pencil',beside:'pen',side:'rear'}]);
+ assert.equal(s.objects.find(o=>o.id==='pencil').position[2],36);assert.ok(s.objects.find(o=>o.id==='pencil').position[0]<s.objects.find(o=>o.id==='pen').position[0]);
+ assert.throws(()=>planActions(s,[{type:'transfer',object:'book',beside:'pencil',side:'rear'}]),e=>e.message==='destination'&&/overhang|not enough shelf space/.test(e.detail.reason));
+ run(s,[{type:'restore'}]);sameObjects(s,initialState(0,'desk'));
+ assert.throws(()=>planActions(s,[{type:'move',position:[150,210,120]}]),/blocked/);
  assert.throws(()=>validateActions([{type:'pick',object:'laptop'}]),/unknown/);
 });
 test('side mount, desk edges and laptop are shared by perception and planning',()=>{
  const s=initialState(0,'desk'),scene=snapshot(s);
  assert.ok(-DESK.min[0]<(DESK.max[0]-DESK.min[0])*.2);
+ assert.ok(DESK.max[0]-DESK.min[0]>DESK.max[1]-DESK.min[1],'mount must be on the short edge');
+ assert.equal(s.obstacles.find(o=>o.id==='laptop').position[0],(DESK.min[0]+DESK.max[0])/2);
+ assert.equal(scene.viewerDirections.left,'rear');
  assert.deepEqual(scene.robotMount,[0,0,0]);assert.deepEqual(scene.deskBounds,DESK);assert.equal(scene.tableAreas.rear,undefined);
  assert.equal(scene.obstacles.find(o=>o.id==='laptop').fixed,true);assert.equal(scene.obstacles.some(o=>o.id==='computer'),false);
  const wall=scene.obstacles.find(o=>o.id==='wall');assert.equal(wall.position[1]-wall.size[1]/2,DESK.max[1]);assert.equal(wall.fixed,true);

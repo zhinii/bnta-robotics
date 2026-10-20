@@ -1,8 +1,8 @@
-import { initialState, snapshot, applyStep, CATALOG } from './world.mjs?v=dorm-20261021-2';
-import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=dorm-20261021-2';
-import { createScene } from './scene.mjs?v=dorm-20261021-2';
-import { createSpeech } from './speech.mjs?v=dorm-20261021-2';
-import { words, challenges } from './i18n.mjs?v=dorm-20261021-2';
+import { initialState, snapshot, applyStep, CATALOG } from './world.mjs?v=dorm-20261021-3';
+import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=dorm-20261021-3';
+import { createScene } from './scene.mjs?v=dorm-20261021-3';
+import { createSpeech } from './speech.mjs?v=dorm-20261021-3';
+import { words, challenges } from './i18n.mjs?v=dorm-20261021-3';
 
 const $=id=>document.getElementById(id);
 let language='en';try{language=localStorage.getItem('six-axis-language')==='zh'?'zh':'en';}catch{}
@@ -69,7 +69,7 @@ function prepare(actions){
     return Promise.resolve({plan:{steps:undo.at(-1)},undoing:true});
   }
   return new Promise((resolve,reject)=>{
-    const planner=new Worker(new URL('./planner-worker.mjs?v=dorm-20261021-2',import.meta.url),{type:'module'});worker=planner;
+    const planner=new Worker(new URL('./planner-worker.mjs?v=dorm-20261021-3',import.meta.url),{type:'module'});worker=planner;
     const finish=()=>{clearTimeout(timer);planner.terminate();if(worker===planner){worker=null;workerReject=null;}};
     const timer=setTimeout(()=>{finish();reject(Error('blocked'));},15000);
     workerReject=error=>{finish();reject(error);};

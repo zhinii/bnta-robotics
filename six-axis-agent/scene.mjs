@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from '../beginner-3axis/vendor/three/examples/jsm/controls/OrbitControls.js';
-import { fk, toolPose } from './kinematics.mjs?v=dorm-20261021-2';
-import { CATALOG, HOMES, DESK } from './world.mjs?v=dorm-20261021-2';
+import { fk, toolPose } from './kinematics.mjs?v=dorm-20261021-3';
+import { CATALOG, HOMES, DESK } from './world.mjs?v=dorm-20261021-3';
 
 export function createScene(container) {
   const scene=new THREE.Scene(); scene.background=new THREE.Color('#eeeee7');
@@ -85,9 +85,9 @@ export function createScene(container) {
   box(room,[330,240,3],'#b4b2a5',[530,180,-387]);
   for(const x of [DESK.min[0]+22,DESK.max[0]-22])for(const y of [DESK.min[1]+22,DESK.max[1]-22])box(deskFurniture,[19,19,375],'#6c7771',[x,y,-202]);
   // Drawer unit tucked under the far side of the desk.
-  box(deskFurniture,[150,125,260],'#ccb99b',[255,222,-150]);
-  for(const z of [-65,-145,-225]){box(deskFurniture,[149,4,70],'#decfb7',[255,157,z]);box(deskFurniture,[34,5,4],'#788078',[255,153,z+15]);}
-  const chair=new THREE.Group();deskFurniture.add(chair);chair.position.set(160,-435,-240);chair.rotation.z=-Math.PI/2;
+  box(deskFurniture,[150,125,260],'#ccb99b',[480,140,-150]);
+  for(const z of [-65,-145,-225]){box(deskFurniture,[149,4,70],'#decfb7',[480,75,z]);box(deskFurniture,[34,5,4],'#788078',[480,71,z+15]);}
+  const chair=new THREE.Group();deskFurniture.add(chair);chair.position.set(250,-340,-240);chair.rotation.z=-Math.PI/2;
   box(chair,[185,190,22],'#81948b');box(chair,[20,190,220],'#81948b',[90,0,100]);
   for(const x of [-70,70])for(const y of [-70,70])box(chair,[15,15,135],'#5d7167',[x,y,-78]);
   function decal(parent,width,height,z,draw){
@@ -151,9 +151,9 @@ export function createScene(container) {
     if(object.id==='wall')return g; // The room wall is already rendered in room coordinates.
     if(object.id==='organizer'){
       box(g,[w,l,8],'#c19e73',[0,0,h/2-4]);
-      for(const y of [-l/2+12,l/2-12])box(g,[w-12,16,h-8],'#a7835d',[0,y,-4]);
+      for(const x of [-w/2+12,w/2-12])box(g,[16,l-12,h-8],'#a7835d',[x,0,-4]);
       // Subtle engraved names mark spaces; there are no physical dividers or assigned categories.
-      for(const y of [-72,72])box(g,[w-16,1,.3],'#ac8b65',[0,y,h/2+.2]);
+      for(const x of [170,220])box(g,[1,l-16,.3],'#ac8b65',[x-object.position[0],0,h/2+.2]);
     }else if(object.id==='laptop'){
       box(g,[125,110,5],'#9aa4a6',[0,-7,-h/2+2.5]);
       box(g,[107,57,1],'#485359',[0,3,-h/2+5.1]);
@@ -174,7 +174,7 @@ export function createScene(container) {
   function orient(m,a,b) { const A=v(a),B=v(b),d=B.clone().sub(A); m.position.copy(A.add(B).multiplyScalar(.5));m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize()); }
   function update(s) {
     const isDesk=s.kit==='desk',width=DESK.max[0]-DESK.min[0],depth=DESK.max[1]-DESK.min[1],centre=(DESK.max[0]+DESK.min[0])/2;
-    station.rotation.z=isDesk?Math.PI/2:0;station.position.set(isDesk?-110:0,isDesk?-150:0,0);deskFurniture.visible=isDesk;
+    station.rotation.z=isDesk?Math.PI/2:0;station.position.set(isDesk?-420+DESK.max[1]:0,isDesk?-150:0,0);deskFurniture.visible=isDesk;
     table.scale.set(isDesk?width/800:1,isDesk?depth/800:1,1);table.position.x=isDesk?centre:0;
     surface.scale.set(isDesk?(width-8)/790:1,isDesk?(depth-8)/790:1,1);surface.position.x=isDesk?centre:0;
     deskMount.visible=isDesk;
