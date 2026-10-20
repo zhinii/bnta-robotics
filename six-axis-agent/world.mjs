@@ -1,4 +1,4 @@
-import { homeFor, ikTool, toolPose, valid, distance, transform, rotationFromEuler, JOINTS } from './kinematics.mjs?v=dorm-20261021-3';
+import { homeFor, ikTool, toolPose, valid, distance, transform, rotationFromEuler, JOINTS } from './kinematics.mjs?v=dorm-20261021-4';
 
 export const AREAS={left:[170,-230],right:[170,230],rear:[-280,0],front:[280,0]};
 export const HOME=[210,0,150];
@@ -183,7 +183,15 @@ export function planActions(state,actions) {
   }
   function restore(){
     const free=(p,b=s.objects.find(o=>o.id===s.held))=>!s.objects.some(o=>o.id!==b.id&&[0,1,2].every(i=>Math.abs(o.position[i]-p[i])<(footprint(o)[i]+b.size[i])/2+(i===2?-.3:8)));
-    const buffer=()=>{const held=s.objects.find(o=>o.id===s.held),target=Object.keys(AREAS).find(id=>free([...AREAS[id],held.size[2]/2]));if(!target)throw Error('occupied');place({target});};
+    const buffer=()=>{
+      const held=s.objects.find(o=>o.id===s.held),saved=structuredClone(s),length=steps.length;
+      for(const target of [...Object.keys(s.homes||{}),...Object.keys(AREAS)]){
+        const home=s.homes?.[target],point=home?[...home.position.slice(0,2),home.position[2]+held.size[2]/2]:[...AREAS[target],held.size[2]/2];
+        if(!free(point))continue;
+        try{place({target,orientation:[0,0,0]});return;}catch{Object.assign(s,structuredClone(saved));steps.length=length;}
+      }
+      throw Error('occupied');
+    };
     for(let i=0;i<20;i++){
       if(s.held){const b=s.objects.find(o=>o.id===s.held);if(free(b.origin))place({target:'start',orientation:[0,0,0]});else buffer();}
       const remaining=s.objects.filter(o=>distance(o.position,o.origin)>.2||o.rpy.some(v=>Math.abs(v)>.1));

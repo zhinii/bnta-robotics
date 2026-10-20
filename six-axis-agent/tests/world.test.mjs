@@ -62,6 +62,11 @@ test('side mount, desk edges and laptop are shared by perception and planning',(
  assert.ok(s.objects.every(o=>o.position[0]>0));
  assert.throws(()=>planActions(s,[{type:'transfer',object:'book',target:'rear'}]),e=>e.message==='destination'&&e.detail.reason.includes('desk edge'));
 });
+test('restore can undo swapped starts on the narrow desk using a clear shelf space',()=>{
+ const s=initialState(0,'desk'),before=structuredClone(s);
+ run(s,[{type:'transfer',object:'book',target:'shelf-left'},{type:'transfer',object:'notebook',target:'book-start'},{type:'transfer',object:'book',target:'notebook-start'}]);
+ run(s,[{type:'restore'}]);sameObjects(s,before);
+});
 test('bedroom gestures and randomized arrangements remain reachable',()=>{
  for(const type of ['wave','bow','dance','circle','bob']){const s=initialState(0,'desk'),before=structuredClone(s);run(s,[{type}]);sameObjects(s,before);assert.ok(distance(toolPose(s.q).tip,HOME)<.2);}
  for(const seed of [42,139,896])for(const object of initialState(0,'desk').objects.map(o=>o.id)){const s=initialState(seed,'desk'),before=structuredClone(s);run(s,[{type:'transfer',object,target:'shelf-middle'},{type:'restore'}]);sameObjects(s,before);}

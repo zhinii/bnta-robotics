@@ -1,4 +1,4 @@
-import { validateActions } from './world.mjs?v=dorm-20261021-3';
+import { validateActions } from './world.mjs?v=dorm-20261021-4';
 
 export const DEFAULTS = { base: 'https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1', model: 'qwen3.8-flash' };
 export const RELAY = 'https://bnta-robot-lab-connection.zhinii.chatgpt.site/api/chat';

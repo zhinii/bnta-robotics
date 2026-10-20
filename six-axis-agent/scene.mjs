@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from '../beginner-3axis/vendor/three/examples/jsm/controls/OrbitControls.js';
-import { fk, toolPose } from './kinematics.mjs?v=dorm-20261021-3';
-import { CATALOG, HOMES, DESK } from './world.mjs?v=dorm-20261021-3';
+import { fk, toolPose } from './kinematics.mjs?v=dorm-20261021-4';
+import { CATALOG, HOMES, DESK } from './world.mjs?v=dorm-20261021-4';
 
 export function createScene(container) {
   const scene=new THREE.Scene(); scene.background=new THREE.Color('#eeeee7');
