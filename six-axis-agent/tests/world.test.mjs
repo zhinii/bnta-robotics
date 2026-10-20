@@ -20,6 +20,26 @@ test('school tower stacks on flat supports, refuses a covered object, and fully 
  assert.equal(s.objects.find(o=>o.id==='eraser').position[2],58);assert.throws(()=>planActions(s,[{type:'pick',object:'book'}]),/covered/);
  run(s,[{type:'restore'}]);sameObjects(s,before);
 });
+test('named transfers pick up, place and re-pick for a round trip, including an already-held object',()=>{
+ for(const held of [false,true]){
+  const s=initialState(),before=structuredClone(s);
+  if(held)run(s,[{type:'pick',object:'eraser'}]);
+  const plan=run(s,[{type:'transfer',object:'eraser',target:'book'},{type:'transfer',object:'eraser',target:'start'}]);
+  sameObjects(s,before);assert.equal(s.held,null);
+  assert.equal(plan.steps.filter(step=>step.type==='grip').length,held?1:2);
+  assert.equal(plan.steps.filter(step=>step.type==='release').length,2);
+ }
+ const s=initialState(),before=structuredClone(s);
+ run(s,[{type:'transfer',object:'pencilcase',target:'book'},{type:'transfer',object:'eraser',target:'pencilcase'},{type:'restore'}]);sameObjects(s,before);
+ run(s,[{type:'transfer',object:'book',beside:'eraser',side:'front'},{type:'transfer',object:'book',position:[280,0]},{type:'restore'}]);sameObjects(s,before);
+ run(s,[{type:'pick',object:'book'}]);
+ assert.throws(()=>planActions(s,[{type:'transfer',object:'eraser',target:'start'}]),e=>e.message==='holding'&&e.detail.held==='book');
+});
+test('failed multistep feedback identifies the simulated gripper and failed step without executing anything',()=>{
+ const s=initialState(),before=structuredClone(s);
+ assert.throws(()=>planActions(s,[{type:'transfer',object:'eraser',target:'book'},{type:'place',target:'start'}]),e=>e.message==='empty'&&e.detail.actionIndex===1&&e.detail.held===null);
+ assert.deepEqual(s,before);
+});
 test('all six three-block tower orders restore without reset',()=>{
  for(const base of ['red','blue','yellow'])for(const middle of ['red','blue','yellow'].filter(c=>c!==base)){
   const top=['red','blue','yellow'].find(c=>c!==base&&c!==middle),s=initialState(0,'blocks'),before=structuredClone(s);
@@ -81,11 +101,17 @@ test('agent replies, schema repair, planning feedback, and credential transport 
  let calls=0;
  const result=await askAgent({...DEFAULTS,key:'fake-test-key'},{question:'wave',language:'zh',history:Array.from({length:20},()=>({role:'user',content:'好'.repeat(2500)})),scene:snapshot(initialState()),feedback:{error:'blocked',detail:{blocker:'tall divider'}}},undefined,async(url,init)=>{
   assert.equal(url,RELAY);assert.ok(!init.body.includes('fake-test-key'));assert.ok(Buffer.byteLength(init.body)<48000);
-  const data=JSON.parse(init.body);assert.ok(data.messages.length<=14);assert.equal(data.messages[0].content.length<12000,true);
+  const data=JSON.parse(init.body);assert.ok(data.messages.length<=14);assert.equal(data.messages[0].content.length<12000,true);assert.deepEqual(data.response_format,{type:'json_object'});assert.equal(data.max_tokens,2000);
   const input=JSON.parse(data.messages.findLast(m=>m.role==='user'&&m.content.startsWith('{')).content);assert.equal(input.feedback.error,'blocked');assert.equal(input.language,'zh');
   calls++;return {ok:true,json:async()=>({choices:[{message:{content:calls===1?'{"reply":"Hi","actions":[{"type":"fly"}]}':'{"reply":"I will wave.","actions":[{"type":"wave"}],"after":"Hello!"}'}}]})};
  });
  assert.equal(calls,2);assert.equal(result.after,'Hello!');assert.equal(result.actions[0].type,'wave');
+});
+test('truncated model output is retried before any plan is accepted',async()=>{
+ let calls=0;
+ const result=await askAgent({...DEFAULTS,key:'fake-test-key'},{question:'wave',language:'en',history:[],scene:snapshot(initialState())},undefined,async()=>({ok:true,json:async()=>({choices:[{finish_reason:++calls===1?'length':'stop',message:{content:' {"reply":"I will wave.","actions":[{"type":"wave"}]} '}}]})}));
+ assert.equal(calls,2);assert.equal(result.actions[0].type,'wave');
+ assert.equal(parseResponse(' \n```json\n{"reply":"Hello","actions":[]}\n```\n').reply,'Hello');
 });
 test('microphone transcribes selected language for review and never executes a command',()=>{
  let instance,text='',active=false,messages=[];

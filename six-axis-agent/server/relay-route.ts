@@ -28,13 +28,13 @@ export async function POST(request:Request) {
     const body=JSON.parse(new TextDecoder().decode(bytes));
     if(!/^[\w.\-]{1,100}$/.test(body.model)||!Array.isArray(body.messages)||body.messages.length>14||body.messages.some((m:any)=>!['system','assistant','user'].includes(m.role)||typeof m.content!=='string'||m.content.length>12000))return reply({error:'request'},400);
     stage='provider';
-    const upstream=await fetch(base+'/chat/completions',{method:'POST',redirect:'manual',signal:AbortSignal.timeout(25000),headers:{'Content-Type':'application/json',Authorization:authorization},body:JSON.stringify({model:body.model,messages:body.messages,max_tokens:900,temperature:.2,stream:false,enable_thinking:false})});
+    const upstream=await fetch(base+'/chat/completions',{method:'POST',redirect:'manual',signal:AbortSignal.timeout(25000),headers:{'Content-Type':'application/json',Authorization:authorization},body:JSON.stringify({model:body.model,messages:body.messages,max_tokens:2000,response_format:{type:'json_object'},temperature:.2,stream:false,enable_thinking:false})});
     // No request bodies, authorization values, or provider diagnostics are logged or stored.
     if(!upstream.ok)return reply({error:'provider'},[400,401,403,404,429].includes(upstream.status)?upstream.status:502);
     stage='parse';
     const data:any=await upstream.json();
     const content=data?.choices?.[0]?.message?.content;
     if(typeof content!=='string'||content.length>12000)return reply({error:'response'},502);
-    return reply({choices:[{message:{content}}]});
+    return reply({choices:[{message:{content},finish_reason:data.choices[0].finish_reason==='length'?'length':'stop'}]});
   } catch(error) { return reply({error:'connection',stage,kind:error instanceof TypeError?'type':error instanceof SyntaxError?'json':'transport'},502); }
 }

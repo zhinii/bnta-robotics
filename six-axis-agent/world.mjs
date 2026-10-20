@@ -1,4 +1,4 @@
-import { homeFor, ikTool, toolPose, valid, distance, transform, JOINTS } from './kinematics.mjs?v=school-20261021-1';
+import { homeFor, ikTool, toolPose, valid, distance, transform, JOINTS } from './kinematics.mjs?v=school-20261021-2';
 
 export const AREAS={left:[170,-230],right:[170,230],rear:[-280,0],front:[280,0]};
 export const HOME=[210,0,150];
@@ -69,11 +69,11 @@ export function clearPose(q,state,contact=null,detail={}) {
 const vector=v=>Array.isArray(v)&&v.length===3&&v.every(Number.isFinite);
 export function validateActions(actions) {
   if(!Array.isArray(actions)||actions.length>12)throw Error('invalid');
-  const schema={pick:['type','object'],place:['type','target','position','beside','side'],rotate:['type','angle'],move:['type','position','orientation'],pose:['type','joints'],home:['type'],dance:['type','style','repeat'],wave:['type','repeat'],bow:['type','repeat'],restore:['type'],undo:['type']};
+  const schema={pick:['type','object'],transfer:['type','object','target','position','beside','side'],place:['type','target','position','beside','side'],rotate:['type','angle'],move:['type','position','orientation'],pose:['type','joints'],home:['type'],dance:['type','style','repeat'],wave:['type','repeat'],bow:['type','repeat'],restore:['type'],undo:['type']};
   return actions.map(a=>{
     if(!a||typeof a!=='object'||Array.isArray(a)||!Object.hasOwn(schema,a.type)||Object.keys(a).some(k=>!schema[a.type].includes(k)))throw Error('invalid');
-    if(a.type==='pick'&&!Object.hasOwn(CATALOG,a.object))throw Error('unknown');
-    if(a.type==='place'){
+    if(['pick','transfer'].includes(a.type)&&!Object.hasOwn(CATALOG,a.object))throw Error('unknown');
+    if(['place','transfer'].includes(a.type)){
       if(['target','position','beside'].filter(k=>k in a).length!==1)throw Error('destination');
       if('target'in a&&!Object.hasOwn(AREAS,a.target)&&!Object.hasOwn(CATALOG,a.target)&&a.target!=='start'&&!Object.keys(CATALOG).some(c=>a.target===c+'-start'))throw Error('destination');
       if('position'in a&&(!Array.isArray(a.position)||a.position.length!==2||!a.position.every(Number.isFinite)||Math.hypot(...a.position)>330))throw Error('destination');
@@ -170,8 +170,13 @@ export function planActions(state,actions) {
     }
     throw Error('blocked');
   }
-  for(const action of actions){try{
+  for(const [actionIndex,action] of actions.entries()){try{
     if(action.type==='pick')pick(action.object);
+    else if(action.type==='transfer'){
+      if(s.held&&s.held!==action.object)throw Object.assign(Error('holding'),{detail:{object:action.object,reason:'put down the currently held object before picking up a different one'}});
+      if(!s.held)pick(action.object);
+      place(action);
+    }
     else if(action.type==='place')place(action);
     else if(action.type==='restore')restore();
     else if(action.type==='undo')throw Error('undoOnly');
@@ -190,7 +195,7 @@ export function planActions(state,actions) {
         }else if(action.type==='bow'){move([240,0,125],[0,15,0]);move(HOME,[0,0,0]);}
       }
     }
-  }catch(error){error.action=action;throw error;}}
+  }catch(error){error.action=action;error.detail={...error.detail,actionIndex,held:s.held};throw error;}}
   return {steps,result:s};
 }
 export function applyStep(state,step){
