@@ -1,12 +1,16 @@
 export const words={
  en:{
-  edition:'SIX AXIS / CONVERSATIONAL LAB',workspace:'YOUR SCHOOL TABLE',headline:'Give your robot a job.',orbit:'Drag to orbit · Scroll to zoom',simulation:'6-axis kinematic simulation',conversation:'TALK TO YOUR ROBOT',agent:'Your robot assistant',
+  rotation:'I couldn’t find a clear, reachable path to turn the {object} {angle}° around {axis}, even after checking other turning positions. Nothing moved. Try a smaller angle, or a different axis.',
+  tiltedPlacement:'I couldn’t place the {object} at that destination while keeping its X, Y, Z orientation at {angles}. Nothing moved. Should I level it before placing it, or should we choose another destination?',
+  orientationHeld:'I’m holding the {object}. Its X, Y, Z orientation is {angles}. Where would you like me to put it?',
+  orientationPlaced:'The {object} is placed with X, Y, Z orientation {angles}.',
+  edition:'AI ROBOT / BEDROOM DESK',workspace:'YOUR BEDROOM DESK',headline:'This room is messy.',mission:'Use your AI-controlled robot to organize the desk.',desk:'Bedroom desk',orbit:'Drag to orbit · Scroll to zoom',simulation:'6-axis kinematic simulation',conversation:'TALK TO YOUR ROBOT',agent:'Your robot assistant',
   suggestPick:'Pick up the eraser',suggestAsk:'What can you do?',challenge:'Try a challenge',newScene:'New arrangement',school:'School objects',blocks:'Blocks',
   keyLabel:'Your Alibaba API key',settings:'Connection settings',keyNote:'Used for this tab only. Never added to the chat.',connect:'Connect ↗',send:'Send ↗',stop:'■ Stop',reconnect:'Change connection',hint:'Name an object and a destination. Or ask for a pose, a wave, or a dance.',source:'About & source ↗',offline:'Not connected',online:'Qwen connected',you:'YOU',robot:'ROBOT',system:'TABLE',
-  welcome:'Hi, I’m your robot assistant. Give me a job!\n\nConnect below, then try “pick up the eraser”, “put the book beside the glue stick”, or “wave hello”. I can see the whole table, including behind me.\n\nTell me what to move and where it should go. If something is unclear or blocked, I’ll explain what I need.',
-  connected:'I’m ready. What shall we try? You can also say “put everything back where it started” or “undo that”.',
+  welcome:'Hi! I’m your AI-controlled robot. Let’s tidy this bedroom desk.\n\nYou choose the order and the homes: “book on the left shelf”, “notebook on top”, or “pen beside it”. The computer and lamp stay put.\n\nSay “hello” for a wave. Try “dance”, “move in a circle” or “move up and down”. Connect below to begin.',
+  connected:'I’m ready! Which item should we organize first, and where would you like it? The low shelf has left, middle and right spaces. You can also say “hello”, “undo that” or “put everything back where it started”.',
   connecting:'Connecting to Alibaba…',thinking:'Thinking…',planning:'Finding and checking a path…',replanning:'Checking why that plan failed…',moving:'Moving the arm…',empty:'Ready for a job',holding:'Holding the {object}',
-  keyPlaceholder:'Paste your Alibaba API key',promptPlaceholder:'Pick up the eraser and put it beside the book…',messageLabel:'Message the robot',reset:'Reset this arrangement',resetDone:'The arrangement is reset. These are the objects’ starting positions.',newSceneDone:'A new arrangement is ready. I’ll remember these starting positions.',
+  keyPlaceholder:'Paste your Alibaba API key',promptPlaceholder:'Put the book on the left of the organizer…',messageLabel:'Message the robot',reset:'Reset this arrangement',resetDone:'The arrangement is reset. These are the objects’ starting positions.',newSceneDone:'A new arrangement is ready. I’ll remember these starting positions.',
   stopped:'Stopped at the current position. You can give me a new instruction or ask me to put everything back. Undo history was cleared.',
   pickDone:'I’ve got the {object}. Where would you like me to put it?',holdDone:'Done. I’m holding the {object}. What next?',danceDone:'How was that? I’m ready for my next job.',restoreDone:'Everything is back where it started, and I’m home.',undoDone:'I’ve reversed the last task.',done:'Done. What would you like to try next?',
   covered:'There’s another object on top. I need to move the upper object first; tell me where to put it.',selfStack:'I can’t place an object on itself. Say “back where it started”, beside another object, or name a clear place on the table.',unstable:'That object is too narrow or does not have a flat top for this stack. Choose a wider flat support, or ask me to place it beside the other object.',
@@ -17,10 +21,14 @@ export const words={
   mic:'Dictate a command',micStop:'Finish dictation',listening:'Listening… tap the microphone to finish.',speechReady:'Review the words above, then press Send.',speechUnavailable:'Speech recognition isn’t available in this browser. Open the page in a supported browser, or type your command.',speechDenied:'Microphone or speech permission was denied. Allow it in your browser’s site settings, or type your command.',speechEmpty:'I didn’t hear a command. Tap the microphone and try again, or type it.',speechDevice:'I couldn’t start the microphone. Check that a working microphone is connected and available.',speechNetwork:'The browser’s speech service could not complete recognition. Check the connection or type your command.',speechNote:'Dictation uses your browser’s speech service. Review before sending.'
  },
  zh:{
-  edition:'六轴 / 对话实验室',workspace:'你的学校工作台',headline:'给机械臂一个任务。',orbit:'拖动旋转视角 · 滚动缩放',simulation:'六轴运动学模拟',conversation:'与你的机械臂对话',agent:'你的机械臂助手',
+  rotation:'即使尝试其他旋转位置，我仍找不到将{object}绕 {axis} 轴旋转 {angle}° 的可达且无碰撞路径。机械臂没有移动。请尝试较小角度或其他轴。',
+  tiltedPlacement:'我无法在保持{object}的 X、Y、Z 朝向为 {angles} 时将它放到指定位置。机械臂没有移动。你希望先放平再放下，还是选择另一个位置？',
+  orientationHeld:'我正夹着{object}。它的 X、Y、Z 朝向为 {angles}。你想把它放在哪里？',
+  orientationPlaced:'{object}已放下，X、Y、Z 朝向为 {angles}。',
+  edition:'AI 机械臂 / 卧室书桌',workspace:'你的卧室书桌',headline:'房间有点乱。',mission:'指挥你的 AI 机械臂整理书桌。',desk:'卧室书桌',orbit:'拖动旋转视角 · 滚动缩放',simulation:'六轴运动学模拟',conversation:'与你的机械臂对话',agent:'你的机械臂助手',
   suggestPick:'拿起橡皮',suggestAsk:'你能做什么？',challenge:'试试一个挑战',newScene:'换个摆放',school:'学习用品',blocks:'方块',
   keyLabel:'你的阿里云 API 密钥',settings:'连接设置',keyNote:'仅在当前页面使用，不会加入聊天记录。',connect:'连接 ↗',send:'发送 ↗',stop:'■ 停止',reconnect:'更改连接',hint:'说出物品和目的地，也可以让我摆姿势、挥手或跳舞。',source:'说明与源码 ↗',offline:'未连接',online:'千问已连接',you:'你',robot:'机械臂',system:'工作台',
-  welcome:'你好，我是你的机械臂助手。给我一个任务吧！\n\n在下方连接后，可以说“拿起橡皮”“把书放在固体胶旁边”或“挥手打招呼”。我能了解整个桌面，包括我身后的物品。\n\n告诉我要移动什么、放到哪里。如果信息不清楚或路径被挡住，我会解释需要什么。',connected:'准备好了，我们试试什么？你也可以说“把所有东西放回原位”或“撤销刚才的任务”。',
+  welcome:'你好，我是你的 AI 机械臂。一起整理卧室书桌吧！\n\n物品的位置和顺序由你决定，比如“书放在整理架左侧”“笔记本叠在上面”或“钢笔放在旁边”。电脑和台灯不能移动。\n\n说“你好”我会挥手，也可以让我“跳舞”“画一个圆”或“上下移动”。在下方连接后就能开始。',connected:'准备好了！先整理哪个物品，放在哪里？矮整理架有左、中、右三个位置。你也可以说“你好”“撤销刚才的任务”或“把所有东西放回原位”。',
   connecting:'正在连接阿里云…',thinking:'正在思考…',planning:'正在寻找并检查路径…',replanning:'正在分析无法执行的原因…',moving:'机械臂正在移动…',empty:'准备接收任务',holding:'正在夹持{object}',keyPlaceholder:'在此粘贴阿里云 API 密钥',promptPlaceholder:'拿起橡皮，把它放在书旁边…',messageLabel:'向机械臂发送消息',reset:'重置当前摆放',resetDone:'摆放已重置，所有物品都回到了初始位置。',newSceneDone:'新的摆放准备好了。我会记住这些初始位置。',
   stopped:'已停在当前位置。你可以给出新指令，或让我把所有东西放回原位。撤销记录已清除。',pickDone:'我已经拿起{object}了。你想让我放在哪里？',holdDone:'完成，我正夹着{object}。接下来做什么？',danceDone:'怎么样？我准备好接收下一个任务了。',restoreDone:'所有物品已回到初始位置，我也归位了。',undoDone:'我已反向执行并撤销刚才的任务。',done:'完成。接下来想试什么？',
   covered:'那个物品上面还有东西。我需要先移走上面的物品，请告诉我放到哪里。',selfStack:'我不能把物品放在它自己上面。可以说“放回原位”、放在其他物品旁边，或指定桌面的空位。',unstable:'这个支撑物太窄或顶部不平，无法这样堆叠。请选择宽且平的物品，或让我把它放在旁边。',
@@ -30,6 +38,6 @@ export const words={
  }
 };
 export const challenges={
- en:['Put the eraser on the book, then return it to where it started.','Put the pencil case on the book and the eraser on the pencil case.','Move the glue stick from behind you to the front of the table.','Do a lively dance, then bow.','Pick up the ruler and place it on the left side of the table.','Wave hello twice.','Put the book beside the eraser, on its right.','Move your gripper to 220, 30, 160 mm and turn it 20 degrees.'],
- zh:['把橡皮放在书上，再把它放回原位。','把笔袋放在书上，再把橡皮放在笔袋上。','把你身后的固体胶移到桌面前方。','跳一段活泼的舞，然后鞠躬。','拿起木尺，放在桌面左侧。','挥手打两次招呼。','把书放在橡皮的右边。','把夹爪移到 220、30、160 毫米的位置，并转动 20 度。']
+ en:['This room is messy.','Hello!','Put the book in the middle of the organizer, then stack the notebook on it.','Put the pen in the middle of the organizer and the pencil beside it on the left.','Put the clock on the right of the organizer.','Do a lively dance, then bow.','Move in a circle, then move up and down.','Put everything back where it started.'],
+ zh:['这个房间有点乱。','你好！','把书放在整理架中间，再把笔记本叠在书上。','把钢笔放在整理架中间，再把铅笔放在钢笔左边。','把闹钟放在整理架右侧。','跳一段活泼的舞，然后鞠躬。','画一个圆，然后上下移动。','把所有东西放回原位。']
 };

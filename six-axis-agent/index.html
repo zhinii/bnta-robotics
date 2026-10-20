@@ -3,20 +3,20 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#f5f4f0">
-  <meta name="description" content="Talk to a six-axis robotic arm. A conversational robotics simulator from Beijing New Talent Academy.">
+  <meta name="description" content="This room is messy. Tell an AI-controlled robot how to organize a bedroom desk. A conversational robotics activity from Beijing New Talent Academy.">
   <title>Robot Lab — Six Axis</title>
-  <link rel="stylesheet" href="./style.css?v=school-20261021-2">
+  <link rel="stylesheet" href="./style.css?v=bedroom-20261021-1">
   <script type="importmap">{"imports":{"three":"../beginner-3axis/vendor/three/build/three.module.js"}}</script>
 </head>
-<body data-version="school-20261021-2">
+<body data-version="bedroom-20261021-1">
   <header><a class="brand" href="../"><span class="brand-mark">↗</span><span>BNTA <b>Robot Lab</b></span></a>
     <div class="header-actions"><span class="edition" data-i18n="edition">SIX AXIS / CONVERSATIONAL LAB</span><button id="language" aria-label="Switch to Chinese">中文</button></div>
   </header>
   <main>
     <section class="workspace" aria-label="Robot workspace">
-      <div class="scene-heading"><div><span class="eyebrow" data-i18n="workspace">YOUR SCHOOL TABLE</span><h1 data-i18n="headline">Give your robot a job.</h1></div>
+      <div class="scene-heading"><div><span class="eyebrow" data-i18n="workspace">YOUR BEDROOM DESK</span><h1 data-i18n="headline">This room is messy.</h1><p class="scene-mission" data-i18n="mission">Use your AI-controlled robot to organize the desk.</p></div>
         <button id="reset" class="icon-button" title="Reset scene" aria-label="Reset scene">↺</button></div>
-      <div class="scene-tools"><select id="kit" aria-label="Objects on the table"><option value="school" data-i18n="school">School objects</option><option value="blocks" data-i18n="blocks">Blocks</option></select><button id="new-scene" data-i18n="newScene">New arrangement</button></div>
+      <div class="scene-tools"><select id="kit" aria-label="Objects on the table"><option value="desk" data-i18n="desk">Bedroom desk</option><option value="school" data-i18n="school">School practice</option><option value="blocks" data-i18n="blocks">Blocks</option></select><button id="new-scene" data-i18n="newScene">New arrangement</button></div>
       <div id="scene"><div id="render-error" hidden></div></div>
       <div class="scene-bottom"><span id="scene-state" role="status">Gripper empty</span><span class="orbit-hint" data-i18n="orbit">Drag to orbit · Scroll to zoom</span></div>
       <span class="simulation-note" data-i18n="simulation">6-axis kinematic simulation</span>
@@ -38,6 +38,6 @@
     </section>
   </main>
   <footer><span>Beijing New Talent Academy <span class="footer-cn">/ 北京市新英才学校</span></span><a href="https://github.com/zhinii/bnta-robotics/tree/main/six-axis-agent" data-i18n="source">About & source ↗</a></footer>
-  <script type="module" src="./main.mjs?v=school-20261021-2"></script>
+  <script type="module" src="./main.mjs?v=bedroom-20261021-1"></script>
 </body>
 </html>

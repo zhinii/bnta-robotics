@@ -41,7 +41,9 @@ try{
   await route.fulfill({json:{choices:[{message:{content:JSON.stringify(response)}}]}}).catch(()=>{});
  });
  await page.goto(base);await page.waitForFunction(()=>!!window.robotLabSnapshot);assert.equal(await page.locator('#render-error').isVisible(),false);assert.equal(await page.locator('#scene canvas').count(),1);
- if(output)await page.screenshot({path:output+'/desktop-school-connect.png'});
+ assert.equal((await page.evaluate(()=>window.robotLabSnapshot().scene)).objects.length,7);
+ if(output)await page.screenshot({path:output+'/desktop-bedroom-connect.png'});
+ await page.locator('#kit').selectOption('school');
  await page.locator('#api-key').fill('fake-browser-test-key');await page.locator('#send').click();await page.waitForFunction(()=>window.robotLabSnapshot().connected&&!window.robotLabSnapshot().busy);
  assert.ok(!(await page.locator('#messages').innerText()).includes('fake-browser-test-key'));assert.ok(!(await page.evaluate(()=>JSON.stringify(localStorage))).includes('fake-browser-test-key'));
  const scene=()=>page.evaluate(()=>window.robotLabSnapshot().scene),initial=await scene();
@@ -59,7 +61,7 @@ try{
  if(output){await page.waitForTimeout(250);await page.screenshot({path:output+'/desktop-school-stack.png'});}
  await send('put everything back');for(const o of (await scene()).objects)assert.deepEqual(o.position,o.origin);
  await send('do a dance for me');await send('make a new pose');
- const beforeFailure=await scene();await send('move through the divider');assert.deepEqual(await scene(),beforeFailure);assert.match(await page.locator('#messages').innerText(),/tall divider.*another destination/);assert.ok(seen.at(-1).feedback);
+ const beforeFailure=await scene();await send('move through the divider');assert.deepEqual(await scene(),beforeFailure);assert.match(await page.locator('#messages').innerText(),/tall divider.*another destination/);assert.equal(seen.at(-1).feedback,undefined);
  await send('fly');assert.deepEqual(await scene(),beforeFailure);
  await page.locator('#reset').click();await page.locator('#prompt').fill('pick up the ruler');await page.locator('#send').click();await page.locator('#activity').filter({hasText:'Moving'}).waitFor();await page.waitForTimeout(500);await page.locator('#stop').click();
  const stopped=await scene();assert.equal(stopped.canUndo,false);await page.waitForTimeout(300);assert.deepEqual(await scene(),stopped);

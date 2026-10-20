@@ -1,11 +1,59 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {initialState,planActions,applyStep,validateActions,AREAS,HOME,clearPose,reverseSteps,snapshot} from '../world.mjs';
+import {initialState,planActions,applyStep,validateActions,AREAS,HOME,HOMES,clearPose,reverseSteps,snapshot} from '../world.mjs';
 import {toolPose,distance} from '../kinematics.mjs';
 import {parseResponse,askAgent,DEFAULTS,RELAY,SYSTEM} from '../agent.mjs';
 import {createSpeech} from '../speech.mjs';
 const run=(s,actions)=>{const plan=planActions(s,actions);for(const step of plan.steps)applyStep(s,step);return plan;};
 const sameObjects=(a,b)=>{for(const object of a.objects){const other=b.objects.find(o=>o.id===object.id);assert.ok(distance(object.position,other.position)<.15,object.id);assert.ok(distance(object.rpy,other.rpy)<.02,object.id);}};
+test('90 degree X, Y and Z turns preserve the requested axis and can restore or undo',()=>{
+ for(const [axis,index] of [['x',0],['y',1],['z',2]]){
+  const s=initialState(0,'desk'),before=structuredClone(s),actions=[{type:'pick',object:'book'},{type:'rotate',axis,angle:90}];
+  const plan=planActions(s,actions),inverse=reverseSteps(s,plan.steps);
+  for(const step of plan.steps)applyStep(s,step);
+  const expected=[0,0,0];expected[index]=90;
+  assert.deepEqual(s.objects[0].rpy,expected);assert.equal(s.held,'book');
+  assert.ok(distance(toolPose(s.q).rpy,expected)<.3);
+  const restored=planActions(s,[{type:'restore'}]).result;sameObjects(restored,before);assert.equal(restored.held,null);
+  for(const step of inverse)applyStep(s,step);sameObjects(s,before);assert.deepEqual(s.q,before.q);
+ }
+});
+test('placing preserves rotation and an impossible tilted placement rejects the entire task',()=>{
+ const s=initialState(0,'desk'),before=structuredClone(s);
+ run(s,[{type:'pick',object:'book'},{type:'rotate',axis:'z',angle:90},{type:'place',target:'start'}]);
+ assert.deepEqual(s.objects[0].rpy,[0,0,90]);assert.deepEqual(s.objects[0].position,s.objects[0].origin);assert.equal(s.held,null);
+ run(s,[{type:'restore'}]);sameObjects(s,before);
+ assert.throws(()=>planActions(s,[{type:'pick',object:'book'},{type:'rotate',axis:'x',angle:90},{type:'place',target:'start'}]),e=>['reach','blocked'].includes(e.message)&&e.action.type==='place');
+ sameObjects(s,before);assert.equal(s.held,null);
+ assert.throws(()=>validateActions([{type:'rotate',axis:'w',angle:90}]),/angle/);
+ assert.deepEqual(parseResponse('{"reply":"I will turn it.","actions":[{"type":"rotate","axis":"y","angle":90}]}').actions,[{type:'rotate',axis:'y',angle:90}]);
+});
+test('bedroom objects reach all organizer spaces and restore around the fixed computer and lamp',()=>{
+ for(const id of initialState(0,'desk').objects.map(o=>o.id))for(const target of Object.keys(HOMES)){
+  const s=initialState(0,'desk'),before=structuredClone(s);run(s,[{type:'transfer',object:id,target}]);
+  const object=s.objects.find(o=>o.id===id);assert.deepEqual(object.position,[...HOMES[target].position.slice(0,2),28+object.size[2]/2]);
+  run(s,[{type:'restore'}]);sameObjects(s,before);assert.deepEqual(s.obstacles,before.obstacles);
+ }
+});
+test('user-selected stacks and side-by-side orders preserve shelf height and can be reversed',()=>{
+ for(const [base,top]of [['book','notebook'],['notebook','book']]){
+  const s=initialState(0,'desk'),before=structuredClone(s);
+  const p=planActions(s,[{type:'transfer',object:base,target:'shelf-middle'},{type:'transfer',object:top,target:base}]);
+  const inverse=reverseSteps(s,p.steps);for(const step of p.steps)applyStep(s,step);
+  assert.equal(s.objects.find(o=>o.id===top).position[2],28+s.objects.find(o=>o.id===base).size[2]+s.objects.find(o=>o.id===top).size[2]/2);
+  for(const step of inverse)applyStep(s,step);sameObjects(s,before);
+ }
+ const s=initialState(0,'desk');run(s,[{type:'transfer',object:'pen',target:'shelf-middle'},{type:'transfer',object:'pencil',beside:'pen',side:'left'}]);
+ assert.equal(s.objects.find(o=>o.id==='pencil').position[2],36);assert.ok(s.objects.find(o=>o.id==='pencil').position[1]<0);
+ assert.throws(()=>planActions(s,[{type:'transfer',object:'book',beside:'pencil',side:'left'}]),e=>e.message==='destination'&&e.detail.reason.includes('overhang'));
+ assert.throws(()=>planActions(s,[{type:'move',position:[0,320,100]}]),/blocked/);
+ assert.throws(()=>validateActions([{type:'pick',object:'computer'}]),/unknown/);
+});
+test('bedroom gestures and randomized arrangements remain reachable',()=>{
+ for(const type of ['wave','bow','dance','circle','bob']){const s=initialState(0,'desk'),before=structuredClone(s);run(s,[{type}]);sameObjects(s,before);assert.ok(distance(toolPose(s.q).tip,HOME)<.2);}
+ for(const seed of [42,139,896])for(const object of ['book','pen','pencil','clock']){const s=initialState(seed,'desk'),before=structuredClone(s);run(s,[{type:'transfer',object,target:'shelf-middle'},{type:'restore'}]);sameObjects(s,before);}
+ const scene=snapshot(initialState(0,'desk'));assert.equal(Object.keys(scene.homes).length,3);assert.equal(scene.obstacles.filter(o=>o.fixed).length,3);assert.match(scene.context,/user decides/i);
+});
 test('all five school objects can go to every table side and return to their own starts',()=>{
  for(const id of initialState().objects.map(o=>o.id))for(const target of Object.keys(AREAS)){
   const s=initialState(),before=structuredClone(s),plan=planActions(s,[{type:'pick',object:id},{type:'place',target}]);assert.deepEqual(s,before);

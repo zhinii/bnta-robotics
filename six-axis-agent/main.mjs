@@ -1,14 +1,14 @@
-import { initialState, snapshot, applyStep, CATALOG } from './world.mjs?v=school-20261021-2';
-import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=school-20261021-2';
-import { createScene } from './scene.mjs?v=school-20261021-2';
-import { createSpeech } from './speech.mjs?v=school-20261021-2';
-import { words, challenges } from './i18n.mjs?v=school-20261021-2';
+import { initialState, snapshot, applyStep, CATALOG } from './world.mjs?v=bedroom-20261021-1';
+import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=bedroom-20261021-1';
+import { createScene } from './scene.mjs?v=bedroom-20261021-1';
+import { createSpeech } from './speech.mjs?v=bedroom-20261021-1';
+import { words, challenges } from './i18n.mjs?v=bedroom-20261021-1';
 
 const $=id=>document.getElementById(id);
 let language='en';try{language=localStorage.getItem('six-axis-language')==='zh'?'zh':'en';}catch{}
-let state=initialState(),connection=null,busy=false,epoch=0,abort=null,history=[],activity='',view=null,undo=[],worker=null,workerReject=null,challengeIndex=0;
+let state=initialState(0,'desk'),connection=null,busy=false,epoch=0,abort=null,history=[],activity='',view=null,undo=[],worker=null,workerReject=null,challengeIndex=0;
 const t=(key,vars={})=>Object.entries(vars).reduce((s,[k,v])=>s.replaceAll('{'+k+'}',v),words[language][key]||key);
-const name=id=>CATALOG[id]?.[language==='zh'?'zh':'name']||({table:'桌面','robot base':'机械臂底座','tall divider':'高挡板','low divider':'矮挡板'}[id]&&language==='zh'?{table:'桌面','robot base':'机械臂底座','tall divider':'高挡板','low divider':'矮挡板'}[id]:id);
+const name=id=>CATALOG[id]?.[language==='zh'?'zh':'name']||state.obstacles.find(o=>o.id===id)?.[language==='zh'?'zh':'name']||({table:'桌面','robot base':'机械臂底座','tall divider':'高挡板','low divider':'矮挡板'}[id]&&language==='zh'?{table:'桌面','robot base':'机械臂底座','tall divider':'高挡板','low divider':'矮挡板'}[id]:id);
 const perception=()=>({...snapshot(state),canUndo:undo.length>0});
 function add(role,content,{key,vars,error=false}={}){
   const el=document.createElement('div');el.className='message '+role+(error?' error':'');
@@ -69,7 +69,7 @@ function prepare(actions){
     return Promise.resolve({plan:{steps:undo.at(-1)},undoing:true});
   }
   return new Promise((resolve,reject)=>{
-    const planner=new Worker(new URL('./planner-worker.mjs?v=school-20261021-2',import.meta.url),{type:'module'});worker=planner;
+    const planner=new Worker(new URL('./planner-worker.mjs?v=bedroom-20261021-1',import.meta.url),{type:'module'});worker=planner;
     const finish=()=>{clearTimeout(timer);planner.terminate();if(worker===planner){worker=null;workerReject=null;}};
     const timer=setTimeout(()=>{finish();reject(Error('blocked'));},15000);
     workerReject=error=>{finish();reject(error);};
@@ -97,6 +97,8 @@ async function animate(steps,id){
 function reportError(error){
   const key=error.message==='empty'?'emptyError':error.message==='holding'?'holdingError':words[language][error.message]?error.message:error instanceof TypeError?'network':'provider';
   if(key==='blocked'&&error.detail?.blocker){const vars={object:name(error.detail.blocker),objectId:error.detail.blocker};say('blockedBy',vars,'assistant',true);return t('blockedBy',vars);}
+  if(key==='rotation'){const vars={object:name(error.detail.held),axis:error.detail.axis.toUpperCase(),angle:error.detail.angle};say('rotation',vars,'assistant',true);return t('rotation',vars);}
+  if(['reach','blocked'].includes(key)&&['place','transfer'].includes(error.action?.type)&&error.detail?.requestedOrientation?.slice(0,2).some(v=>Math.abs(v)>.1)){const vars={object:name(error.detail.held),angles:error.detail.requestedOrientation.map(v=>Math.round(v)).join('°, ')+'°'};say('tiltedPlacement',vars,'assistant',true);return t('tiltedPlacement',vars);}
   say(key,{},'assistant',true);return t(key);
 }
 async function connect(){
@@ -123,7 +125,7 @@ async function send(question){
       if(!response.actions.length)break;
       status('planning');
       try{prepared=await prepare(response.actions);break;}
-      catch(error){if(id!==epoch)return;if(attempt===1)throw error;feedback={error:error.message,detail:error.detail,action:error.action,attempted:response.actions};status('replanning');}
+      catch(error){if(id!==epoch)return;if(attempt===1||error.message!=='empty')throw error;feedback={error:error.message,detail:error.detail,action:error.action,attempted:response.actions};status('replanning');}
     }
     if(id!==epoch)return;
     remember('user',question);
@@ -131,10 +133,16 @@ async function send(question){
     add('assistant',response.reply);remember('assistant',response.reply);status('moving');
     await animate(prepared.plan.steps,id);if(id!==epoch)return;
     if(prepared.undoing)undo.pop();else{undo.push(prepared.inverse);undo=undo.slice(-8);}
-    const last=response.actions.at(-1),key=state.held?(last.type==='pick'?'pickDone':'holdDone'):last.type==='restore'?'restoreDone':last.type==='undo'?'undoDone':['dance','wave','bow'].includes(last.type)?'danceDone':'done';
+    const last=response.actions.at(-1),key=state.held?(last.type==='pick'?'pickDone':'holdDone'):last.type==='restore'?'restoreDone':last.type==='undo'?'undoDone':['dance','wave','bow','circle','bob'].includes(last.type)?'danceDone':'done';
     const vars=state.held?{object:name(state.held),objectId:state.held}:{};
-    if(response.after)add('assistant',response.after);else say(key,vars);
-    remember('assistant',(response.after||t(key,vars))+'\nExecuted actions: '+JSON.stringify(response.actions)+'\nActual scene: '+JSON.stringify(perception()));
+    const rotated=response.actions.some(a=>a.type==='rotate'||a.orientation);
+    let completion=response.after||t(key,vars);
+    if(rotated){
+      const items=state.objects.filter(o=>o.id===state.held||o.rpy.some(v=>Math.abs(v)>.1));
+      completion=items.length?items.map(o=>t(o.id===state.held?'orientationHeld':'orientationPlaced',{object:name(o.id),angles:o.rpy.map(v=>Math.round(v)).join('°, ')+'°'})).join('\n'):t(key,vars);
+    }
+    add('assistant',completion);
+    remember('assistant',completion+'\nExecuted actions: '+JSON.stringify(response.actions)+'\nActual scene: '+JSON.stringify(perception()));
   }catch(error){if(id===epoch){remember('user',question);remember('assistant','Execution did not complete: '+reportError(error)+' '+JSON.stringify(perception()));}}
   finally{if(id===epoch){busy=false;activity='';refresh();$('prompt').focus();}}
 }
@@ -148,7 +156,7 @@ $('kit').addEventListener('change',()=>arrange(0,$('kit').value,'newSceneDone'))
 $('language').addEventListener('click',()=>{speech.abort();if(busy)cancel();language=language==='en'?'zh':'en';try{localStorage.setItem('six-axis-language',language);}catch{}refresh();});
 $('reconnect').addEventListener('click',()=>{cancel(false);connection=null;$('api-key').value='';say('change');refresh();$('api-key').focus();});
 $('mic').addEventListener('click',()=>speech.start($('prompt').value));
-$('challenge').addEventListener('click',()=>{speech.abort();$('prompt').value=state.kit==='school'?challenges[language][challengeIndex++%challenges[language].length]:(language==='en'?'Stack blue on red and yellow on blue, then put everything back.':'把蓝色方块放在红色上，再把黄色放在蓝色上，最后全部放回原位。');$('prompt').focus();});
+$('challenge').addEventListener('click',()=>{speech.abort();$('prompt').value=state.kit!=='blocks'?challenges[language][challengeIndex++%challenges[language].length]:(language==='en'?'Stack blue on red and yellow on blue, then put everything back.':'把蓝色方块放在红色上，再把黄色放在蓝色上，最后全部放回原位。');$('prompt').focus();});
 document.querySelectorAll('[data-command]').forEach(button=>button.addEventListener('click',()=>void send(t(button.dataset.command==='pick'?'suggestPick':'suggestAsk'))));
 try{const saved=JSON.parse(localStorage.getItem('six-axis-settings'));if(saved){$('base-url').value=saved.base||DEFAULTS.base;$('model').value=saved.model||DEFAULTS.model;}}catch{}
 try{view=createScene($('scene'));}catch(error){$('render-error').hidden=false;$('render-error').textContent=t('webgl');}

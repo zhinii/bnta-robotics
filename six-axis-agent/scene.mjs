@@ -1,18 +1,18 @@
 import * as THREE from 'three';
 import { OrbitControls } from '../beginner-3axis/vendor/three/examples/jsm/controls/OrbitControls.js';
-import { fk, toolPose } from './kinematics.mjs?v=school-20261021-2';
-import { CATALOG } from './world.mjs?v=school-20261021-2';
+import { fk, toolPose } from './kinematics.mjs?v=bedroom-20261021-1';
+import { CATALOG, HOMES } from './world.mjs?v=bedroom-20261021-1';
 
 export function createScene(container) {
   const scene=new THREE.Scene(); scene.background=new THREE.Color('#eeeee7');
   const camera=new THREE.PerspectiveCamera(34,1,1,2500); camera.up.set(0,0,1);
-  camera.position.set(850,-900,800);
+  camera.position.set(1000,-1100,940);
   const renderer=new THREE.WebGLRenderer({antialias:true});
   renderer.setPixelRatio(Math.min(devicePixelRatio,2)); renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1;
   renderer.setClearColor('#eeeee7'); renderer.domElement.setAttribute('aria-label','Six-axis robot on a school table, surrounded by a book, eraser, glue stick, pencil case, ruler, and two dividers.');
   container.prepend(renderer.domElement);
-  const controls=new OrbitControls(camera,renderer.domElement); controls.target.set(0,0,75); controls.enableDamping=true;
+  const controls=new OrbitControls(camera,renderer.domElement); controls.target.set(0,80,-10); controls.enableDamping=true;
   controls.minDistance=450; controls.maxDistance=1700; controls.maxPolarAngle=Math.PI*.48; controls.enablePan=false;
   scene.add(new THREE.HemisphereLight(0xffffff,0xb6bbaa,2.8));
   const light=new THREE.DirectionalLight(0xfff9eb,3.5); light.position.set(150,-280,600); light.castShadow=true;
@@ -22,7 +22,7 @@ export function createScene(container) {
   const materials={shell:mat('#e8e9e3'),dark:mat('#35463d',.5),accent:mat('#4d715a'),metal:mat('#7f8a81',.65)};
   const v=p=>new THREE.Vector3(...p);
   function mesh(geometry,material,parent=scene) { const m=new THREE.Mesh(geometry,material); m.castShadow=true;m.receiveShadow=true;parent.add(m);return m; }
-  const floor=mesh(new THREE.PlaneGeometry(3000,3000),mat('#eeeee7',0)); floor.position.z=-14;
+  const floor=mesh(new THREE.PlaneGeometry(3000,3000),mat('#c6ac8c',0)); floor.position.z=-390;
   const table=mesh(new THREE.BoxGeometry(800,800,12),mat('#ded4bf',.05)); table.position.set(0,0,-7);
   const surface=mesh(new THREE.BoxGeometry(790,790,2),mat('#eee7d8',0));surface.position.z=-.8;
   function cylinder(radius,length,material,parent=scene) {return mesh(new THREE.CylinderGeometry(radius,radius,length,40),material,parent);}
@@ -51,6 +51,30 @@ export function createScene(container) {
   });
   const objects=new Map(),obstacles=new Map();
   function box(parent,size,color,position=[0,0,0]){const b=mesh(new THREE.BoxGeometry(...size),mat(color,0),parent);b.position.set(...position);return b;}
+  const room=new THREE.Group();scene.add(room);
+  // Furniture is outside the arm's desk workspace; the desk obstacles below
+  // share exact bounds with the planner and are part of its perception.
+  box(room,[20,1800,760],'#d8ddd5',[-680,250,-10]);box(room,[1600,20,760],'#e7dfcf',[100,900,-10]);
+  box(room,[24,1800,28],'#f2e9da',[-665,250,-365]);box(room,[1600,24,28],'#f2e9da',[100,885,-365]);
+  for(let y=-1050;y<1100;y+=115)box(room,[2300,1,1],'#af9475',[0,y,-389]);
+  // A made bed, pillows and folded duvet make this a bedroom at first glance.
+  const bed=new THREE.Group();bed.position.set(90,650,-315);room.add(bed);
+  box(bed,[590,330,75],'#a88260');box(bed,[575,320,42],'#f3eee3',[0,0,58]);
+  box(bed,[400,323,25],'#7e9f99',[83,0,88]);box(bed,[70,325,26],'#b0c5b7',[-80,0,89]);
+  for(const y of [-80,80])box(bed,[100,130,24],'#fcf5e7',[-205,y,93]);
+  box(bed,[22,350,180],'#a88260',[-305,0,35]);
+  for(let x=-40;x<275;x+=65)box(bed,[2,322,1],'#8eaea6',[x,0,101]);
+  // Window, curtains and a small framed print on the bedroom walls.
+  box(room,[14,290,260],'#fbf7ee',[-660,100,155]);box(room,[16,260,230],'#a9cbd2',[-650,100,155]);
+  box(room,[18,8,236],'#faf6eb',[-638,100,155]);box(room,[18,266,8],'#faf6eb',[-638,100,155]);
+  for(const y of [-75,275])box(room,[22,45,300],'#cab9a4',[-630,y,145]);
+  box(room,[150,12,180],'#b28b66',[470,879,110]);box(room,[128,14,158],'#fbf0d5',[470,870,110]);
+  const sun=cylinder(32,3,mat('#d59f5d',0),room);sun.position.set(470,860,130);
+  box(room,[220,145,8],'#b48b6d',[135,15,-380]);
+  for(const x of [-350,350])for(const y of [-350,350])box(room,[26,26,375],'#b29472',[x,y,-202]);
+  const chair=new THREE.Group();room.add(chair);chair.position.set(590,-50,-240);
+  box(chair,[185,190,22],'#81948b');box(chair,[20,190,220],'#81948b',[90,0,100]);
+  for(const x of [-70,70])for(const y of [-70,70])box(chair,[15,15,135],'#5d7167',[x,y,-78]);
   function decal(parent,width,height,z,draw){
     const canvas=document.createElement('canvas');canvas.width=256;canvas.height=512;const ctx=canvas.getContext('2d');draw(ctx);
     const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
@@ -58,9 +82,23 @@ export function createScene(container) {
   }
   function schoolObject(id){
     const group=new THREE.Group(),item=CATALOG[id],c=item.color;scene.add(group);
-    if(id==='book'){
-      box(group,[34,55,14],'#f7eed9');box(group,[36,58,2],c,[0,0,8]);box(group,[36,58,2],c,[0,0,-8]);box(group,[4,58,18],'#a74339',[-16,0,0]);
-      decal(group,30,50,9.1,ctx=>{ctx.fillStyle='#fff1d3';ctx.textAlign='center';ctx.font='bold 34px sans-serif';ctx.fillText('SCIENCE',128,130);ctx.lineWidth=5;ctx.strokeStyle='#fff1d3';ctx.beginPath();ctx.arc(128,285,65,0,Math.PI*2);ctx.stroke();ctx.font='18px sans-serif';ctx.fillText('EXPLORE',128,450);});
+    if(id==='book'||id==='notebook'){
+      const [w,l,h]=item.size;box(group,[w-2,l-3,h-4],'#f7eed9');box(group,[w,l,2],c,[0,0,h/2-1]);box(group,[w,l,2],c,[0,0,-h/2+1]);box(group,[4,l,h],c,[-w/2+2,0,0]);
+      decal(group,w-6,l-8,h/2+.1,ctx=>{ctx.fillStyle='#fff1d3';ctx.textAlign='center';ctx.font='bold 34px sans-serif';ctx.fillText(id==='book'?'SCIENCE':'MY NOTES',128,130);ctx.lineWidth=5;ctx.strokeStyle='#fff1d3';ctx.beginPath();ctx.arc(128,285,65,0,Math.PI*2);ctx.stroke();ctx.font='18px sans-serif';ctx.fillText(id==='book'?'EXPLORE':'IDEAS',128,450);});
+    }else if(id==='pen'||id==='pencil'){
+      const body=mesh(new THREE.CylinderGeometry(6,6,64,id==='pencil'?6:24),mat(c,0),group);body.position.y=-3;
+      const tip=mesh(new THREE.ConeGeometry(6,14,12),mat(id==='pencil'?'#d7bc8f':'#aeb6b8',.2),group);tip.position.y=36;
+      const point=mesh(new THREE.ConeGeometry(2.2,5,12),mat('#343d3b',0),group);point.position.y=42;
+      const end=cylinder(6.5,10,mat(id==='pencil'?'#ce8c85':'#294d70',0),group);end.position.y=-35;
+      if(id==='pen')box(group,[2,24,2],'#c6cccc',[0,-22,6]);
+    }else if(id==='clock'){
+      const body=cylinder(17,18,mat(c,0),group);body.rotation.z=Math.PI/2;body.position.z=2;
+      for(const y of [-10,10])box(group,[24,5,8],'#956652',[0,y,-19]);
+      const face=cylinder(14.5,1,mat('#fff7df',0),group);face.rotation.z=Math.PI/2;face.position.set(9.5,0,2);
+      for(let i=0;i<12;i++){const a=i*Math.PI/6;box(group,[1.5,2,2],'#455c56',[10.3,Math.sin(a)*11,2+Math.cos(a)*11]);}
+      const minute=box(group,[2,1.2,10],'#455c56',[10.8,0,7]);minute.rotation.x=.2;
+      const hour=box(group,[2,8,1.2],'#455c56',[10.8,3,2]);
+      const button=cylinder(3,4,mat('#956652',0),group);button.rotation.x=Math.PI/2;button.position.z=21;
     }else if(id==='eraser'){
       box(group,item.size,c);box(group,[30.4,24,20.4],'#f4efdf',[0,3,0]);
       decal(group,27,22,10.3,ctx=>{ctx.fillStyle='#34586e';ctx.textAlign='center';ctx.font='bold 36px sans-serif';ctx.fillText('ERASER',128,230);ctx.fillRect(28,285,200,12);});
@@ -90,9 +128,33 @@ export function createScene(container) {
     labels.push(draw);draw('en');return sprite;
   }
   const objectLabels=new Map();
+  const homeLabels=Object.entries(HOMES).map(([id,home])=>{const sprite=label(home.name.toUpperCase(),home.zh,[...home.position.slice(0,2),home.position[2]+5]);return sprite;});
+  function furniture(object){
+    const g=new THREE.Group();scene.add(g);const [w,l,h]=object.size;
+    if(object.id==='organizer'){
+      box(g,[w,l,8],'#c19e73',[0,0,h/2-4]);
+      for(const y of [-l/2+12,l/2-12])box(g,[w-12,16,h-8],'#a7835d',[0,y,-4]);
+      // Subtle engraved names mark spaces; there are no physical dividers or assigned categories.
+      for(const y of [-72,72])box(g,[w-16,1,.3],'#ac8b65',[0,y,h/2+.2]);
+    }else if(object.id==='computer'){
+      box(g,[105,58,6],'#414b50',[0,0,-h/2+3]);box(g,[18,20,50],'#535e60',[0,8,-50]);
+      box(g,[w,18,94],'#34434a',[0,12,30]);box(g,[w-10,2,82],'#8aa9b4',[0,1,30]);
+      box(g,[w-22,1,6],'#c4d8d4',[0,-.2,56]);box(g,[45,1,38],'#d9e4d5',[-28,-.3,22]);box(g,[45,1,24],'#b1c8bd',[28,-.3,29]);
+      box(g,[95,34,5],'#c3c7c3',[0,-14,-h/2+9]);for(let x=-38;x<=38;x+=10)for(let y=-24;y<=-4;y+=8)box(g,[7,5,1],'#eef0e7',[x,y,-h/2+12]);
+    }else if(object.id==='lamp'){
+      const base=cylinder(25,8,mat('#b39c61',.3),g);base.rotation.x=Math.PI/2;base.position.z=-h/2+4;
+      const stem=cylinder(4,h-34,mat('#687b6e',.4),g);stem.rotation.x=Math.PI/2;stem.position.z=-5;
+      const shade=mesh(new THREE.CylinderGeometry(14,29,31,32),mat('#d3b76f',.1),g);shade.rotation.x=Math.PI/2;shade.position.z=h/2-17;
+      const bulb=cylinder(19,1,new THREE.MeshStandardMaterial({color:'#fff4c9',emissive:'#f1d59b',emissiveIntensity:.5}),g);bulb.rotation.x=Math.PI/2;bulb.position.z=h/2-33;
+    }else box(g,object.size,'#aab3a4');
+    return g;
+  }
   let currentLanguage='en';
   function orient(m,a,b) { const A=v(a),B=v(b),d=B.clone().sub(A); m.position.copy(A.add(B).multiplyScalar(.5));m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize()); }
   function update(s) {
+    room.visible=s.kit==='desk';floor.material.color.set(s.kit==='desk'?'#c6ac8c':'#eeeee7');floor.position.z=s.kit==='desk'?-390:-14;
+    homeLabels.forEach(sprite=>sprite.visible=s.kit==='desk');
+    renderer.domElement.setAttribute('aria-label',s.kit==='desk'?'AI-controlled robot on a messy bedroom desk, with books, pens, a pencil, alarm clock, eraser, pencil case, a low organizer shelf, and fixed computer and lamp.':s.kit==='blocks'?'Six-axis robot with red, blue and yellow blocks on a table.':'Six-axis robot with school objects on a table.');
     const pose=fk(s.q),tool=toolPose(s.q);
     links.forEach((link,i)=>{const a=pose.points[i],b=pose.points[i+1];orient(link,a,b);link.scale.y=v(a).distanceTo(v(b));});
     joints.forEach((joint,i)=>{joint.position.copy(v(pose.origins[i]));joint.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),v(pose.axes[i]));caps[i].position.copy(joint.position).addScaledVector(v(pose.axes[i]),[20,23,20.5,16,14.5,13][i]);caps[i].quaternion.copy(joint.quaternion);});
@@ -108,13 +170,15 @@ export function createScene(container) {
       const top=Math.max(...stack.map(o=>o.position[2]+o.size[2]/2));
       objectLabels.get(object.id).position.set(object.position[0]+(stack.length>1?65:0),object.position[1]+(stack.length>1?35:0),stack.length>1?top+22+stack.findIndex(o=>o.id===object.id)*40:object.position[2]+object.size[2]/2+22);
     }
+    for(const [id,m]of obstacles)m.visible=(s.obstacles||[]).some(o=>o.id===id);
     for(const object of s.obstacles||[]){
-      if(!obstacles.has(object.id)){const m=box(scene,object.size,'#aab3a4');const edge=new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry),new THREE.LineBasicMaterial({color:0x81917d}));m.add(edge);obstacles.set(object.id,m);}
+      if(!obstacles.has(object.id))obstacles.set(object.id,furniture(object));
+      obstacles.get(object.id).visible=true;
       obstacles.get(object.id).position.copy(v(object.position));
     }
   }
-  function resize(){const {width,height}=container.getBoundingClientRect();renderer.setSize(width,height);camera.aspect=width/height;camera.fov=width<600?30:34;controls.target.z=width<600?105:75;camera.updateProjectionMatrix();}
+  function resize(){const {width,height}=container.getBoundingClientRect();renderer.setSize(width,height);camera.aspect=width/height;camera.fov=width<600?38:36;camera.updateProjectionMatrix();}
   new ResizeObserver(resize).observe(container);resize();
   renderer.setAnimationLoop(()=>{controls.update();for(const sprite of labelSprites){const factor=2*camera.position.distanceTo(sprite.position)*Math.tan(camera.fov*Math.PI/360)/container.clientHeight*(container.clientWidth<600?10:11)/48;sprite.scale.set(sprite.userData.canvas.width*factor,80*factor,1);}renderer.render(scene,camera);});
-  return {update,language:lang=>{currentLanguage=lang;labels.forEach(draw=>draw(lang));},resetView:()=>{camera.position.set(850,-900,800);controls.target.set(0,0,container.clientWidth<600?105:75);}};
+  return {update,language:lang=>{currentLanguage=lang;labels.forEach(draw=>draw(lang));},resetView:()=>{camera.position.set(1000,-1100,940);controls.target.set(0,80,-10);}};
 }
