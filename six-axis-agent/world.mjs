@@ -1,4 +1,4 @@
-import { homeFor, ikTool, toolPose, valid, distance, transform, rotationFromEuler, multiply, JOINTS } from './kinematics.mjs?v=cup-20261021-2';
+import { homeFor, ikTool, toolPose, valid, distance, transform, rotationFromEuler, multiply, JOINTS } from './kinematics.mjs?v=mobile-20261021-1';
 
 export const AREAS={left:[170,-230],right:[170,230],rear:[-280,0],front:[280,0]};
 export const HOME=[210,0,150];

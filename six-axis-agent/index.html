@@ -5,28 +5,23 @@
   <meta name="theme-color" content="#f5f4f0">
   <meta name="description" content="This room is messy. Tell an AI-controlled robot how to organize a dorm room desk. A conversational robotics activity from Beijing New Talent Academy.">
   <title>Robot Lab — Six Axis</title>
-  <link rel="stylesheet" href="./style.css?v=cup-20261021-2">
+  <link rel="stylesheet" href="./style.css?v=mobile-20261021-1">
   <script type="importmap">{"imports":{"three":"../beginner-3axis/vendor/three/build/three.module.js"}}</script>
 </head>
-<body data-version="cup-20261021-2">
+<body data-version="mobile-20261021-1">
   <header><a class="brand" href="../"><span class="brand-mark">↗</span><span><b>Robot Lab</b></span></a>
-    <div class="header-actions"><span class="edition" data-i18n="edition">SIX AXIS / CONVERSATIONAL LAB</span><button id="language" aria-label="Switch to Chinese">中文</button></div>
+    <div class="header-actions"><span id="connection-state" class="status" role="status">Not connected</span><button id="language" aria-label="Switch to Chinese">中文</button></div>
   </header>
   <main>
     <section class="workspace" aria-label="Robot workspace">
       <div class="scene-heading"><div><span class="eyebrow" data-i18n="workspace">YOUR DORM ROOM DESK</span><h1 data-i18n="headline">This room is messy.</h1><p class="scene-mission" data-i18n="mission">Use your AI-controlled robot to organize the desk.</p></div>
         <button id="reset" class="reset-button" title="Reset scene" aria-label="Reset scene"><span aria-hidden="true">↺</span> <span data-i18n="resetShort">Reset</span></button></div>
       <div id="scene"><div id="render-error" hidden></div></div>
-      <aside id="inventory" aria-label="Desk inventory"><h3 data-i18n="inventory">On the desk</h3><ul id="inventory-items"></ul><p data-i18n="inventoryHomes">Homes: shelf · pen holder</p><p data-i18n="inventoryFixed">Fixed: laptop · lamp</p><span id="scene-state" role="status">Ready for a job</span></aside>
+      <details id="inventory"><summary data-i18n="inventory">On the desk</summary><ul id="inventory-items"></ul><p data-i18n="inventoryHomes">Homes: shelf · pen holder</p><p data-i18n="inventoryFixed">Fixed: laptop · lamp</p><span id="scene-state" role="status">Ready for a job</span></details>
       <div class="scene-bottom"><span class="orbit-hint" data-i18n="orbit">Drag to orbit · Scroll to zoom</span></div>
       <span class="simulation-note" data-i18n="simulation">6-axis kinematic simulation</span>
     </section>
     <section class="conversation" aria-label="Robot conversation">
-      <div class="conversation-heading"><div><span class="eyebrow" data-i18n="conversation">TALK TO YOUR ROBOT</span><h2 data-i18n="agent">Robot assistant</h2></div><span id="connection-state" class="status">Not connected</span></div>
-      <div id="messages" role="log" aria-live="polite" aria-relevant="additions text"></div>
-      <div id="suggestions" hidden><button id="challenge" data-i18n="challenge">Try a challenge</button><button data-command="ask" data-i18n="suggestAsk">What can you do?</button></div>
-      <div id="preview-panel" hidden role="group" aria-label="Movement preview"><p id="preview-description" role="status"></p><div><button id="preview-run" type="button" data-i18n="previewRun">Run movement</button><button id="preview-dismiss" type="button" data-i18n="previewDismiss">Dismiss preview</button></div></div>
-      <div id="activity" role="status"></div>
       <div id="composer" role="group">
         <label id="input-label" for="api-key" data-i18n="keyLabel">Your Alibaba API key</label>
         <input id="api-key" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore placeholder="Paste your Alibaba API key" maxlength="512">
@@ -35,10 +30,14 @@
         <div class="composer-bottom"><button type="button" id="reconnect" hidden data-i18n="reconnect">Change connection</button><span id="key-note" data-i18n="keyNote">Used for this tab only. Never added to the chat.</span><button id="mic" type="button" hidden aria-label="Dictate a command" aria-pressed="false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8"/></svg></button><button id="send" type="button" data-i18n="connect">Connect ↗</button><button id="stop" type="button" hidden data-i18n="stop">■ Stop</button></div>
         <p id="speech-note" hidden data-i18n="speechNote">Dictation uses your browser’s speech service. Review before sending.</p>
       </div>
-      <div class="conversation-foot" data-i18n="hint">Say what you want. The robot will ask if it needs more detail.</div>
+      <div id="activity" role="status"></div>
+      <div id="preview-panel" hidden role="group" aria-label="Movement preview"><p id="preview-description" role="status"></p><div><button id="preview-run" type="button" data-i18n="previewRun">Run movement</button><button id="preview-dismiss" type="button" data-i18n="previewDismiss">Dismiss preview</button></div></div>
+      <div id="messages" role="log" aria-live="polite" aria-relevant="additions text"></div>
+      <details id="earlier-messages" hidden><summary data-i18n="earlierMessages">Earlier messages</summary><div id="message-history"></div></details>
+      <details id="suggestions" hidden><summary data-i18n="ideas">Command ideas</summary><div><button id="challenge" data-i18n="challenge">Try a challenge</button><button data-command="ask" data-i18n="suggestAsk">What can you do?</button></div></details>
     </section>
   </main>
   <footer><span>Beijing New Talent Academy <span class="footer-cn">/ 北京市新英才学校</span></span><a href="https://github.com/zhinii/bnta-robotics/tree/main/six-axis-agent" data-i18n="source">About & source ↗</a></footer>
-  <script type="module" src="./main.mjs?v=cup-20261021-2"></script>
+  <script type="module" src="./main.mjs?v=mobile-20261021-1"></script>
 </body>
 </html>

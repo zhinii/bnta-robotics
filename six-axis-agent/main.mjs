@@ -1,9 +1,9 @@
-import { initialState, snapshot, applyStep, CATALOG, objectPosture, previewSteps, inHolder, footprint } from './world.mjs?v=cup-20261021-2';
-import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=cup-20261021-2';
-import { createScene } from './scene.mjs?v=cup-20261021-2';
-import { createSpeech } from './speech.mjs?v=cup-20261021-2';
-import { words, challenges } from './i18n.mjs?v=cup-20261021-2';
-import deployment from './deployment.mjs?v=cup-20261021-2';
+import { initialState, snapshot, applyStep, CATALOG, objectPosture, previewSteps, inHolder, footprint } from './world.mjs?v=mobile-20261021-1';
+import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=mobile-20261021-1';
+import { createScene } from './scene.mjs?v=mobile-20261021-1';
+import { createSpeech } from './speech.mjs?v=mobile-20261021-1';
+import { words, challenges } from './i18n.mjs?v=mobile-20261021-1';
+import deployment from './deployment.mjs?v=mobile-20261021-1';
 const serverMode=deployment?.mode==='school';
 
 const $=id=>document.getElementById(id);
@@ -16,14 +16,27 @@ let previewData=null,previewResolve=null,settling=null;
 const t=(key,vars={})=>Object.entries(vars).reduce((s,[k,v])=>s.replaceAll('{'+k+'}',v),words[language][key]||key);
 const name=id=>CATALOG[id]?.[language==='zh'?'zh':'name']||state.obstacles.find(o=>o.id===id)?.[language==='zh'?'zh':'name']||({table:'桌面','robot base':'机械臂底座','tall divider':'高挡板','low divider':'矮挡板'}[id]&&language==='zh'?{table:'桌面','robot base':'机械臂底座','tall divider':'高挡板','low divider':'矮挡板'}[id]:id);
 const perception=()=>({...snapshot(state),canUndo:undo.length>0});
+const compactLayout=matchMedia('(max-width:900px)');
+$('inventory').open=!compactLayout.matches;
+compactLayout.addEventListener('change',event=>{
+  if(event.matches&&[$('prompt'),$('api-key')].includes(document.activeElement))document.activeElement.blur();
+});
+// Async replies must not reopen a phone keyboard or pull the page to the input.
+function focusInput(element){if(!compactLayout.matches&&!matchMedia('(pointer:coarse)').matches)element.focus({preventScroll:true});}
+function archiveExchange(){
+  const log=$('messages'),archive=$('message-history');
+  archive.append(...log.children);
+  while(archive.children.length>76)archive.firstElementChild.remove();
+  $('earlier-messages').hidden=!archive.children.length;
+}
 function add(role,content,{key,vars,error=false}={}){
+  if(role==='user'||['connected','resetDone','change','schoolKeyNote'].includes(key))archiveExchange();
   const el=document.createElement('div');el.className='message '+role+(error?' error':'');
   const who=document.createElement('div');who.className='who';who.textContent=t(role==='user'?'you':role==='system'?'system':'robot');
   const body=document.createElement('div');body.className='body';body.textContent=content;el.append(who,body);
   if(key){el.dataset.key=key;el.dataset.vars=JSON.stringify(vars||{});}
-  $('messages').append(el);$('messages').scrollTop=$('messages').scrollHeight;
-  requestAnimationFrame(()=>$('messages').scrollTop=$('messages').scrollHeight);
-  if($('messages').children.length>80)$('messages').firstElementChild.remove();return el;
+  $('messages').append(el);
+  return el;
 }
 function say(key,vars={},role='assistant',error=false){return add(role,t(key,vars),{key,vars,error});}
 function remember(role,content){history.push({role,content});history=history.slice(-12);}
@@ -31,7 +44,7 @@ const speech=createSpeech({
   Recognition:window.SpeechRecognition||window.webkitSpeechRecognition,language:()=>language,
   onText:text=>{$('prompt').value=text;},
   onState:active=>{activity=active?'listening':'';refresh();},
-  onMessage:key=>{if(key==='speechReady'){$('activity').textContent=t(key);$('prompt').focus();}else say(key,{},'system');}
+  onMessage:key=>{if(key==='speechReady'){$('activity').textContent=t(key);focusInput($('prompt'));}else say(key,{},'system');}
 });
 function onShelf(object){const shelf=state.obstacles.find(o=>o.id==='organizer');return shelf&&object.id!==state.held&&object.position[2]-footprint(object)[2]/2>=28-.3&&[0,1].every(i=>Math.abs(object.position[i]-shelf.position[i])+footprint(object)[i]/2<=shelf.size[i]/2);}
 let inventoryKey='';
@@ -48,14 +61,15 @@ function refresh(){
   $('api-key').placeholder=t('keyPlaceholder');$('prompt').placeholder=t('promptPlaceholder');$('prompt').setAttribute('aria-label',t('messageLabel'));
   $('api-key').hidden=!!connection||serverMode;$('prompt').hidden=!connection;$('connection-options').hidden=!!connection||serverMode;
   $('input-label').textContent=t(connection?'messageLabel':'keyLabel');$('input-label').htmlFor=connection?'prompt':'api-key';
+  $('input-label').classList.toggle('sr-only',!!connection);
   $('key-note').hidden=!!connection;$('reconnect').hidden=!connection;$('reconnect').disabled=busy;
   if(serverMode){$('input-label').textContent=t(connection?'messageLabel':'schoolConnection');$('key-note').textContent=t('schoolKeyNote');$('reconnect').textContent=t('schoolReconnect');}
-  $('suggestions').hidden=!connection||busy;$('mic').hidden=!connection||busy;$('speech-note').hidden=!connection;
+  $('suggestions').hidden=!connection||busy;$('mic').hidden=!connection||busy;$('speech-note').hidden=!connection||!speech.active;
   $('mic').title=t(speech.active?'micStop':'mic');$('mic').setAttribute('aria-label',t(speech.active?'micStop':'mic'));$('mic').setAttribute('aria-pressed',String(speech.active));
   $('send').textContent=t(connection?'send':'connect');$('send').hidden=busy;$('send').disabled=speech.active;$('stop').hidden=!busy;
   $('api-key').disabled=busy||!!connection;$('prompt').disabled=busy;$('base-url').disabled=busy;$('model').disabled=busy;
   $('connection-state').textContent=t(connection?'online':'offline');$('connection-state').classList.toggle('online',!!connection);
-  $('activity').textContent=activity?t(activity):'';
+  $('activity').textContent=activity&&!previewData?t(activity):'';
   $('preview-panel').hidden=!previewData;
   if(previewData){$('preview-panel').dataset.kind=previewData.kind;$('preview-run').hidden=previewData.kind!=='ready';$('preview-dismiss').textContent=t(previewData.kind==='ready'?'previewCancel':'previewDismiss');$('preview-description').textContent=t(previewData.kind==='ready'?'previewReady':previewData.kind==='collision'?'previewCollision':previewData.kind==='reach'?'previewReach':'previewPlacement',{object:previewData.blocker?name(previewData.blocker):t('collisionSurface')});}
   document.querySelectorAll('.message[data-key]').forEach(el=>{const vars=JSON.parse(el.dataset.vars);if(vars.objectId)vars.object=name(vars.objectId);el.querySelector('.body').textContent=t(el.dataset.key,vars);});
@@ -87,7 +101,7 @@ function prepare(actions){
     return Promise.resolve({plan:{steps:undo.at(-1)},undoing:true});
   }
   return new Promise((resolve,reject)=>{
-    const planner=new Worker(new URL('./planner-worker.mjs?v=cup-20261021-2',import.meta.url),{type:'module'});worker=planner;
+    const planner=new Worker(new URL('./planner-worker.mjs?v=mobile-20261021-1',import.meta.url),{type:'module'});worker=planner;
     const finish=()=>{clearTimeout(timer);planner.terminate();if(worker===planner){worker=null;workerReject=null;}};
     const timer=setTimeout(()=>{finish();reject(Error('planningTimeout'));},45000);
     workerReject=error=>{finish();reject(error);};
@@ -142,12 +156,12 @@ async function connect(){
     connection=candidate;if(!serverMode)try{localStorage.setItem('six-axis-settings',JSON.stringify({base:candidate.base,model:candidate.model}));}catch{}
     say('connected');
   }catch(error){if(id===epoch)reportError(error);}
-  finally{if(id===epoch){busy=false;activity='';abort=null;refresh();(connection?$('prompt'):serverMode?$('send'):$('api-key')).focus();}}
+  finally{if(id===epoch){busy=false;activity='';abort=null;refresh();focusInput(connection?$('prompt'):serverMode?$('send'):$('api-key'));}}
 }
 async function send(question){
   if(busy||!question.trim())return;if(!connection){say('needConnection');return;}if(!view){say('sceneUnavailable',{},'assistant',true);return;}
   speech.abort();clearPreview();const id=++epoch;busy=true;add('user',question);$('prompt').value='';status('thinking');
-  let feedback,response,prepared;
+  let feedback,response,prepared,intention;
   try{
     for(let attempt=0;attempt<2;attempt++){
       response=await request(question,id,feedback);if(id!==epoch)return;
@@ -159,7 +173,7 @@ async function send(question){
     if(id!==epoch)return;
     remember('user',question);
     if(!response.actions.length){add('assistant',response.reply);remember('assistant',response.reply);return;}
-    add('assistant',response.reply);remember('assistant',response.reply);
+    intention=add('assistant',response.reply);remember('assistant',response.reply);
     if(!await review(prepared.plan.steps)){if(id===epoch){say('previewCancelled');remember('assistant',t('previewCancelled'));}return;}if(id!==epoch)return;status('moving');
     const touched=new Set([state.held,...prepared.plan.steps.filter(step=>step.type==='grip').map(step=>step.object)]);
     await animate(prepared.plan.steps,id);if(id!==epoch)return;
@@ -173,10 +187,10 @@ async function send(question){
       completion=last.type==='restore'?t('restoreDone'):items.length?items.map(o=>t(o.id===state.held?'postureHeld':'posturePlaced',{object:name(o.id),posture:t('posture_'+objectPosture(o)),angles:o.rpy.map(v=>Math.round(v)).join('°, ')+'°'})).join('\n'):t(key,vars);
     }
     if(last.type!=='restore'&&last.type!=='undo'&&state.objects.some(o=>touched.has(o.id)&&onShelf(o)))completion+='\n'+t('shelfFollowup');
-    add('assistant',completion);
+    intention?.remove();add('assistant',completion);
     remember('assistant',completion+'\nExecuted actions: '+JSON.stringify(response.actions)+'\nActual scene: '+JSON.stringify(perception()));
   }catch(error){if(id===epoch){remember('user',question);remember('assistant','Execution did not complete: '+reportError(error)+' '+JSON.stringify(perception()));}}
-  finally{if(id===epoch){busy=false;activity='';refresh();$('prompt').focus();}}
+  finally{if(id===epoch){busy=false;activity='';refresh();focusInput($('prompt'));}}
 }
 function submitMessage(){if(!busy&&!speech.active){if(connection)void send($('prompt').value.trim());else void connect();}}
 $('send').addEventListener('click',submitMessage);
@@ -187,7 +201,7 @@ $('preview-dismiss').addEventListener('click',()=>{const resolve=previewResolve;
 function arrange(seed,kit,message){cancel(false);state=initialState(seed,kit);undo=[];history=[];view?.resetView();say(message,{},'system');refresh();}
 $('reset').addEventListener('click',()=>arrange(state.seed,state.kit,'resetDone'));
 $('language').addEventListener('click',()=>{speech.abort();if(busy)cancel();language=language==='en'?'zh':'en';try{localStorage.setItem('six-axis-language',language);}catch{}refresh();});
-$('reconnect').addEventListener('click',()=>{cancel(false);connection=null;$('api-key').value='';say(serverMode?'schoolKeyNote':'change');refresh();(serverMode?$('send'):$('api-key')).focus();});
+$('reconnect').addEventListener('click',()=>{cancel(false);connection=null;$('api-key').value='';say(serverMode?'schoolKeyNote':'change');refresh();focusInput(serverMode?$('send'):$('api-key'));});
 $('mic').addEventListener('click',()=>speech.start($('prompt').value));
 $('challenge').addEventListener('click',()=>{speech.abort();$('prompt').value=state.kit!=='blocks'?challenges[language][challengeIndex++%challenges[language].length]:(language==='en'?'Stack blue on red and yellow on blue, then put everything back.':'把蓝色方块放在红色上，再把黄色放在蓝色上，最后全部放回原位。');$('prompt').focus();});
 document.querySelectorAll('[data-command]').forEach(button=>button.addEventListener('click',()=>void send(t(button.dataset.command==='pick'?'suggestPick':'suggestAsk'))));
