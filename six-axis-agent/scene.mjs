@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from '../beginner-3axis/vendor/three/examples/jsm/controls/OrbitControls.js';
-import { fk, toolPose } from './kinematics.mjs?v=preview-20261021-1';
-import { CATALOG, HOMES, DESK, graspWidth, footprint } from './world.mjs?v=preview-20261021-1';
+import { fk, toolPose } from './kinematics.mjs?v=holder-20261021-1';
+import { CATALOG, DESK, graspWidth, footprint, holderParts } from './world.mjs?v=holder-20261021-1';
 
 export function createScene(container) {
   const scene=new THREE.Scene(); scene.background=new THREE.Color('#eeeee7');
@@ -76,10 +76,7 @@ export function createScene(container) {
   const storage=new THREE.Group();room.add(storage);storage.position.set(-280,610,-100);
   box(storage,[220,260,560],'#bca98a');
   for(const y of [-65,65]){box(storage,[5,124,540],'#d1bea0',[113,y,0]);box(storage,[7,5,40],'#737c75',[118,y+(y<0?48:-48),0]);}
-  // Window with roller blind, a corkboard and a weekly planner.
-  box(room,[14,290,260],'#fbf7ee',[-410,20,155]);box(room,[16,260,230],'#a9cbd2',[-400,20,155]);
-  box(room,[18,8,236],'#faf6eb',[-388,20,155]);box(room,[18,266,8],'#faf6eb',[-388,20,155]);
-  box(room,[20,286,68],'#c6c2b7',[-380,20,260]);
+  // Corkboard on the plain dorm wall.
   box(room,[230,12,155],'#8c7455',[350,779,125]);box(room,[216,14,141],'#bf9b6b',[350,770,125]);
   for(const [x,z,c]of [[290,135,'#f5ebcb'],[350,155,'#d8e5d1'],[408,115,'#eee3da']]){box(room,[49,2,66],c,[x,761,z]);const pin=cylinder(3,3,mat('#875f4b',0),room);pin.position.set(x,757,z+25);}
   box(room,[330,240,3],'#b4b2a5',[530,180,-387]);
@@ -132,24 +129,14 @@ export function createScene(container) {
     }else box(group,item.size,c);
     return group;
   }
-  const labels=[],labelSprites=[];
-  function label(en,zh,position,width=75) {
-    const canvas=document.createElement('canvas');canvas.width=512;canvas.height=128;
-    let texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
-    const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,depthTest:false,transparent:true,toneMapped:false}));
-    sprite.position.copy(v(position));sprite.scale.set(width,width/4,1);station.add(sprite);
-    sprite.userData.canvas=canvas;sprite.userData.anchor=v(position);
-    const leader=new THREE.Line(new THREE.BufferGeometry().setFromPoints([v(position),v(position)]),new THREE.LineBasicMaterial({color:'#6e8072',transparent:true,opacity:.5,depthTest:false}));station.add(leader);sprite.userData.leader=leader;
-    labelSprites.push(sprite);
-    const draw=language=>{const text=language==='zh'?zh:en;let ctx=canvas.getContext('2d');ctx.font='600 48px Segoe UI, Microsoft YaHei';const size=Math.ceil(ctx.measureText(text).width)+24;if(canvas.width!==size||canvas.height!==80){canvas.width=size;canvas.height=80;texture.dispose();texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;sprite.material.map=texture;sprite.material.needsUpdate=true;}ctx=canvas.getContext('2d');ctx.clearRect(0,0,canvas.width,80);ctx.font='600 48px Segoe UI, Microsoft YaHei';ctx.textAlign='center';ctx.fillStyle='#4e6151';ctx.fillText(text,canvas.width/2,57);sprite.scale.set(canvas.width*.4,32,1);texture.needsUpdate=true;};
-    labels.push(draw);draw('en');return sprite;
-  }
-  const objectLabels=new Map();
-  const homeLabels=Object.entries(HOMES).map(([id,home])=>label(id.replace('shelf-','').toUpperCase(),home.zh.replace('整理架',''),[...home.position.slice(0,2),home.position[2]+5]));
   function furniture(object){
     const g=new THREE.Group();station.add(g);const [w,l,h]=object.size;
     if(object.id==='wall')return g; // The room wall is already rendered in room coordinates.
-    if(object.id==='organizer'){
+    if(object.container){
+      for(const part of holderParts(object))box(g,part.size,'#b98a67',part.position.map((v,i)=>v-object.position[i]));
+      // Contrasting inner floor makes the open top legible from the desk view.
+      box(g,[w-7,l-7,.4],'#80634f',[0,0,-h/2+4.2]);
+    }else if(object.id==='organizer'){
       box(g,[w,l,8],'#c19e73',[0,0,h/2-4]);
       for(const x of [-w/2+12,w/2-12])box(g,[16,l-12,h-8],'#a7835d',[x,0,-4]);
       // Subtle engraved names mark spaces; there are no physical dividers or assigned categories.
@@ -170,7 +157,6 @@ export function createScene(container) {
     }else box(g,object.size,'#aab3a4');
     return g;
   }
-  let currentLanguage='en';
   const ghosts=new THREE.Group();station.add(ghosts);
   function clearPreview(){
     ghosts.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material)o.material.dispose();});
@@ -210,8 +196,7 @@ export function createScene(container) {
     surface.scale.set(isDesk?(width-8)/790:1,isDesk?(depth-8)/790:1,1);surface.position.x=isDesk?centre:0;
     deskMount.visible=isDesk;
     room.visible=s.kit==='desk';floor.material.color.set(s.kit==='desk'?'#c6ac8c':'#eeeee7');floor.position.z=s.kit==='desk'?-390:-14;
-    homeLabels.forEach(sprite=>sprite.visible=s.kit==='desk');
-    renderer.domElement.setAttribute('aria-label',s.kit==='desk'?'Robot clamped to one side of a dorm room desk, with reachable books, pen, pencil, alarm clock, eraser, pencil case, organizer shelf, fixed laptop and lamp; a single bed, wardrobe, chair and pinboard in the room.':s.kit==='blocks'?'Six-axis robot with red, blue and yellow blocks on a table.':'Six-axis robot with school objects on a table.');
+    renderer.domElement.setAttribute('aria-label',s.kit==='desk'?'Robot clamped to one side of a dorm room desk, with reachable red book, blue notebook, pen, pencil, pen holder, organizer shelf, fixed laptop and lamp; a single bed, wardrobe, chair and pinboard in the room.':s.kit==='blocks'?'Six-axis robot with red, blue and yellow blocks on a table.':'Six-axis robot with school objects on a table.');
     const pose=fk(s.q),tool=toolPose(s.q);
     links.forEach((link,i)=>{const a=pose.points[i],b=pose.points[i+1];orient(link,a,b);link.scale.y=v(a).distanceTo(v(b));});
     joints.forEach((joint,i)=>{joint.position.copy(v(pose.origins[i]));joint.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),v(pose.axes[i]));caps[i].position.copy(joint.position).addScaledVector(v(pose.axes[i]),[20,23,20.5,16,14.5,13][i]);caps[i].quaternion.copy(joint.quaternion);});
@@ -219,14 +204,10 @@ export function createScene(container) {
     gripper.position.copy(v(tool.tip));gripper.quaternion.setFromRotationMatrix(new THREE.Matrix4().set(r[0],r[1],r[2],0,r[3],r[4],r[5],0,r[6],r[7],r[8],0,0,0,0,1));
     const held=s.objects.find(o=>o.id===s.held);
     fingers.forEach((finger,i)=>finger.position.set((i?1:-1)*(held?graspWidth(s)/2+3.5:29),0,0));
-    for(const [id,m] of objects){m.visible=s.objects.some(o=>o.id===id);objectLabels.get(id).visible=m.visible;}
+    for(const [id,m] of objects){m.visible=s.objects.some(o=>o.id===id);}
     for(const object of s.objects){
-      if(!objects.has(object.id)){objects.set(object.id,schoolObject(object.id));objectLabels.set(object.id,label(object.id==='pencilcase'?'PENCIL CASE':object.id.toUpperCase(),object.zh,[0,0,0],object.name.length*5.2+12));labels.at(-1)(currentLanguage);}
+      if(!objects.has(object.id))objects.set(object.id,schoolObject(object.id));
       const m=objects.get(object.id);m.position.copy(v(object.position));m.rotation.set(...(object.rpy||[0,0,object.yaw]).map(n=>n*Math.PI/180),'ZYX');
-      const stack=s.objects.filter(o=>o.id!==s.held&&Math.hypot(o.position[0]-object.position[0],o.position[1]-object.position[1])<10).sort((a,b)=>a.position[2]-b.position[2]);
-      const top=Math.max(...stack.map(o=>o.position[2]+footprint(o)[2]/2));
-      objectLabels.get(object.id).position.set(object.position[0]+(stack.length>1?65:0),object.position[1]+(stack.length>1?35:0),stack.length>1?top+22+stack.findIndex(o=>o.id===object.id)*40:object.position[2]+footprint(object)[2]/2+22);
-      objectLabels.get(object.id).userData.anchor.copy(objectLabels.get(object.id).position);
     }
     for(const [id,m]of obstacles)m.visible=(s.obstacles||[]).some(o=>o.id===id);
     for(const object of s.obstacles||[]){
@@ -239,24 +220,7 @@ export function createScene(container) {
   new ResizeObserver(resize).observe(container);resize();
   renderer.setAnimationLoop(()=>{
     controls.update();camera.updateMatrixWorld();station.updateMatrixWorld(true);
-    const width=container.clientWidth,height=container.clientHeight,font=width<600?10:11,placed=[];
-    for(const sprite of labelSprites){
-      const {anchor,leader,canvas}=sprite.userData;leader.visible=false;if(!sprite.visible)continue;
-      const projected=station.localToWorld(anchor.clone()).project(camera),px=(projected.x+1)*width/2,py=(1-projected.y)*height/2,w=canvas.width*font/48,h=80*font/48;
-      let chosen;
-      // Keep names legible when the desk is viewed in a narrow panel or orbited.
-      for(let distance=0;distance<=144&&!chosen;distance+=18)for(const dy of distance?[distance,-distance]:[0])for(const dx of [0,-48,48]){
-        const x=Math.max(w/2+8,Math.min(width-w/2-8,px+dx)),y=Math.max(150,Math.min(height-55,py+dy)),box={x:x-w/2,y:y-h/2,w,h};
-        if(!placed.some(b=>box.x<b.x+b.w+5&&box.x+box.w+5>b.x&&box.y<b.y+b.h+4&&box.y+box.h+4>b.y)){chosen={x,y,box};break;}
-      }
-      chosen||={x:px,y:py,box:{x:px-w/2,y:py-h/2,w,h}};placed.push(chosen.box);
-      sprite.position.set(chosen.x/width*2-1,1-chosen.y/height*2,projected.z).unproject(camera);
-      const factor=2*camera.position.distanceTo(sprite.position)*Math.tan(camera.fov*Math.PI/360)/height*font/48;
-      station.worldToLocal(sprite.position);
-      sprite.scale.set(canvas.width*factor,80*factor,1);
-      if(Math.hypot(chosen.x-px,chosen.y-py)>14){const points=leader.geometry.attributes.position;points.setXYZ(0,anchor.x,anchor.y,anchor.z);points.setXYZ(1,sprite.position.x,sprite.position.y,sprite.position.z);points.needsUpdate=true;leader.geometry.computeBoundingSphere();leader.visible=true;}
-    }
     renderer.render(scene,camera);
   });
-  return {update,preview,clearPreview,language:lang=>{currentLanguage=lang;labels.forEach(draw=>draw(lang));},resetView:()=>{camera.position.set(1000,-1100,980);controls.target.set(-60,150,-40);}};
+  return {update,preview,clearPreview,language:()=>{},resetView:()=>{camera.position.set(1000,-1100,980);controls.target.set(-60,150,-40);}};
 }

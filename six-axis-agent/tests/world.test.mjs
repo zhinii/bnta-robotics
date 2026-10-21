@@ -37,7 +37,7 @@ test('upright books are not advertised as broad stacking supports and blocked po
  const s=initialState(0,'desk');run(s,[{type:'transfer',object:'book',target:'shelf-middle',posture:'short-edge'}]);const before=structuredClone(s);
  assert.equal(snapshot(s).objects.find(o=>o.id==='book').stackable,false);
  assert.throws(()=>planActions(s,[{type:'transfer',object:'notebook',target:'book'}]),/unstable/);assert.deepEqual(s,before);
- assert.throws(()=>planActions(s,[{type:'transfer',object:'eraser',target:'rear',posture:'short-edge'}]),/posture/);assert.deepEqual(s,before);
+ assert.throws(()=>planActions(s,[{type:'transfer',object:'notebook',target:'rear',posture:'short-edge'}]),/posture/);assert.deepEqual(s,before);
 });
 test('90 degree X, Y and Z turns preserve the requested axis and can restore or undo',()=>{
  for(const [axis,index] of [['x',0],['y',1],['z',2]]){
@@ -103,7 +103,7 @@ test('restore can undo swapped starts on the narrow desk using a clear shelf spa
 test('bedroom gestures and randomized arrangements remain reachable',()=>{
  for(const type of ['wave','bow','dance','circle','bob']){const s=initialState(0,'desk'),before=structuredClone(s);run(s,[{type}]);sameObjects(s,before);assert.ok(distance(toolPose(s.q).tip,HOME)<.2);}
  for(const seed of [42,139,896])for(const object of initialState(0,'desk').objects.map(o=>o.id)){const s=initialState(seed,'desk'),before=structuredClone(s);run(s,[{type:'transfer',object,target:'shelf-middle'},{type:'restore'}]);sameObjects(s,before);}
- const scene=snapshot(initialState(0,'desk'));assert.equal(Object.keys(scene.homes).length,3);assert.equal(scene.obstacles.filter(o=>o.fixed).length,4);assert.match(scene.context,/user decides/i);
+ const scene=snapshot(initialState(0,'desk'));assert.equal(Object.keys(scene.homes).length,3);assert.equal(scene.obstacles.filter(o=>o.fixed).length,5);assert.match(scene.context,/user decides/i);
 });
 test('all five school objects can go to every table side and return to their own starts',()=>{
  for(const id of initialState().objects.map(o=>o.id))for(const target of Object.keys(AREAS)){

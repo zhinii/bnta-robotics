@@ -1,8 +1,8 @@
-import { initialState, snapshot, applyStep, CATALOG, objectPosture, previewSteps } from './world.mjs?v=preview-20261021-1';
-import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=preview-20261021-1';
-import { createScene } from './scene.mjs?v=preview-20261021-1';
-import { createSpeech } from './speech.mjs?v=preview-20261021-1';
-import { words, challenges } from './i18n.mjs?v=preview-20261021-1';
+import { initialState, snapshot, applyStep, CATALOG, objectPosture, previewSteps, inHolder, footprint } from './world.mjs?v=holder-20261021-1';
+import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=holder-20261021-1';
+import { createScene } from './scene.mjs?v=holder-20261021-1';
+import { createSpeech } from './speech.mjs?v=holder-20261021-1';
+import { words, challenges } from './i18n.mjs?v=holder-20261021-1';
 
 const $=id=>document.getElementById(id);
 // API tokens are not website passwords. Keep Chrome's password-manager
@@ -10,7 +10,7 @@ const $=id=>document.getElementById(id);
 if(!CSS.supports('-webkit-text-security','disc'))$('api-key').type='password';
 let language='en';try{language=localStorage.getItem('six-axis-language')==='zh'?'zh':'en';}catch{}
 let state=initialState(0,'desk'),connection=null,busy=false,epoch=0,abort=null,history=[],activity='',view=null,undo=[],worker=null,workerReject=null,challengeIndex=0;
-let previewData=null,previewResolve=null;
+let previewData=null,previewResolve=null,settling=null;
 const t=(key,vars={})=>Object.entries(vars).reduce((s,[k,v])=>s.replaceAll('{'+k+'}',v),words[language][key]||key);
 const name=id=>CATALOG[id]?.[language==='zh'?'zh':'name']||state.obstacles.find(o=>o.id===id)?.[language==='zh'?'zh':'name']||({table:'桌面','robot base':'机械臂底座','tall divider':'高挡板','low divider':'矮挡板'}[id]&&language==='zh'?{table:'桌面','robot base':'机械臂底座','tall divider':'高挡板','low divider':'矮挡板'}[id]:id);
 const perception=()=>({...snapshot(state),canUndo:undo.length>0});
@@ -31,7 +31,13 @@ const speech=createSpeech({
   onState:active=>{activity=active?'listening':'';refresh();},
   onMessage:key=>{if(key==='speechReady'){$('activity').textContent=t(key);$('prompt').focus();}else say(key,{},'system');}
 });
-function render(){view?.update(state);$('scene-state').textContent=state.held?t('holding',{object:name(state.held)}):t('empty');}
+function onShelf(object){const shelf=state.obstacles.find(o=>o.id==='organizer');return shelf&&object.id!==state.held&&object.position[2]-footprint(object)[2]/2>=28-.3&&[0,1].every(i=>Math.abs(object.position[i]-shelf.position[i])+footprint(object)[i]/2<=shelf.size[i]/2);}
+let inventoryKey='';
+function render(){
+  view?.update(state);$('scene-state').textContent=state.held?t('holding',{object:name(state.held)}):t('empty');
+  const items=state.objects.map(o=>({id:o.id,color:o.color,location:o.id===state.held?'inventoryHeld':inHolder(state,o)?'inventoryHolder':onShelf(o)?'inventoryShelf':''}));
+  const key=JSON.stringify([language,items]);if(key!==inventoryKey){inventoryKey=key;$('inventory-items').replaceChildren(...items.map(o=>{const li=document.createElement('li'),dot=document.createElement('i'),text=document.createElement('span');dot.style.background=o.color;dot.setAttribute('aria-hidden','true');text.textContent=name(o.id)+(o.location?' · '+t(o.location):'');li.append(dot,text);return li;}));}
+}
 function refresh(){
   document.documentElement.lang=language;
   document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=t(el.dataset.i18n));
@@ -58,6 +64,7 @@ function clearPreview(){previewData=null;view?.clearPreview();}
 function showPreview(data){previewData=data;view?.preview(data);refresh();}
 function review(steps){showPreview(previewSteps(state,steps));status('previewWaiting');return new Promise(resolve=>{previewResolve=resolve;});}
 function cancel(announce=true){
+  if(settling){applyStep(state,settling);settling=null;render();}
   const reviewing=!!previewResolve;previewResolve?.(false);previewResolve=null;clearPreview();
   epoch++;abort?.abort();abort=null;worker?.terminate();worker=null;workerReject?.(Error('cancelled'));workerReject=null;speech.abort();
   const wasBusy=busy;busy=false;activity='';
@@ -77,7 +84,7 @@ function prepare(actions){
     return Promise.resolve({plan:{steps:undo.at(-1)},undoing:true});
   }
   return new Promise((resolve,reject)=>{
-    const planner=new Worker(new URL('./planner-worker.mjs?v=preview-20261021-1',import.meta.url),{type:'module'});worker=planner;
+    const planner=new Worker(new URL('./planner-worker.mjs?v=holder-20261021-1',import.meta.url),{type:'module'});worker=planner;
     const finish=()=>{clearTimeout(timer);planner.terminate();if(worker===planner){worker=null;workerReject=null;}};
     const timer=setTimeout(()=>{finish();reject(Error('planningTimeout'));},45000);
     workerReject=error=>{finish();reject(error);};
@@ -89,6 +96,12 @@ function prepare(actions){
 async function animate(steps,id){
   for(const step of steps){
     if(id!==epoch)throw Error('cancelled');
+    if(step.type==='fall'){
+      const object=state.objects.find(o=>o.id===step.object),from=[...object.position];settling=step;
+      await new Promise((resolve,reject)=>{let start;
+        function frame(now){if(id!==epoch)return reject(Error('cancelled'));start??=now;const u=Math.min(1,(now-start)/(step.seconds*1000));object.position=from.map((v,i)=>v+(step.position[i]-v)*u*u);render();if(u===1){applyStep(state,step);settling=null;resolve();}else requestAnimationFrame(frame);}requestAnimationFrame(frame);
+      });continue;
+    }
     if(step.type!=='move'){applyStep(state,step);render();continue;}
     const from=[...state.q],fromRpy=[...state.rpy];
     await new Promise((resolve,reject)=>{let elapsed=0,previous=null;
@@ -147,7 +160,7 @@ async function send(question){
     if(!await review(prepared.plan.steps)){if(id===epoch){say('previewCancelled');remember('assistant',t('previewCancelled'));}return;}if(id!==epoch)return;status('moving');
     const touched=new Set([state.held,...prepared.plan.steps.filter(step=>step.type==='grip').map(step=>step.object)]);
     await animate(prepared.plan.steps,id);if(id!==epoch)return;
-    if(prepared.undoing)undo.pop();else{undo.push(prepared.inverse);undo=undo.slice(-8);}
+    if(prepared.undoing)undo.pop();else if(prepared.inverse){undo.push(prepared.inverse);undo=undo.slice(-8);}else undo=[];
     const last=response.actions.at(-1),key=state.held?(last.type==='pick'?'pickDone':'holdDone'):last.type==='restore'?'restoreDone':last.type==='undo'?'undoDone':['dance','wave','bow','circle','bob'].includes(last.type)?'danceDone':'done';
     const vars=state.held?{object:name(state.held),objectId:state.held}:{};
     const rotated=response.actions.some(a=>a.type==='rotate'||a.orientation||a.posture);
@@ -156,6 +169,7 @@ async function send(question){
       const items=state.objects.filter(o=>o.id===state.held||touched.has(o.id));
       completion=last.type==='restore'?t('restoreDone'):items.length?items.map(o=>t(o.id===state.held?'postureHeld':'posturePlaced',{object:name(o.id),posture:t('posture_'+objectPosture(o)),angles:o.rpy.map(v=>Math.round(v)).join('°, ')+'°'})).join('\n'):t(key,vars);
     }
+    if(last.type!=='restore'&&last.type!=='undo'&&state.objects.some(o=>touched.has(o.id)&&onShelf(o)))completion+='\n'+t('shelfFollowup');
     add('assistant',completion);
     remember('assistant',completion+'\nExecuted actions: '+JSON.stringify(response.actions)+'\nActual scene: '+JSON.stringify(perception()));
   }catch(error){if(id===epoch){remember('user',question);remember('assistant','Execution did not complete: '+reportError(error)+' '+JSON.stringify(perception()));}}

@@ -20,13 +20,13 @@ try{
  });
  await page.route('https://bnta-robot-lab-connection.zhinii.chatgpt.site/api/chat',async route=>{
   const data=route.request().postDataJSON(),q=JSON.parse(data.messages.findLast(m=>m.role==='user'&&m.content.startsWith('{')).content);seen.push(q);
-  let response={reply:q.language==='zh'?'你想让我拿起哪一个物品？':'Which object do you mean: the book, eraser, glue stick, pencil case or ruler?',actions:[]};
+  let response={reply:q.language==='zh'?'你想让我拿起哪一个物品？':'Which object do you mean: the red book, blue notebook, pen or pencil?',actions:[]};
   const tasks={
-   'pick up the eraser':[{type:'pick',object:'eraser'}],
+   'pick up the notebook':[{type:'pick',object:'notebook'}],
    'put it on the book':[{type:'place',target:'book'}],
    'undo that':[{type:'undo'}],
    'put it back where it started':[{type:'place',target:'start'}],
-   'stack the school things':[{type:'pick',object:'pencilcase'},{type:'place',target:'book'},{type:'pick',object:'eraser'},{type:'place',target:'pencilcase'}],
+   'stack the school things':[{type:'pick',object:'book'},{type:'place',target:'shelf-left'},{type:'pick',object:'notebook'},{type:'place',target:'book'}],
    'put everything back':[{type:'restore'}],
    'do a dance for me':[{type:'dance',style:'lively'}],
    'make a new pose':[{type:'move',position:[220,30,160],orientation:[5,-5,20]}],
@@ -41,7 +41,7 @@ try{
   await route.fulfill({json:{choices:[{message:{content:JSON.stringify(response)}}]}}).catch(()=>{});
  });
  await page.goto(base);await page.waitForFunction(()=>!!window.robotLabSnapshot);assert.equal(await page.locator('#render-error').isVisible(),false);assert.equal(await page.locator('#scene canvas').count(),1);
- assert.equal((await page.evaluate(()=>window.robotLabSnapshot().scene)).objects.length,7);
+ assert.equal((await page.evaluate(()=>window.robotLabSnapshot().scene)).objects.length,4);
  if(output)await page.screenshot({path:output+'/desktop-bedroom-connect.png'});
  assert.equal(await page.locator('#kit').count(),0);assert.equal(await page.locator('#new-scene').count(),0);assert.ok(!(await page.locator('header').innerText()).includes('BNTA'));
  await page.locator('#api-key').fill('fake-browser-test-key');await page.locator('#send').click();await page.waitForFunction(()=>window.robotLabSnapshot().connected&&!window.robotLabSnapshot().busy);
@@ -50,14 +50,14 @@ try{
  const send=async text=>{const before=await scene();await page.locator('#prompt').fill(text);await page.locator('#send').click();await page.waitForFunction(()=>!window.robotLabSnapshot().busy||!document.getElementById('preview-panel').hidden&&!document.getElementById('preview-run').hidden,{},{timeout:90000});if(await page.locator('#preview-run').isVisible()){assert.deepEqual(await scene(),before);await page.locator('#preview-run').click();}await page.waitForFunction(()=>!window.robotLabSnapshot().busy,{},{timeout:90000});console.log('Checked command:',text);};
  await send('pick this up');assert.deepEqual(await scene(),initial);
  await page.locator('#mic').click();assert.equal(await page.evaluate(()=>window.testSpeech.lang),'en-US');
- await page.evaluate(()=>{window.testSpeech.onresult({results:[[{transcript:'pick up the eraser'}]]});window.testSpeech.onend();});
- assert.equal(await page.locator('#prompt').inputValue(),'pick up the eraser');assert.deepEqual(await scene(),initial);
- await send('pick up the eraser');assert.equal((await scene()).held,'eraser');assert.match(await page.locator('#messages').innerText(),/Where would you like me to put it/);
- if(output){await page.waitForTimeout(250);await page.screenshot({path:output+'/desktop-gripping-eraser.png'});}
- await send('put it on the book');assert.equal((await scene()).objects.find(o=>o.id==='eraser').position[2],28);
- await send('undo that');assert.equal((await scene()).held,'eraser');
- await send('put it back where it started');assert.deepEqual((await scene()).objects.find(o=>o.id==='eraser').position,initial.objects.find(o=>o.id==='eraser').origin);
- await send('stack the school things');assert.equal((await scene()).objects.find(o=>o.id==='eraser').position[2],58);
+ await page.evaluate(()=>{window.testSpeech.onresult({results:[[{transcript:'pick up the notebook'}]]});window.testSpeech.onend();});
+ assert.equal(await page.locator('#prompt').inputValue(),'pick up the notebook');assert.deepEqual(await scene(),initial);
+ await send('pick up the notebook');assert.equal((await scene()).held,'notebook');assert.match(await page.locator('#messages').innerText(),/Where would you like me to put it/);
+ if(output){await page.waitForTimeout(250);await page.screenshot({path:output+'/desktop-gripping-notebook.png'});}
+ await send('put it on the book');assert.equal((await scene()).objects.find(o=>o.id==='notebook').position[2],28);
+ await send('undo that');assert.equal((await scene()).held,'notebook');
+ await send('put it back where it started');assert.deepEqual((await scene()).objects.find(o=>o.id==='notebook').position,initial.objects.find(o=>o.id==='notebook').origin);
+ await send('stack the school things');assert.equal((await scene()).objects.find(o=>o.id==='notebook').position[2],56);
  if(output){await page.waitForTimeout(250);await page.screenshot({path:output+'/desktop-school-stack.png'});}
  await send('put everything back');for(const o of (await scene()).objects)assert.deepEqual(o.position,o.origin);
  await send('do a dance for me');await send('make a new pose');
