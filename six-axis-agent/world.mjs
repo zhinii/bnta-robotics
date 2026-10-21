@@ -1,4 +1,4 @@
-import { homeFor, ikTool, toolPose, valid, distance, transform, rotationFromEuler, multiply, JOINTS } from './kinematics.mjs?v=holder-20261021-1';
+import { homeFor, ikTool, toolPose, valid, distance, transform, rotationFromEuler, multiply, JOINTS } from './kinematics.mjs?v=cup-20261021-1';
 
 export const AREAS={left:[170,-230],right:[170,230],rear:[-280,0],front:[280,0]};
 export const HOME=[210,0,150];
@@ -6,14 +6,29 @@ export const BLOCKS=['red','blue','yellow'];
 // Robot-local coordinates: the mount is near the short edge, facing across the desk.
 export const DESK={min:[-60,-215],max:[560,215]};
 export const ORGANIZER={id:'organizer',name:'low organizer shelf',zh:'矮整理架',position:[230,160,14],size:[220,100,28],surface:true,fixed:true};
-export const PEN_HOLDER={id:'pen-holder',name:'pen holder',zh:'笔筒',position:[130,40,11],size:[52,104,22],fixed:true,container:true,accepts:['pen','pencil'],slots:[[130,65],[130,15]],floor:4};
+export const PEN_HOLDER={id:'pen-holder',name:'round pen cup',zh:'圆形笔筒',position:[140,65,14],size:[118,68,28],radius:34,wall:3,fixed:false,container:true,accepts:['pen','pencil'],slots:[[0,19],[0,-19]],floor:4};
+const holderPartCache=new Map();
 export function holderParts(holder){
-  const [x,y,z]=holder.position,[w,d,h]=holder.size;
-  return [{position:[x,y,holder.floor/2],size:[w,d,holder.floor],surface:true},
-    ...[-1,1].map(sign=>({position:[x+sign*(w/2-1.5),y,z],size:[3,d,h]})),
-    ...[-1,1].map(sign=>({position:[x,y+sign*(d/2-1.5),z],size:[w-6,3,h]}))];
+  const key=JSON.stringify([holder.position,holder.size,holder.radius,holder.wall,holder.floor,holder.rpy]);
+  if(holderPartCache.has(key))return holderPartCache.get(key);
+  const [x,y,z]=holder.position,h=holder.size[2],r=holder.radius,inner=r-holder.wall,parts=[];
+  // Conservative boxes enclose short circular wall arcs, leaving the opening
+  // empty. Cardinal extrema occur at the segment endpoints in this partition.
+  for(let i=0;i<16;i++){
+    const angles=[i*Math.PI/8,(i+.5)*Math.PI/8,(i+1)*Math.PI/8];
+    const points=[inner,r].flatMap(radius=>angles.map(a=>[radius*Math.cos(a),radius*Math.sin(a)]));
+    const lo=[0,1].map(axis=>Math.min(...points.map(p=>p[axis]))),hi=[0,1].map(axis=>Math.max(...points.map(p=>p[axis])));
+    parts.push({position:[x+(lo[0]+hi[0])/2,y+(lo[1]+hi[1])/2,z],size:[hi[0]-lo[0],hi[1]-lo[1],h]});
+  }
+  // Narrow strips bound the circular bottom without a square solid footprint.
+  for(let i=0;i<8;i++){const a=-r+i*r/4,b=a+r/4,nearest=Math.max(a,Math.min(0,b)),half=Math.sqrt(r*r-nearest*nearest);parts.push({position:[x,y+(a+b)/2,holder.position[2]-h/2+holder.floor/2],size:[2*half,b-a,holder.floor],surface:true});}
+  const angle=(holder.rpy?.[2]||0)*Math.PI/180,c=Math.cos(angle),sn=Math.sin(angle);
+  parts.push({position:[x+(r+12)*c,y+(r+12)*sn,z],size:[25*Math.abs(c)+8*Math.abs(sn),25*Math.abs(sn)+8*Math.abs(c),26]});
+  holderPartCache.set(key,parts);return parts;
 }
-export function inHolder(s,o){const h=s.obstacles.find(o=>o.container);return !!h&&o.id!==s.held&&[0,1].every(i=>Math.abs(o.position[i]-h.position[i])+footprint(o)[i]/2<h.size[i]/2-2)&&Math.abs(o.position[2]-footprint(o)[2]/2-h.floor)<.5;}
+export const holderFor=s=>s.objects.find(o=>o.container)||s.obstacles.find(o=>o.container);
+const holderFloor=h=>h.position[2]-h.size[2]/2+h.floor;
+export function inHolder(s,o){const h=holderFor(s),size=footprint(o);return !!h&&o.id!==s.held&&!o.container&&Math.hypot(...[0,1].map(i=>Math.abs(o.position[i]-h.position[i])+size[i]/2))<h.radius-h.wall&&Math.abs(o.position[2]-size[2]/2-holderFloor(h))<.5;}
 export function obstacleParts(object){
   if(object.container)return holderParts(object).map(part=>({...part,id:object.id}));
   if(object.id==='laptop'){
@@ -31,6 +46,7 @@ export const HOMES={
   'shelf-right':{name:'right shelf space',zh:'整理架右侧',position:[245,160,28]},
 };
 export const CATALOG={
+  'pen-holder':{...PEN_HOLDER,color:'#b98a67',stackable:false},
   book:{name:'red book',zh:'红色书本',size:[36,58,18],color:'#c85b4e',stackable:true},
   eraser:{name:'blue eraser',zh:'蓝色橡皮',size:[30,42,20],color:'#638fae',stackable:true},
   glue:{name:'yellow glue stick',zh:'黄色固体胶',size:[24,24,46],color:'#d9b84c',stackable:false},
@@ -52,7 +68,7 @@ function carriedPose(state,pose){
   const grip=state.grasp||{offset:[0,0,0],rotation:identity};
   return {position:transform(pose.rotation,grip.offset).map((v,i)=>v+pose.tip[i]),rotation:multiply(pose.rotation,grip.rotation)};
 }
-export function graspWidth(state){const o=state.objects.find(o=>o.id===state.held);return o?o.size.reduce((sum,v,i)=>sum+Math.abs((state.grasp?.rotation||identity)[i])*v,0):51;}
+export function graspWidth(state){const o=state.objects.find(o=>o.id===state.held);return o?.container?8:o?o.size.reduce((sum,v,i)=>sum+Math.abs((state.grasp?.rotation||identity)[i])*v,0):51;}
 export const footprint=(object,rpy=object.rpy||[0,0,object.yaw])=>{const r=rotationFromEuler(Array.isArray(rpy)?rpy:[0,0,rpy]);return [0,1,2].map(i=>object.size.reduce((sum,v,j)=>sum+Math.abs(r[i*3+j])*v,0));};
 export function objectPosture(object){
   const r=rotationFromEuler(object.rpy),axis=[0,1,2].find(i=>Math.abs(r[6+i])>.9999);
@@ -80,17 +96,17 @@ export function initialState(seed=0,kit='school') {
     placed[3][0]=Math.min(60,placed[3][0]);
     placed.forEach((p,index)=>p.forEach((v,axis)=>{const half=CATALOG[ids[index]].size[axis]/2;p[axis]=Math.max(DESK.min[axis]+half+2,Math.min(DESK.max[axis]-half-2,v));}));
   }
-  return {q:solved.q,held:null,yaw:0,rpy:[0,0,0],seed,kit,objects:ids.map((id,i)=>({id,...structuredClone(CATALOG[id]),position:[...placed[i],CATALOG[id].size[2]/2],origin:[...placed[i],CATALOG[id].size[2]/2],yaw:0,rpy:[0,0,0]})),
+  return {q:solved.q,held:null,yaw:0,rpy:[0,0,0],seed,kit,objects:[...ids.map((id,i)=>({id,...structuredClone(CATALOG[id]),position:[...placed[i],CATALOG[id].size[2]/2],origin:[...placed[i],CATALOG[id].size[2]/2],yaw:0,rpy:[0,0,0]})),...(kit==='desk'?[{...structuredClone(CATALOG['pen-holder']),origin:[...PEN_HOLDER.position],rpy:[0,0,0],yaw:0}]:[])],
     homes:kit==='desk'?structuredClone(HOMES):{},
-    obstacles:kit==='desk'?[structuredClone(ORGANIZER),structuredClone(PEN_HOLDER),{id:'laptop',name:'laptop',zh:'笔记本电脑',position:[250,-35,50],size:[125,125,100],fixed:true},{id:'lamp',name:'desk lamp',zh:'台灯',position:[480,150,90],size:[60,60,180],fixed:true},{id:'wall',name:'dorm room wall',zh:'宿舍墙壁',position:[250,225,-10],size:[1200,20,760],fixed:true}]:[{id:'tall divider',position:[70+(seed?Math.round(random()*20):0),135,55],size:[48,48,110]},{id:'low divider',position:[-60,-160,35],size:[65,40,70]}]};
+    obstacles:kit==='desk'?[structuredClone(ORGANIZER),{id:'laptop',name:'laptop',zh:'笔记本电脑',position:[250,-35,50],size:[125,125,100],fixed:true},{id:'lamp',name:'desk lamp',zh:'台灯',position:[480,150,90],size:[60,60,180],fixed:true},{id:'wall',name:'dorm room wall',zh:'宿舍墙壁',position:[250,225,-10],size:[1200,20,760],fixed:true}]:[{id:'tall divider',position:[70+(seed?Math.round(random()*20):0),135,55],size:[48,48,110]},{id:'low divider',position:[-60,-160,35],size:[65,40,70]}]};
 }
 export function blocksAbove(state,id) {
   const support=state.objects.find(o=>o.id===id);
-  return state.objects.filter(o=>o.id!==id&&o.id!==state.held&&[0,1].every(i=>Math.abs(o.position[i]-support.position[i])<(footprint(o)[i]+footprint(support)[i])/2-1)&&o.position[2]>support.position[2]+1);
+  return state.objects.filter(o=>!(support.container&&inHolder(state,o))&&o.id!==id&&o.id!==state.held&&[0,1].every(i=>Math.abs(o.position[i]-support.position[i])<(footprint(o)[i]+footprint(support)[i])/2-1)&&o.position[2]>support.position[2]+1);
 }
 export function snapshot(s) {
   return {joints:s.q.map(n=>+n.toFixed(2)),tool:toolPose(s.q).tip.map(n=>+n.toFixed(1)),orientation:[...(s.rpy||[0,0,s.yaw])],held:s.held,yaw:s.yaw,pickup:s.pickup?structuredClone(s.pickup):null,
-    containers:s.obstacles.filter(o=>o.container).map(h=>({...structuredClone(h),contents:s.objects.filter(o=>inHolder(s,o)).map(o=>o.id)})),
+    containers:[...s.objects,...s.obstacles].filter(o=>o.container).map(h=>({...structuredClone(h),contents:s.objects.filter(o=>inHolder(s,o)).map(o=>o.id)})),
     objects:s.objects.map(({retrievalPath,lastGraspQ,...o})=>({...structuredClone(o),posture:objectPosture(o),worldSize:footprint(o),stackable:stackSupport(o),clearAbove:blocksAbove(s,o.id).length===0})),obstacles:structuredClone(s.obstacles||[]),homes:structuredClone(s.homes||{}),tableAreas:s.kit==='desk'?Object.fromEntries(Object.entries(AREAS).filter(([,p])=>p.every((v,i)=>v>=DESK.min[i]&&v<=DESK.max[i]))):AREAS,
     context:s.kit==='desk'?'A messy desk in an ordinary student dorm room. The robot is clamped to one short side of the desk, facing across it, not mounted in its centre. The movable items and organizer are in front of the mount within its working area. The user decides where items belong and their order, including stacks or side-by-side arrangements on the low organizer. Shelf spaces are optional homes, not assigned categories. The bed, room, laptop, lamp and organizer are fixed.':'A tabletop practice scene.',
     ...(s.kit==='desk'?{deskBounds:DESK,robotMount:[0,0,0],viewerDirections:{left:'rear',right:'front',towardChair:'left',towardWall:'right'},layout:'The robot is on the short edge. The laptop is centred facing the chair. The low shelf runs along the wall-side long edge; shelf left-to-right follows increasing robot-local X.'}:{}),
@@ -113,18 +129,23 @@ export function clearPose(q,state,contact=null,detail={}) {
   const blocked=(reason,blocker)=>{Object.assign(detail,{reason,blocker});return false;};
   if(!valid(q))return blocked('joint or table clearance limit');
   const pose=toolPose(q),tip=pose.tip,held=state.objects.find(o=>o.id===state.held),carried=carriedPose(state,pose),vertices=corners(tip,pose.rotation,held,carried,graspWidth(state));
+  if(held?.container){if(Math.abs(carried.rotation[8]-1)>.0001)return blocked('keep the cup upright so its contents stay inside',held.id);for(const item of state.cargo||[]){const load=state.objects.find(o=>o.id===item.id),centre=transform(carried.rotation,item.offset).map((v,i)=>v+carried.position[i]),rot=multiply(carried.rotation,item.rotation);for(const x of [-load.size[0]/2,load.size[0]/2])for(const y of [-load.size[1]/2,load.size[1]/2])for(const z of [-load.size[2]/2,load.size[2]/2])vertices.push(transform(rot,[x,y,z]).map((v,i)=>v+centre[i]));}}
   if(vertices.some(p=>p[2]<-.3||Math.hypot(p[0],p[1])>400))return blocked('the gripper or held object would cross the tabletop or working envelope','table');
   if(Math.hypot(tip[0],tip[1])<85&&tip[2]<145)return blocked('the tool would enter the robot base','robot base');
   const bounds={position:[0,1,2].map(i=>(Math.min(...vertices.map(p=>p[i]))+Math.max(...vertices.map(p=>p[i])))/2),size:[0,1,2].map(i=>Math.max(...vertices.map(p=>p[i]))-Math.min(...vertices.map(p=>p[i])))};
-  for(const obstacle of state.obstacles||[]){
+  for(const obstacle of [...(state.obstacles||[]),...state.objects.filter(o=>o.container&&o.id!==state.held)]){
     if(obstacle.container){
+      const broad={position:obstacle.position,size:footprint(obstacle)};
+      const nearTool=[0,1,2].every(i=>Math.abs(bounds.position[i]-broad.position[i])<(bounds.size[i]+broad.size[i])/2+3);
+      if(!nearTool&&!pose.points.slice(1).some((p,i)=>segmentBox(pose.points[i],p,broad,23)))continue;
+      const envelopes=[vertices.slice(0,8),vertices.slice(8)].filter(p=>p.length).map(points=>({low:[0,1,2].map(i=>Math.min(...points.map(p=>p[i]))),high:[0,1,2].map(i=>Math.max(...points.map(p=>p[i])))}));
       // Test the cup's real walls and floor, not a solid box across its opening.
       // Keep tool and load separate: the tool can stay above the rim while a
       // long pencil extends down inside the cup.
       for(const part of holderParts(obstacle)){
         for(let i=1;i<pose.points.length;i++)if(segmentBox(pose.points[i-1],pose.points[i],part,[20,17,13,11,10][i-1]+3))return blocked('an arm link would hit the pen holder',obstacle.id);
-        for(const points of [vertices.slice(0,8),vertices.slice(8)].filter(p=>p.length)){
-          const low=[0,1,2].map(i=>Math.min(...points.map(p=>p[i]))),high=[0,1,2].map(i=>Math.max(...points.map(p=>p[i])));
+        if(obstacle.id===contact)continue;
+        for(const {low,high} of envelopes){
           if(part.surface&&low[2]>=part.position[2]+part.size[2]/2-.3)continue;
           if([0,1,2].every(i=>low[i]<part.position[i]+part.size[i]/2+1&&high[i]>part.position[i]-part.size[i]/2-1))return blocked('the tool or object would hit the pen holder rim or floor',obstacle.id);
         }
@@ -138,7 +159,7 @@ export function clearPose(q,state,contact=null,detail={}) {
     }
   }
   for(const block of state.objects){
-    if(block.id===state.held)continue;
+    if(block.container||block.id===state.held||state.cargo?.some(o=>o.id===block.id))continue;
     const envelope={position:block.position,size:footprint(block)};
     for(let i=1;i<pose.points.length;i++)if(segmentBox(pose.points[i-1],pose.points[i],envelope,[20,17,13,11,10][i-1]+2))return blocked('an arm link would hit this object',block.id);
     const aboveTop=bounds.position[2]-bounds.size[2]/2>=block.position[2]+footprint(block)[2]/2-.3;
@@ -242,14 +263,15 @@ export function planActions(state,actions) {
     if(s.held)throw Error('holding');const block=s.objects.find(o=>o.id===id);if(!block)throw Object.assign(Error('unknown'),{detail:{object:id}});if(blocksAbove(s,id).length)throw Object.assign(Error('covered'),{detail:{object:id,blocker:blocksAbove(s,id).at(-1).id}});
     const saved=structuredClone(s),length=steps.length;let failure;
     const tilted=block.rpy.slice(0,2).some(v=>Math.abs(v)>.1);
-    for(const candidate of (choice?[choice]:[...(block.retrievalPath?[{grasp:block.lastGrasp,path:block.retrievalPath}]:[]),...(block.lastGraspQ?[{grasp:block.lastGrasp,q:block.lastGraspQ}]:[]),...(block.lastGrasp?[{grasp:block.lastGrasp}]:[]),...(tilted?[null,{yaw:0},{yaw:90},{yaw:-90},{yaw:180}]:[null])])){
+    for(const candidate of (block.container?[{cup:true}]:choice?[choice]:[...(inHolder(s,block)?[{grasp:{rotation:identity,offset:[0,0,0]}}]:[]),...(block.retrievalPath?[{grasp:block.lastGrasp,path:block.retrievalPath}]:[]),...(block.lastGraspQ?[{grasp:block.lastGrasp,q:block.lastGraspQ}]:[]),...(block.lastGrasp?[{grasp:block.lastGrasp}]:[]),...(tilted?[null,{yaw:0},{yaw:90},{yaw:-90},{yaw:180}]:[null])])){
       Object.assign(s,structuredClone(saved));steps.length=length;
       try{
-        const object=s.objects.find(o=>o.id===id),rpy=candidate?.grasp?euler(multiply(rotationFromEuler(object.rpy),transpose(candidate.grasp.rotation))):candidate?[0,0,candidate.yaw]:object.rpy,point=[...object.position];
+        const object=s.objects.find(o=>o.id===id),rpy=candidate?.grasp?euler(multiply(rotationFromEuler(object.rpy),transpose(candidate.grasp.rotation))):candidate?.cup?object.rpy:candidate?[0,0,candidate.yaw]:object.rpy,point=[...object.position];
         if(candidate?.grasp){const offset=transform(rotationFromEuler(rpy),candidate.grasp.offset);for(let i=0;i<3;i++)point[i]-=offset[i];}
+        else if(candidate?.cup){const shift=transform(rotationFromEuler(object.rpy),[object.radius+21,0,0]);for(let i=0;i<3;i++)point[i]+=shift[i];}
         else if(candidate){point[2]+=Math.max(0,footprint(object)[2]/2-9);if(candidate.edge){const axis=candidate.edgeAxis??1,local=[0,0,0];local[axis]=candidate.edge*(candidate.edgeDistance??Math.max(0,object.size[axis]/2-10));const shift=transform(rotationFromEuler(object.rpy),local);for(let i=0;i<3;i++)point[i]+=shift[i];}}
         const inverse=transpose(rotationFromEuler(rpy)),grasp={rotation:multiply(inverse,rotationFromEuler(object.rpy)),offset:transform(inverse,object.position.map((v,i)=>v-point[i]))};
-        if(object.size.reduce((sum,v,i)=>sum+Math.abs(grasp.rotation[i])*v,0)>62)throw Error('grasp');
+        if(!object.container&&object.size.reduce((sum,v,i)=>sum+Math.abs(grasp.rotation[i])*v,0)>62)throw Error('grasp');
         if(candidate?.path){
           for(const pose of candidate.path)joints(pose.q,pose.rpy,pose.seconds,id);
           move(point,rpy,id);
@@ -265,13 +287,14 @@ export function planActions(state,actions) {
   }
   function place(action){
     if(!s.held)throw Error('empty');if(action.target===s.held)throw Error('selfStack');
-    const support=s.objects.find(o=>o.id===action.target),held=s.objects.find(o=>o.id===s.held);
+    const support=s.objects.find(o=>o.id===action.target&&!o.container),held=s.objects.find(o=>o.id===s.held);
     const rpy=action.orientation||held.rpy,heldSize=footprint(held,rpy);
-    const holder=action.target==='pen-holder'?s.obstacles.find(o=>o.container):null;
+    const holder=action.target==='pen-holder'?holderFor(s):null;
     if(action.target==='pen-holder'&&!holder)throw Error('destination');
     if(holder&&(!holder.accepts.includes(held.id)||objectPosture({...held,rpy})!=='short-edge'))throw Error('holderFit');
-    const slots=holder?.slots||[];
-    const slot=slots.find(p=>!s.objects.some(o=>o.id!==s.held&&Math.hypot(o.position[0]-p[0],o.position[1]-p[1])<20));
+    if(holder&&holder.rpy.slice(0,2).some(v=>Math.abs(v)>.1))throw Error('cupUpright');
+    const slots=holder?holder.slots.map(p=>transform(rotationFromEuler(holder.rpy||[0,0,0]),[...p,0]).map((v,i)=>v+holder.position[i]).slice(0,2)):[];
+    const slot=slots.find(p=>!s.objects.some(o=>o.id!==s.held&&!o.container&&Math.hypot(o.position[0]-p[0],o.position[1]-p[1])<20));
     if(holder&&!slot)throw Error('holderFull');
     if(support&&blocksAbove(s,support.id).length)throw Error('covered');
     const start=action.target==='start'?held:s.objects.find(o=>action.target===o.id+'-start');
@@ -281,19 +304,19 @@ export function planActions(state,actions) {
     let xy=action.position||home?.position.slice(0,2)||AREAS[action.target];
     if(action.beside){if(!anchor||anchor.id===s.held)throw Error('destination');const axis=['left','right'].includes(action.side)?1:0,sign=['left','rear'].includes(action.side)?-1:1;xy=anchor.position.slice(0,2);xy[axis]+=sign*((heldSize[axis]+footprint(anchor)[axis])/2+35);}
     const surface=xy&&(s.obstacles||[]).find(o=>o.surface&&[0,1].every(i=>Math.abs(xy[i]-o.position[i])<(o.size[i]+heldSize[i])/2));
-    const point=holder?[...slot,holder.floor+heldSize[2]/2]:start?[...start.origin.slice(0,2),heldSize[2]/2]:(support?[support.position[0],support.position[1],support.position[2]+(footprint(support)[2]+heldSize[2])/2]:xy?[...xy,(surface?surface.position[2]+surface.size[2]/2:0)+heldSize[2]/2]:null);
+    const point=holder?[...slot,holderFloor(holder)+heldSize[2]/2]:start?[...start.origin.slice(0,2),heldSize[2]/2]:(support?[support.position[0],support.position[1],support.position[2]+(footprint(support)[2]+heldSize[2])/2]:xy?[...xy,(surface?surface.position[2]+surface.size[2]/2:0)+heldSize[2]/2]:null);
     if(!point)throw Error('destination');
     destination={...structuredClone(held),position:[...point],rpy:[...rpy]};
     if(surface&&![0,1].every(i=>Math.abs(xy[i]-surface.position[i])+heldSize[i]/2<=surface.size[i]/2-2))throw Object.assign(Error('shelfEdge'),{preview:diagnostic('placement')});
     if(anchor&&anchor.position[2]-footprint(anchor)[2]/2>1&&!surface)throw Object.assign(Error('shelfEdge'),{preview:diagnostic('placement')});
     if(s.kit==='desk'&&[0,1].some(i=>point[i]-heldSize[i]/2<DESK.min[i]+2||point[i]+heldSize[i]/2>DESK.max[i]-2))throw Object.assign(Error('destination'),{preview:diagnostic('placement'),detail:{constraint:'deskEdge',reason:'the item would extend beyond the desk edge; choose a position on the desk or organizer'}});
-    const occupant=s.objects.find(o=>o.id!==s.held&&o.id!==support?.id&&[0,1,2].every(i=>Math.abs(o.position[i]-point[i])<(footprint(o)[i]+heldSize[i])/2+(i===2?-.3:8)));
+    const occupant=s.objects.find(o=>o.id!==s.held&&o.id!==holder?.id&&!s.cargo?.some(c=>c.id===o.id)&&o.id!==support?.id&&(o.container?obstacleParts(o):[{position:o.position,size:footprint(o)}]).some(part=>[0,1,2].every(i=>Math.abs(part.position[i]-point[i])<(part.size[i]+heldSize[i])/2+(i===2?-.3:8))));
     if(occupant){const detail={blocker:occupant.id};throw Object.assign(Error('occupied'),{detail,preview:diagnostic('collision',detail)});}
     const releasePoint=holder?[point[0],point[1],point[2]+holder.size[2]+8-holder.floor]:point;
     if(holder){
       // Check the entire vertical drop, not just the final resting position.
       const centre=point.map((v,i)=>(v+releasePoint[i])/2),size=[heldSize[0],heldSize[1],heldSize[2]+releasePoint[2]-point[2]];
-      const boxes=[...s.objects.filter(o=>o.id!==s.held).map(o=>({...o,size:footprint(o)})),...s.obstacles.flatMap(obstacleParts)];
+      const boxes=[...s.objects.filter(o=>o.id!==s.held).flatMap(o=>o.container?obstacleParts(o):[{...o,size:footprint(o)}]),...s.obstacles.flatMap(obstacleParts)];
       const blocker=boxes.find(o=>[0,1,2].every(i=>Math.abs(o.position[i]-centre[i])<(o.size[i]+size[i])/2-.3));
       if(blocker){const detail={blocker:blocker.id,reason:'the object would hit this obstacle while dropping into the holder'};throw Object.assign(Error('blocked'),{detail,preview:diagnostic('collision',detail)});}
     }
@@ -339,6 +362,7 @@ export function planActions(state,actions) {
     if(action.target==='pen-holder'&&['flat','long-edge'].includes(action.posture))throw Error('holderFit');
     const orientations=action.posture?postureOrientations(object,action.posture):[action.orientation||object.rpy];
     if(action.target==='pen-holder'&&!action.orientation)orientations.unshift([-90,0,0]);
+    if(object.container&&(action.posture&&action.posture!=='flat'||action.orientation?.slice(0,2).some(v=>Math.abs(v)>.1)))throw Error('cupUpright');
     const holderTask=action.target==='pen-holder'||inHolder(saved,object);
     let failure;
     // Try the current grip first. If necessary, put this same object on its
@@ -355,7 +379,7 @@ export function planActions(state,actions) {
         for(const orientation of orientations){
           Object.assign(s,structuredClone(grasped));steps.length=graspLength;
           try{
-            if(holderTask)for(const axis of [2,1,0]){const delta=orientation[axis]-s.objects.find(o=>o.id===id).rpy[axis];if(Math.abs(delta)>.1)rotate({axis:['x','y','z'][axis],angle:delta});}
+            if(holderTask&&!object.container)for(const axis of [2,1,0]){const delta=orientation[axis]-s.objects.find(o=>o.id===id).rpy[axis];if(Math.abs(delta)>.1)rotate({axis:['x','y','z'][axis],angle:delta});}
             place({...action,orientation});return;
           }catch(error){failure=error;}
         }
@@ -368,6 +392,12 @@ export function planActions(state,actions) {
     throw failure;
   }
   function restore(){
+    // Restore explicitly covers every item. Bring a relocated filled cup back
+    // first, then unpack it where both writing tools have checked return grips.
+    const cup=holderFor(s);
+    if(!s.held&&cup&&!cup.fixed&&distance(cup.position,cup.origin)>.2&&s.objects.some(o=>inHolder(s,o))){
+      arrange({object:cup.id,target:'start',orientation:[0,0,0]});
+    }
     const free=(p,b=s.objects.find(o=>o.id===s.held))=>!s.objects.some(o=>o.id!==b.id&&[0,1,2].every(i=>Math.abs(o.position[i]-p[i])<(footprint(o)[i]+b.size[i])/2+(i===2?-.3:8)));
     const buffer=()=>{
       const held=s.objects.find(o=>o.id===s.held),saved=structuredClone(s),length=steps.length;
@@ -392,15 +422,16 @@ export function planActions(state,actions) {
     if(!s.held)throw Error('empty');
     const saved=structuredClone(s),length=steps.length,p=toolPose(s.q).tip;
     const axis=action.axis||'z',object=s.objects.find(o=>o.id===s.held),rpy=[...object.rpy];rpy[{x:0,y:1,z:2}[axis]]+=action.angle;
+    if(object.container&&rpy.slice(0,2).some(v=>Math.abs(v)>.1))throw Error('cupUpright');
     if(Math.abs(rpy[{x:0,y:1,z:2}[axis]])>180)throw Error('angle');
     let failure;
     // Turning is allowed to reposition the held item, but never changes the requested angle.
-    for(const point of [[p[0],p[1],Math.max(p[2],140)],[150,0,120],[120,0,90],[190,0,90],[-210,0,150],[210,0,160]]){
+    for(const point of [[p[0],p[1],Math.max(p[2],140)],[150,0,120],[120,0,90],[190,0,90],[-210,0,150],[210,0,160],[160,-125,155],[130,-160,155]]){
       Object.assign(s,structuredClone(saved));steps.length=length;
       try{cruiseTo(point,s.rpy);turn(euler(multiply(rotationFromEuler(rpy),transpose(s.grasp?.rotation||identity))));s.objects.find(o=>o.id===s.held).rpy=[...rpy];return;}catch(error){failure=error;}
     }
     Object.assign(s,saved);steps.length=length;
-    throw Object.assign(Error('rotation'),{preview:failure?.preview,detail:{axis,angle:action.angle,requestedOrientation:rpy,reason:failure.message,blocker:failure.detail?.blocker,attemptedTurningPositions:6}});
+    throw Object.assign(Error('rotation'),{preview:failure?.preview,detail:{axis,angle:action.angle,requestedOrientation:rpy,reason:failure.message,blocker:failure.detail?.blocker,attemptedTurningPositions:8}});
   }
   for(const [actionIndex,action] of actions.entries()){destination=null;try{
     if(action.type==='pick')pick(action.object);
@@ -434,17 +465,17 @@ export function planActions(state,actions) {
 // Replay on a copy: previews never modify the live scene or undo history.
 export function previewSteps(state,steps){
   const s=structuredClone(state),destinations=[],path=[toolPose(s.q).tip];
-  for(const [i,step] of steps.entries()){const held=s.held;applyStep(s,step);if(step.type==='move')path.push(toolPose(s.q).tip);if(step.type==='release'&&steps[i+1]?.type!=='fall')destinations.push(structuredClone(s.objects.find(o=>o.id===held)));if(step.type==='fall')destinations.push(structuredClone(s.objects.find(o=>o.id===step.object)));}
-  if(s.held)destinations.push(structuredClone(s.objects.find(o=>o.id===s.held)));
+  for(const [i,step] of steps.entries()){const held=s.held,cargo=(s.cargo||[]).map(o=>o.id);applyStep(s,step);if(step.type==='move')path.push(toolPose(s.q).tip);if(step.type==='release'&&steps[i+1]?.type!=='fall')destinations.push(...[held,...cargo].map(id=>structuredClone(s.objects.find(o=>o.id===id))));if(step.type==='fall')destinations.push(structuredClone(s.objects.find(o=>o.id===step.object)));}
+  if(s.held)destinations.push(...[s.held,...(s.cargo||[]).map(o=>o.id)].map(id=>structuredClone(s.objects.find(o=>o.id===id))));
   return {kind:'ready',state:s,showArm:true,destinations,path};
 }
 export function applyStep(state,step){
   if(step.type==='fall'){const object=state.objects.find(o=>o.id===step.object);object.position=[...step.position];if(step.retrievalGrasp)object.lastGrasp=structuredClone(step.retrievalGrasp);if(step.retrievalQ)object.lastGraspQ=[...step.retrievalQ];if(step.retrievalPath)object.retrievalPath=structuredClone(step.retrievalPath);}
   else if(step.type==='move'){
     state.q=[...step.q];state.rpy=[...(step.rpy||[0,0,step.yaw])];state.yaw=state.rpy[2];
-    if(state.held){const block=state.objects.find(o=>o.id===state.held),pose=carriedPose(state,{tip:toolPose(state.q).tip,rotation:rotationFromEuler(state.rpy)});block.position=pose.position;block.rpy=euler(pose.rotation);block.yaw=block.rpy[2];}
-  }else if(step.type==='grip'){state.held=step.object;state.grasp=structuredClone(step.grasp||{offset:[0,0,0],rotation:identity});state.pickup=structuredClone(step.pickup||null);}
-  else if(step.type==='release'){const block=state.objects.find(o=>o.id===state.held);block.lastGrasp=structuredClone(state.grasp);delete block.lastGraspQ;delete block.retrievalPath;block.position=[...step.position];if(step.rpy){block.rpy=[...step.rpy];block.yaw=step.rpy[2];}state.held=null;state.grasp=null;}
+    if(state.held){const block=state.objects.find(o=>o.id===state.held),pose=carriedPose(state,{tip:toolPose(state.q).tip,rotation:rotationFromEuler(state.rpy)});block.position=pose.position;block.rpy=euler(pose.rotation);block.yaw=block.rpy[2];for(const item of state.cargo||[]){const load=state.objects.find(o=>o.id===item.id);load.position=transform(pose.rotation,item.offset).map((v,i)=>v+block.position[i]);load.rpy=euler(multiply(pose.rotation,item.rotation));load.yaw=load.rpy[2];delete load.retrievalPath;delete load.lastGraspQ;}}
+  }else if(step.type==='grip'){state.held=step.object;state.grasp=structuredClone(step.grasp||{offset:[0,0,0],rotation:identity});state.pickup=structuredClone(step.pickup||null);const cup=state.objects.find(o=>o.id===step.object);state.cargo=cup.container?state.objects.filter(o=>inHolder(state,o)).map(o=>({id:o.id,offset:transform(transpose(rotationFromEuler(cup.rpy)),o.position.map((v,i)=>v-cup.position[i])),rotation:multiply(transpose(rotationFromEuler(cup.rpy)),rotationFromEuler(o.rpy))})):[];}
+  else if(step.type==='release'){const block=state.objects.find(o=>o.id===state.held);block.lastGrasp=structuredClone(state.grasp);delete block.lastGraspQ;delete block.retrievalPath;block.position=[...step.position];if(step.rpy){block.rpy=[...step.rpy];block.yaw=step.rpy[2];}for(const item of state.cargo||[]){const load=state.objects.find(o=>o.id===item.id),r=rotationFromEuler(block.rpy);load.position=transform(r,item.offset).map((v,i)=>v+block.position[i]);load.rpy=euler(multiply(r,item.rotation));load.yaw=load.rpy[2];}state.held=null;state.grasp=null;state.cargo=[];}
 }
 // Reverse the actual validated trajectory, including grasp/release events.
 // The UI invalidates this history if a task is interrupted or the scene changes.

@@ -7,7 +7,7 @@ import {createSpeech} from '../speech.mjs';
 const run=(s,actions)=>{const plan=planActions(s,actions);for(const step of plan.steps)applyStep(s,step);return plan;};
 const sameObjects=(a,b)=>{for(const object of a.objects){const other=b.objects.find(o=>o.id===object.id);assert.ok(distance(object.position,other.position)<.15,object.id);assert.ok(distance(object.rpy,other.rpy)<.02,object.id);}};
 test('all desk objects stand upright on the shelf with geometric support, undo and restore',()=>{
- for(const id of initialState(0,'desk').objects.map(o=>o.id)){
+ for(const id of initialState(0,'desk').objects.filter(o=>!o.container).map(o=>o.id)){
   const s=initialState(0,'desk'),before=structuredClone(s),p=run(s,[{type:'transfer',object:id,target:'shelf-middle',posture:'short-edge'}]),o=s.objects.find(o=>o.id===id);
   assert.equal(objectPosture(o),'short-edge',id);
   assert.equal(o.position[2],28+Math.max(...o.size)/2,id);
@@ -62,7 +62,7 @@ test('placing preserves rotation and an impossible tilted placement rejects the 
  assert.deepEqual(parseResponse('{"reply":"I will turn it.","actions":[{"type":"rotate","axis":"y","angle":90}]}').actions,[{type:'rotate',axis:'y',angle:90}]);
 });
 test('dorm desk objects reach all organizer spaces and restore around the fixed laptop and lamp',()=>{
- for(const id of initialState(0,'desk').objects.map(o=>o.id))for(const target of Object.keys(HOMES)){
+ for(const id of initialState(0,'desk').objects.filter(o=>!o.container).map(o=>o.id))for(const target of Object.keys(HOMES)){
   const s=initialState(0,'desk'),before=structuredClone(s);run(s,[{type:'transfer',object:id,target}]);
   const object=s.objects.find(o=>o.id===id);assert.deepEqual(object.position,[...HOMES[target].position.slice(0,2),28+object.size[2]/2]);
   run(s,[{type:'restore'}]);sameObjects(s,before);assert.deepEqual(s.obstacles,before.obstacles);
@@ -102,8 +102,8 @@ test('restore can undo swapped starts on the narrow desk using a clear shelf spa
 });
 test('bedroom gestures and randomized arrangements remain reachable',()=>{
  for(const type of ['wave','bow','dance','circle','bob']){const s=initialState(0,'desk'),before=structuredClone(s);run(s,[{type}]);sameObjects(s,before);assert.ok(distance(toolPose(s.q).tip,HOME)<.2);}
- for(const seed of [42,139,896])for(const object of initialState(0,'desk').objects.map(o=>o.id)){const s=initialState(seed,'desk'),before=structuredClone(s);run(s,[{type:'transfer',object,target:'shelf-middle'},{type:'restore'}]);sameObjects(s,before);}
- const scene=snapshot(initialState(0,'desk'));assert.equal(Object.keys(scene.homes).length,3);assert.equal(scene.obstacles.filter(o=>o.fixed).length,5);assert.match(scene.context,/user decides/i);
+ for(const seed of [42,139,896])for(const object of initialState(0,'desk').objects.filter(o=>!o.container).map(o=>o.id)){const s=initialState(seed,'desk'),before=structuredClone(s);run(s,[{type:'transfer',object,target:'shelf-middle'},{type:'restore'}]);sameObjects(s,before);}
+ const scene=snapshot(initialState(0,'desk'));assert.equal(Object.keys(scene.homes).length,3);assert.equal(scene.obstacles.filter(o=>o.fixed).length,4);assert.match(scene.context,/user decides/i);
 });
 test('all five school objects can go to every table side and return to their own starts',()=>{
  for(const id of initialState().objects.map(o=>o.id))for(const target of Object.keys(AREAS)){

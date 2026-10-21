@@ -1,8 +1,10 @@
-import { initialState, snapshot, applyStep, CATALOG, objectPosture, previewSteps, inHolder, footprint } from './world.mjs?v=holder-20261021-1';
-import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=holder-20261021-1';
-import { createScene } from './scene.mjs?v=holder-20261021-1';
-import { createSpeech } from './speech.mjs?v=holder-20261021-1';
-import { words, challenges } from './i18n.mjs?v=holder-20261021-1';
+import { initialState, snapshot, applyStep, CATALOG, objectPosture, previewSteps, inHolder, footprint } from './world.mjs?v=cup-20261021-1';
+import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=cup-20261021-1';
+import { createScene } from './scene.mjs?v=cup-20261021-1';
+import { createSpeech } from './speech.mjs?v=cup-20261021-1';
+import { words, challenges } from './i18n.mjs?v=cup-20261021-1';
+import deployment from './deployment.mjs?v=cup-20261021-1';
+const serverMode=deployment?.mode==='school';
 
 const $=id=>document.getElementById(id);
 // API tokens are not website passwords. Keep Chrome's password-manager
@@ -44,9 +46,10 @@ function refresh(){
   $('language').textContent=language==='en'?'中文':'English';$('language').setAttribute('aria-label',language==='en'?'Switch to Chinese':'切换至英文');
   $('reset').title=t('reset');$('reset').setAttribute('aria-label',t('reset'));
   $('api-key').placeholder=t('keyPlaceholder');$('prompt').placeholder=t('promptPlaceholder');$('prompt').setAttribute('aria-label',t('messageLabel'));
-  $('api-key').hidden=!!connection;$('prompt').hidden=!connection;$('connection-options').hidden=!!connection;
+  $('api-key').hidden=!!connection||serverMode;$('prompt').hidden=!connection;$('connection-options').hidden=!!connection||serverMode;
   $('input-label').textContent=t(connection?'messageLabel':'keyLabel');$('input-label').htmlFor=connection?'prompt':'api-key';
   $('key-note').hidden=!!connection;$('reconnect').hidden=!connection;$('reconnect').disabled=busy;
+  if(serverMode){$('input-label').textContent=t(connection?'messageLabel':'schoolConnection');$('key-note').textContent=t('schoolKeyNote');$('reconnect').textContent=t('schoolReconnect');}
   $('suggestions').hidden=!connection||busy;$('mic').hidden=!connection||busy;$('speech-note').hidden=!connection;
   $('mic').title=t(speech.active?'micStop':'mic');$('mic').setAttribute('aria-label',t(speech.active?'micStop':'mic'));$('mic').setAttribute('aria-pressed',String(speech.active));
   $('send').textContent=t(connection?'send':'connect');$('send').hidden=busy;$('send').disabled=speech.active;$('stop').hidden=!busy;
@@ -84,7 +87,7 @@ function prepare(actions){
     return Promise.resolve({plan:{steps:undo.at(-1)},undoing:true});
   }
   return new Promise((resolve,reject)=>{
-    const planner=new Worker(new URL('./planner-worker.mjs?v=holder-20261021-1',import.meta.url),{type:'module'});worker=planner;
+    const planner=new Worker(new URL('./planner-worker.mjs?v=cup-20261021-1',import.meta.url),{type:'module'});worker=planner;
     const finish=()=>{clearTimeout(timer);planner.terminate();if(worker===planner){worker=null;workerReject=null;}};
     const timer=setTimeout(()=>{finish();reject(Error('planningTimeout'));},45000);
     workerReject=error=>{finish();reject(error);};
@@ -130,16 +133,16 @@ function reportError(error){
 async function connect(){
   const id=++epoch;busy=true;status('connecting');
   try{
-    const candidate=validateConnection({base:$('base-url').value.trim(),model:$('model').value.trim(),key:$('api-key').value});$('api-key').value='';
+    const candidate=serverMode?{server:true}:validateConnection({base:$('base-url').value.trim(),model:$('model').value.trim(),key:$('api-key').value});$('api-key').value='';
     abort=new AbortController();const controller=abort;let timedOut=false;
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);let response;
     try{response=await askAgent(candidate,{question:'connection_check',language,history:[],scene:perception()},controller.signal);}
     catch(error){if(timedOut)throw Error('timeout');throw error;}finally{clearTimeout(timeout);}
     if(id!==epoch)return;if(response.actions.length)throw Error('response');
-    connection=candidate;try{localStorage.setItem('six-axis-settings',JSON.stringify({base:candidate.base,model:candidate.model}));}catch{}
+    connection=candidate;if(!serverMode)try{localStorage.setItem('six-axis-settings',JSON.stringify({base:candidate.base,model:candidate.model}));}catch{}
     say('connected');
   }catch(error){if(id===epoch)reportError(error);}
-  finally{if(id===epoch){busy=false;activity='';abort=null;refresh();(connection?$('prompt'):$('api-key')).focus();}}
+  finally{if(id===epoch){busy=false;activity='';abort=null;refresh();(connection?$('prompt'):serverMode?$('send'):$('api-key')).focus();}}
 }
 async function send(question){
   if(busy||!question.trim())return;if(!connection){say('needConnection');return;}if(!view){say('sceneUnavailable',{},'assistant',true);return;}
@@ -184,7 +187,7 @@ $('preview-dismiss').addEventListener('click',()=>{const resolve=previewResolve;
 function arrange(seed,kit,message){cancel(false);state=initialState(seed,kit);undo=[];history=[];view?.resetView();say(message,{},'system');refresh();}
 $('reset').addEventListener('click',()=>arrange(state.seed,state.kit,'resetDone'));
 $('language').addEventListener('click',()=>{speech.abort();if(busy)cancel();language=language==='en'?'zh':'en';try{localStorage.setItem('six-axis-language',language);}catch{}refresh();});
-$('reconnect').addEventListener('click',()=>{cancel(false);connection=null;$('api-key').value='';say('change');refresh();$('api-key').focus();});
+$('reconnect').addEventListener('click',()=>{cancel(false);connection=null;$('api-key').value='';say(serverMode?'schoolKeyNote':'change');refresh();(serverMode?$('send'):$('api-key')).focus();});
 $('mic').addEventListener('click',()=>speech.start($('prompt').value));
 $('challenge').addEventListener('click',()=>{speech.abort();$('prompt').value=state.kit!=='blocks'?challenges[language][challengeIndex++%challenges[language].length]:(language==='en'?'Stack blue on red and yellow on blue, then put everything back.':'把蓝色方块放在红色上，再把黄色放在蓝色上，最后全部放回原位。');$('prompt').focus();});
 document.querySelectorAll('[data-command]').forEach(button=>button.addEventListener('click',()=>void send(t(button.dataset.command==='pick'?'suggestPick':'suggestAsk'))));

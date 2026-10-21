@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from '../beginner-3axis/vendor/three/examples/jsm/controls/OrbitControls.js';
-import { fk, toolPose } from './kinematics.mjs?v=holder-20261021-1';
-import { CATALOG, DESK, graspWidth, footprint, holderParts } from './world.mjs?v=holder-20261021-1';
+import { fk, toolPose } from './kinematics.mjs?v=cup-20261021-1';
+import { CATALOG, DESK, graspWidth, footprint } from './world.mjs?v=cup-20261021-1';
 
 export function createScene(container) {
   const scene=new THREE.Scene(); scene.background=new THREE.Color('#eeeee7');
@@ -93,6 +93,7 @@ export function createScene(container) {
     const face=mesh(new THREE.PlaneGeometry(width,height),new THREE.MeshBasicMaterial({map:texture,transparent:true}),parent);face.position.z=z;
   }
   function schoolObject(id){
+    if(CATALOG[id].container)return furniture(CATALOG[id]);
     const group=new THREE.Group(),item=CATALOG[id],c=item.color;station.add(group);
     if(id==='book'||id==='notebook'){
       const [w,l,h]=item.size;box(group,[w-2,l-3,h-4],'#f7eed9');box(group,[w,l,2],c,[0,0,h/2-1]);box(group,[w,l,2],c,[0,0,-h/2+1]);box(group,[4,l,h],c,[-w/2+2,0,0]);
@@ -133,9 +134,12 @@ export function createScene(container) {
     const g=new THREE.Group();station.add(g);const [w,l,h]=object.size;
     if(object.id==='wall')return g; // The room wall is already rendered in room coordinates.
     if(object.container){
-      for(const part of holderParts(object))box(g,part.size,'#b98a67',part.position.map((v,i)=>v-object.position[i]));
-      // Contrasting inner floor makes the open top legible from the desk view.
-      box(g,[w-7,l-7,.4],'#80634f',[0,0,-h/2+4.2]);
+      const r=object.radius,inner=r-object.wall,bottom=-h/2,top=h/2;
+      // Revolve a closed ceramic cross-section: outer wall, rim, inner wall,
+      // inner floor and underside. The opening is genuinely hollow.
+      const profile=[[0,bottom],[r,bottom],[r,top],[inner,top],[inner,bottom+object.floor],[0,bottom+object.floor]].map(p=>new THREE.Vector2(...p));
+      const cup=mesh(new THREE.LatheGeometry(profile,64),mat('#b98a67',0),g);cup.rotation.x=Math.PI/2;
+      const handle=mesh(new THREE.TorusGeometry(9.5,3.5,12,40),mat('#b98a67',0),g);handle.rotation.x=Math.PI/2;handle.position.set(r+12,0,0);
     }else if(object.id==='organizer'){
       box(g,[w,l,8],'#c19e73',[0,0,h/2-4]);
       for(const x of [-w/2+12,w/2-12])box(g,[16,l-12,h-8],'#a7835d',[x,0,-4]);

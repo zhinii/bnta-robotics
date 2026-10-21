@@ -3,11 +3,20 @@ import assert from 'node:assert/strict';
 import {initialState,planActions,reverseSteps,applyStep,previewSteps,snapshot,inHolder,footprint,clearPose} from '../world.mjs';
 import {distance} from '../kinematics.mjs';
 
-test('desk inventory has four movable items and a fixed open holder',()=>{
+test('desk inventory has five movable items including an open round cup',()=>{
  const s=initialState(0,'desk');
- assert.deepEqual(s.objects.map(o=>o.id),['book','notebook','pen','pencil']);
+ assert.deepEqual(s.objects.map(o=>o.id),['book','notebook','pen','pencil','pen-holder']);
  const h=snapshot(s).containers[0];
- assert.equal(h.fixed,true);assert.deepEqual(h.accepts,['pen','pencil']);assert.deepEqual(h.contents,[]);
+ assert.equal(h.fixed,false);assert.deepEqual(h.accepts,['pen','pencil']);assert.deepEqual(h.contents,[]);
+ assert.equal(h.radius,h.size[1]/2);
+});
+
+test('cup contents must fit the circular opening, not just its bounding square',()=>{
+ const s=initialState(0,'desk'),h=s.objects.find(o=>o.container),pen=s.objects.find(o=>o.id==='pen');
+ pen.rpy=[-90,0,0];pen.position=[h.position[0],h.position[1],h.floor+44];
+ assert.ok(inHolder(s,pen));
+ pen.position[0]+=27;pen.position[1]+=27;
+ assert.ok(!inHolder(s,pen),'a tool outside the circular rim is not inside the cup');
 });
 
 test('both insertion orders drop into separate slots, preview settled poses, and physically undo or restore',()=>{

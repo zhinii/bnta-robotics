@@ -1,6 +1,8 @@
 export const words={
  en:{
+  schoolConnection:'School server connection',schoolKeyNote:'Your school server supplies the Alibaba key. Press Connect to begin.',schoolReconnect:'Reconnect',
   resetShort:'Reset',inventory:'On the desk',inventoryHomes:'Homes: shelf · pen holder',inventoryFixed:'Fixed: laptop · lamp',inventoryHeld:'held',inventoryHolder:'in holder',inventoryShelf:'on shelf',
+  cupUpright:'Keep the cup upright so it can hold pens and pencils. I can move it to the shelf or another clear spot, or turn it around Z.',
   holderFit:'The pen holder fits the pen and pencil standing upright. Books will not fit; choose a shelf space for them.',holderFull:'Both spaces in the pen holder are occupied. Tell me which item to take out and where it should go first.',
   shelfFollowup:'Does that spot on the shelf work for you, or would you like it somewhere else?',
   previewReady:'Preview: green outlines show planned placements; the dashed line is the gripper path. Nothing has moved. Run it when you are ready.',
@@ -25,7 +27,7 @@ export const words={
   edition:'AI ROBOT / DORM ROOM DESK',workspace:'YOUR DORM ROOM DESK',headline:'This room is messy.',mission:'Use your AI-controlled robot to organize the desk.',desk:'Dorm room desk',orbit:'Drag to orbit · Scroll to zoom',simulation:'6-axis kinematic simulation',conversation:'TALK TO YOUR ROBOT',agent:'Your robot assistant',
   suggestPick:'Pick up the pen',suggestAsk:'What can you do?',challenge:'Try a challenge',newScene:'New arrangement',school:'School objects',blocks:'Blocks',
   keyLabel:'Your Alibaba API key',settings:'Connection settings',keyNote:'Used for this tab only. Never added to the chat.',connect:'Connect ↗',send:'Send ↗',stop:'■ Stop',reconnect:'Change connection',hint:'Name an object and a destination. Or ask for a pose, a wave, or a dance.',source:'About & source ↗',offline:'Not connected',online:'Qwen connected',you:'YOU',robot:'ROBOT',system:'TABLE',
-  welcome:'Hi! I’m your AI-controlled robot. Let’s tidy this dorm room desk.\n\nYou choose the order and the homes: “book on the left shelf”, “notebook on top”, or “pen beside it”. Put pens and pencils in the pen holder. The laptop and lamp stay put.\n\nSay “hello” for a wave. Try “dance”, “move in a circle” or “move up and down”. Connect below to begin.',
+  welcome:'Hi! I’m your AI-controlled robot. Let’s tidy this dorm room desk.\n\nYou choose the order and the homes: “book on the left shelf”, “notebook on top”, or “pen beside it”. Put pens and pencils in the round cup, or move the cup onto the shelf. The laptop and lamp stay put.\n\nSay “hello” for a wave. Try “dance”, “move in a circle” or “move up and down”. Connect below to begin.',
   connected:'I’m ready! Which item should we organize first, and where would you like it? The low shelf has left, middle and right spaces. You can also say “hello”, “undo that” or “put everything back where it started”.',
   connecting:'Connecting to Alibaba…',thinking:'Thinking…',planning:'Finding and checking a path…',replanning:'Checking why that plan failed…',moving:'Moving the arm…',empty:'Ready for a job',holding:'Holding the {object}',
   keyPlaceholder:'Paste your Alibaba API key',promptPlaceholder:'Put the book on the left of the organizer…',messageLabel:'Message the robot',reset:'Reset this arrangement',resetDone:'The arrangement is reset. These are the objects’ starting positions.',newSceneDone:'A new arrangement is ready. I’ll remember these starting positions.',
@@ -39,7 +41,9 @@ export const words={
   mic:'Dictate a command',micStop:'Finish dictation',listening:'Listening… tap the microphone to finish.',speechReady:'Review the words above, then press Send.',speechUnavailable:'Speech recognition isn’t available in this browser. Open the page in a supported browser, or type your command.',speechDenied:'Microphone or speech permission was denied. Allow it in your browser’s site settings, or type your command.',speechEmpty:'I didn’t hear a command. Tap the microphone and try again, or type it.',speechDevice:'I couldn’t start the microphone. Check that a working microphone is connected and available.',speechNetwork:'The browser’s speech service could not complete recognition. Check the connection or type your command.',speechNote:'Dictation uses your browser’s speech service. Review before sending.'
  },
  zh:{
+  schoolConnection:'学校服务器连接',schoolKeyNote:'阿里云密钥由学校服务器提供。点击连接开始使用。',schoolReconnect:'重新连接',
   resetShort:'重置',inventory:'桌面物品',inventoryHomes:'收纳位置：整理架 · 笔筒',inventoryFixed:'固定物品：笔记本电脑 · 台灯',inventoryHeld:'夹持中',inventoryHolder:'在笔筒内',inventoryShelf:'在整理架上',
+  cupUpright:'请保持笔筒开口朝上。我可以把它移到整理架或桌面空位，也可以绕 Z 轴转向。',
   holderFit:'笔筒可以竖直收纳钢笔和铅笔，书本放不进去。请为书本选择整理架上的位置。',holderFull:'笔筒中的两个位置都已占用。请先告诉我取出哪个物品，以及放到哪里。',
   shelfFollowup:'整理架上的这个位置合适吗？还是想换个位置？',
   previewReady:'预览：绿色轮廓表示计划放置的位置，虚线表示夹爪的路径。实际场景尚未移动。确认后点击执行。',
@@ -64,7 +68,7 @@ export const words={
   edition:'AI 机械臂 / 宿舍书桌',workspace:'你的宿舍书桌',headline:'房间有点乱。',mission:'指挥你的 AI 机械臂整理书桌。',desk:'宿舍书桌',orbit:'拖动旋转视角 · 滚动缩放',simulation:'六轴运动学模拟',conversation:'与你的机械臂对话',agent:'你的机械臂助手',
   suggestPick:'拿起钢笔',suggestAsk:'你能做什么？',challenge:'试试一个挑战',newScene:'换个摆放',school:'学习用品',blocks:'方块',
   keyLabel:'你的阿里云 API 密钥',settings:'连接设置',keyNote:'仅在当前页面使用，不会加入聊天记录。',connect:'连接 ↗',send:'发送 ↗',stop:'■ 停止',reconnect:'更改连接',hint:'说出物品和目的地，也可以让我摆姿势、挥手或跳舞。',source:'说明与源码 ↗',offline:'未连接',online:'千问已连接',you:'你',robot:'机械臂',system:'工作台',
-  welcome:'你好，我是你的 AI 机械臂。一起整理宿舍书桌吧！\n\n物品的位置和顺序由你决定，比如“书放在整理架左侧”“笔记本叠在上面”或“钢笔放在旁边”。钢笔和铅笔可以放进笔筒。笔记本电脑和台灯不能移动。\n\n说“你好”我会挥手，也可以让我“跳舞”“画一个圆”或“上下移动”。在下方连接后就能开始。',connected:'准备好了！先整理哪个物品，放在哪里？矮整理架有左、中、右三个位置。你也可以说“你好”“撤销刚才的任务”或“把所有东西放回原位”。',
+  welcome:'你好，我是你的 AI 机械臂。一起整理宿舍书桌吧！\n\n物品的位置和顺序由你决定，比如“书放在整理架左侧”“笔记本叠在上面”或“钢笔放在旁边”。钢笔和铅笔可以放进圆形笔筒，也可以把笔筒搬到整理架上。笔记本电脑和台灯不能移动。\n\n说“你好”我会挥手，也可以让我“跳舞”“画一个圆”或“上下移动”。在下方连接后就能开始。',connected:'准备好了！先整理哪个物品，放在哪里？矮整理架有左、中、右三个位置。你也可以说“你好”“撤销刚才的任务”或“把所有东西放回原位”。',
   connecting:'正在连接阿里云…',thinking:'正在思考…',planning:'正在寻找并检查路径…',replanning:'正在分析无法执行的原因…',moving:'机械臂正在移动…',empty:'准备接收任务',holding:'正在夹持{object}',keyPlaceholder:'在此粘贴阿里云 API 密钥',promptPlaceholder:'拿起钢笔，把它放在书旁边…',messageLabel:'向机械臂发送消息',reset:'重置当前摆放',resetDone:'摆放已重置，所有物品都回到了初始位置。',newSceneDone:'新的摆放准备好了。我会记住这些初始位置。',
   stopped:'已停在当前位置。你可以给出新指令，或让我把所有东西放回原位。撤销记录已清除。',pickDone:'我已经拿起{object}了。你想让我放在哪里？',holdDone:'完成，我正夹着{object}。接下来做什么？',danceDone:'怎么样？我准备好接收下一个任务了。',restoreDone:'所有物品已回到初始位置，我也归位了。',undoDone:'我已反向执行并撤销刚才的任务。',done:'完成。接下来想试什么？',
   covered:'那个物品上面还有东西。我需要先移走上面的物品，请告诉我放到哪里。',selfStack:'我不能把物品放在它自己上面。可以说“放回原位”、放在其他物品旁边，或指定桌面的空位。',unstable:'这个支撑物太窄或顶部不平，无法这样堆叠。请选择宽且平的物品，或让我把它放在旁边。',

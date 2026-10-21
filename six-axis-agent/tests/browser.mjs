@@ -41,7 +41,7 @@ try{
   await route.fulfill({json:{choices:[{message:{content:JSON.stringify(response)}}]}}).catch(()=>{});
  });
  await page.goto(base);await page.waitForFunction(()=>!!window.robotLabSnapshot);assert.equal(await page.locator('#render-error').isVisible(),false);assert.equal(await page.locator('#scene canvas').count(),1);
- assert.equal((await page.evaluate(()=>window.robotLabSnapshot().scene)).objects.length,4);
+ assert.equal((await page.evaluate(()=>window.robotLabSnapshot().scene)).objects.length,5);
  if(output)await page.screenshot({path:output+'/desktop-bedroom-connect.png'});
  assert.equal(await page.locator('#kit').count(),0);assert.equal(await page.locator('#new-scene').count(),0);assert.ok(!(await page.locator('header').innerText()).includes('BNTA'));
  await page.locator('#api-key').fill('fake-browser-test-key');await page.locator('#send').click();await page.waitForFunction(()=>window.robotLabSnapshot().connected&&!window.robotLabSnapshot().busy);
