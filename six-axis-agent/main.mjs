@@ -1,8 +1,8 @@
-import { initialState, snapshot, applyStep, CATALOG, objectPosture } from './world.mjs?v=chat-20261021-1';
-import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=chat-20261021-1';
-import { createScene } from './scene.mjs?v=chat-20261021-1';
-import { createSpeech } from './speech.mjs?v=chat-20261021-1';
-import { words, challenges } from './i18n.mjs?v=chat-20261021-1';
+import { initialState, snapshot, applyStep, CATALOG, objectPosture, previewSteps } from './world.mjs?v=preview-20261021-1';
+import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=preview-20261021-1';
+import { createScene } from './scene.mjs?v=preview-20261021-1';
+import { createSpeech } from './speech.mjs?v=preview-20261021-1';
+import { words, challenges } from './i18n.mjs?v=preview-20261021-1';
 
 const $=id=>document.getElementById(id);
 // API tokens are not website passwords. Keep Chrome's password-manager
@@ -10,6 +10,7 @@ const $=id=>document.getElementById(id);
 if(!CSS.supports('-webkit-text-security','disc'))$('api-key').type='password';
 let language='en';try{language=localStorage.getItem('six-axis-language')==='zh'?'zh':'en';}catch{}
 let state=initialState(0,'desk'),connection=null,busy=false,epoch=0,abort=null,history=[],activity='',view=null,undo=[],worker=null,workerReject=null,challengeIndex=0;
+let previewData=null,previewResolve=null;
 const t=(key,vars={})=>Object.entries(vars).reduce((s,[k,v])=>s.replaceAll('{'+k+'}',v),words[language][key]||key);
 const name=id=>CATALOG[id]?.[language==='zh'?'zh':'name']||state.obstacles.find(o=>o.id===id)?.[language==='zh'?'zh':'name']||({table:'桌面','robot base':'机械臂底座','tall divider':'高挡板','low divider':'矮挡板'}[id]&&language==='zh'?{table:'桌面','robot base':'机械臂底座','tall divider':'高挡板','low divider':'矮挡板'}[id]:id);
 const perception=()=>({...snapshot(state),canUndo:undo.length>0});
@@ -36,7 +37,6 @@ function refresh(){
   document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=t(el.dataset.i18n));
   $('language').textContent=language==='en'?'中文':'English';$('language').setAttribute('aria-label',language==='en'?'Switch to Chinese':'切换至英文');
   $('reset').title=t('reset');$('reset').setAttribute('aria-label',t('reset'));
-  $('kit').setAttribute('aria-label',language==='en'?'Objects on the table':'桌面物品');$('kit').value=state.kit;
   $('api-key').placeholder=t('keyPlaceholder');$('prompt').placeholder=t('promptPlaceholder');$('prompt').setAttribute('aria-label',t('messageLabel'));
   $('api-key').hidden=!!connection;$('prompt').hidden=!connection;$('connection-options').hidden=!!connection;
   $('input-label').textContent=t(connection?'messageLabel':'keyLabel');$('input-label').htmlFor=connection?'prompt':'api-key';
@@ -45,18 +45,23 @@ function refresh(){
   $('mic').title=t(speech.active?'micStop':'mic');$('mic').setAttribute('aria-label',t(speech.active?'micStop':'mic'));$('mic').setAttribute('aria-pressed',String(speech.active));
   $('send').textContent=t(connection?'send':'connect');$('send').hidden=busy;$('send').disabled=speech.active;$('stop').hidden=!busy;
   $('api-key').disabled=busy||!!connection;$('prompt').disabled=busy;$('base-url').disabled=busy;$('model').disabled=busy;
-  $('new-scene').disabled=busy;$('kit').disabled=busy;
   $('connection-state').textContent=t(connection?'online':'offline');$('connection-state').classList.toggle('online',!!connection);
   $('activity').textContent=activity?t(activity):'';
+  $('preview-panel').hidden=!previewData;
+  if(previewData){$('preview-panel').dataset.kind=previewData.kind;$('preview-run').hidden=previewData.kind!=='ready';$('preview-dismiss').textContent=t(previewData.kind==='ready'?'previewCancel':'previewDismiss');$('preview-description').textContent=t(previewData.kind==='ready'?'previewReady':previewData.kind==='collision'?'previewCollision':previewData.kind==='reach'?'previewReach':'previewPlacement',{object:previewData.blocker?name(previewData.blocker):t('collisionSurface')});}
   document.querySelectorAll('.message[data-key]').forEach(el=>{const vars=JSON.parse(el.dataset.vars);if(vars.objectId)vars.object=name(vars.objectId);el.querySelector('.body').textContent=t(el.dataset.key,vars);});
   document.querySelectorAll('.message').forEach(el=>el.querySelector('.who').textContent=t(el.classList.contains('user')?'you':el.classList.contains('system')?'system':'robot'));
   view?.language(language);render();
 }
 function status(key){activity=key;refresh();}
+function clearPreview(){previewData=null;view?.clearPreview();}
+function showPreview(data){previewData=data;view?.preview(data);refresh();}
+function review(steps){showPreview(previewSteps(state,steps));status('previewWaiting');return new Promise(resolve=>{previewResolve=resolve;});}
 function cancel(announce=true){
+  const reviewing=!!previewResolve;previewResolve?.(false);previewResolve=null;clearPreview();
   epoch++;abort?.abort();abort=null;worker?.terminate();worker=null;workerReject?.(Error('cancelled'));workerReject=null;speech.abort();
   const wasBusy=busy;busy=false;activity='';
-  if(wasBusy){undo=[];if(announce){say('stopped',{},'system');remember('assistant',t('stopped')+' '+JSON.stringify(perception()));}}
+  if(wasBusy){if(!reviewing)undo=[];if(announce){const key=reviewing?'previewCancelled':'stopped';say(key,{},'system');remember('assistant',t(key)+' '+JSON.stringify(perception()));}}
   refresh();
 }
 async function request(question,id,feedback){
@@ -72,11 +77,11 @@ function prepare(actions){
     return Promise.resolve({plan:{steps:undo.at(-1)},undoing:true});
   }
   return new Promise((resolve,reject)=>{
-    const planner=new Worker(new URL('./planner-worker.mjs?v=chat-20261021-1',import.meta.url),{type:'module'});worker=planner;
+    const planner=new Worker(new URL('./planner-worker.mjs?v=preview-20261021-1',import.meta.url),{type:'module'});worker=planner;
     const finish=()=>{clearTimeout(timer);planner.terminate();if(worker===planner){worker=null;workerReject=null;}};
     const timer=setTimeout(()=>{finish();reject(Error('planningTimeout'));},45000);
     workerReject=error=>{finish();reject(error);};
-    planner.onmessage=({data})=>{finish();if(data.error)reject(Object.assign(Error(data.error.code),{detail:data.error.detail,action:data.error.action}));else resolve(data);};
+    planner.onmessage=({data})=>{finish();if(data.error)reject(Object.assign(Error(data.error.code),{detail:data.error.detail,action:data.error.action,preview:data.error.preview}));else resolve(data);};
     planner.onerror=()=>{finish();reject(Error('invalid'));};
     planner.postMessage({state:structuredClone(state),actions});
   });
@@ -98,7 +103,10 @@ async function animate(steps,id){
   }
 }
 function reportError(error){
+  if(error.preview)showPreview(error.preview);
+  if(error.detail?.constraint==='deskEdge'){say('deskEdge',{},'assistant',true);return t('deskEdge');}
   const key=error.message==='empty'?'emptyError':error.message==='holding'?'holdingError':words[language][error.message]?error.message:error instanceof TypeError?'network':'provider';
+  if(key==='occupied'&&error.detail?.blocker){const vars={object:name(error.detail.blocker),objectId:error.detail.blocker};say('occupiedBy',vars,'assistant',true);return t('occupiedBy',vars);}
   if(key==='posture'&&error.detail?.blocker){const vars={object:name(error.detail.object),blocker:name(error.detail.blocker)};say('postureBlocked',vars,'assistant',true);return t('postureBlocked',vars);}
   if(key==='posture'&&error.detail?.reason==='reach'){const vars={object:name(error.detail.object)};say('postureReach',vars,'assistant',true);return t('postureReach',vars);}
   if(key==='blocked'&&error.detail?.blocker){const vars={object:name(error.detail.blocker),objectId:error.detail.blocker};say('blockedBy',vars,'assistant',true);return t('blockedBy',vars);}
@@ -122,7 +130,7 @@ async function connect(){
 }
 async function send(question){
   if(busy||!question.trim())return;if(!connection){say('needConnection');return;}if(!view){say('sceneUnavailable',{},'assistant',true);return;}
-  speech.abort();const id=++epoch;busy=true;add('user',question);$('prompt').value='';status('thinking');
+  speech.abort();clearPreview();const id=++epoch;busy=true;add('user',question);$('prompt').value='';status('thinking');
   let feedback,response,prepared;
   try{
     for(let attempt=0;attempt<2;attempt++){
@@ -135,7 +143,8 @@ async function send(question){
     if(id!==epoch)return;
     remember('user',question);
     if(!response.actions.length){add('assistant',response.reply);remember('assistant',response.reply);return;}
-    add('assistant',response.reply);remember('assistant',response.reply);status('moving');
+    add('assistant',response.reply);remember('assistant',response.reply);
+    if(!await review(prepared.plan.steps)){if(id===epoch){say('previewCancelled');remember('assistant',t('previewCancelled'));}return;}if(id!==epoch)return;status('moving');
     const touched=new Set([state.held,...prepared.plan.steps.filter(step=>step.type==='grip').map(step=>step.object)]);
     await animate(prepared.plan.steps,id);if(id!==epoch)return;
     if(prepared.undoing)undo.pop();else{undo.push(prepared.inverse);undo=undo.slice(-8);}
@@ -156,10 +165,10 @@ function submitMessage(){if(!busy&&!speech.active){if(connection)void send($('pr
 $('send').addEventListener('click',submitMessage);
 for(const id of ['prompt','api-key'])$(id).addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();submitMessage();}});
 $('stop').addEventListener('click',()=>cancel());
+$('preview-run').addEventListener('click',()=>{const resolve=previewResolve;previewResolve=null;clearPreview();refresh();resolve?.(true);});
+$('preview-dismiss').addEventListener('click',()=>{const resolve=previewResolve;previewResolve=null;clearPreview();refresh();resolve?.(false);});
 function arrange(seed,kit,message){cancel(false);state=initialState(seed,kit);undo=[];history=[];view?.resetView();say(message,{},'system');refresh();}
 $('reset').addEventListener('click',()=>arrange(state.seed,state.kit,'resetDone'));
-$('new-scene').addEventListener('click',()=>arrange(crypto.getRandomValues(new Uint32Array(1))[0]||1,state.kit,'newSceneDone'));
-$('kit').addEventListener('change',()=>arrange(0,$('kit').value,'newSceneDone'));
 $('language').addEventListener('click',()=>{speech.abort();if(busy)cancel();language=language==='en'?'zh':'en';try{localStorage.setItem('six-axis-language',language);}catch{}refresh();});
 $('reconnect').addEventListener('click',()=>{cancel(false);connection=null;$('api-key').value='';say('change');refresh();$('api-key').focus();});
 $('mic').addEventListener('click',()=>speech.start($('prompt').value));

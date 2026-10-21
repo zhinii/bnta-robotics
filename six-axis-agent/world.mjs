@@ -1,4 +1,4 @@
-import { homeFor, ikTool, toolPose, valid, distance, transform, rotationFromEuler, multiply, JOINTS } from './kinematics.mjs?v=chat-20261021-1';
+import { homeFor, ikTool, toolPose, valid, distance, transform, rotationFromEuler, multiply, JOINTS } from './kinematics.mjs?v=preview-20261021-1';
 
 export const AREAS={left:[170,-230],right:[170,230],rear:[-280,0],front:[280,0]};
 export const HOME=[210,0,150];
@@ -116,7 +116,7 @@ export function validateActions(actions) {
       if(['target','position','beside'].filter(k=>k in a).length!==1)throw Error('destination');
       if('target'in a&&!Object.hasOwn(AREAS,a.target)&&!Object.hasOwn(HOMES,a.target)&&!Object.hasOwn(CATALOG,a.target)&&a.target!=='start'&&!Object.keys(CATALOG).some(c=>a.target===c+'-start'))throw Error('destination');
       if('position'in a&&(!Array.isArray(a.position)||a.position.length!==2||!a.position.every(Number.isFinite)||Math.hypot(...a.position)>330))throw Error('destination');
-      if('beside'in a&&(!Object.hasOwn(CATALOG,a.beside)||!['left','right','front','rear'].includes(a.side)))throw Error('destination');
+      if('beside'in a&&(!Object.hasOwn(CATALOG,a.beside)||(a.side!==undefined&&!['auto','left','right','front','rear'].includes(a.side))))throw Error('destination');
       if('side'in a&&!('beside'in a))throw Error('destination');
     }
     if(a.type==='rotate'&&(!Number.isFinite(a.angle)||Math.abs(a.angle)>180))throw Error('angle');
@@ -132,10 +132,15 @@ export function validateActions(actions) {
 }
 export function planActions(state,actions) {
   validateActions(actions);
-  const s=structuredClone(state),steps=[];
+  const s=structuredClone(state),steps=[];let destination=null;
+  function diagnostic(kind,detail={},q=null){
+    const ghost=structuredClone(s);
+    if(q)applyStep(ghost,{type:'move',q,rpy:toolPose(q).rpy});
+    return {kind,state:ghost,showArm:!!q,blocker:detail.blocker||null,target:detail.target||detail.requestedPosition||null,destinations:destination?[structuredClone(destination)]:[],path:[]};
+  }
   function joints(q,rpy,seconds,contact=null){
     const count=Math.max(2,Math.ceil(Math.max(...q.map((v,i)=>Math.abs(v-s.q[i])))/.5));
-    for(let i=1;i<=count;i++){const sample=s.q.map((v,j)=>v+(q[j]-v)*i/count),detail={tip:toolPose(sample).tip,contact};if(!clearPose(sample,s,contact,detail))throw Object.assign(Error('blocked'),{detail});}
+    for(let i=1;i<=count;i++){const sample=s.q.map((v,j)=>v+(q[j]-v)*i/count),detail={tip:toolPose(sample).tip,contact};if(!clearPose(sample,s,contact,detail))throw Object.assign(Error('blocked'),{detail,preview:diagnostic('collision',detail,sample)});}
     const step={type:'move',q:[...q],rpy:[...rpy],yaw:rpy[2],seconds};applyStep(s,step);steps.push(step);
     if(steps.length>4000)throw Error('invalid');
   }
@@ -144,7 +149,7 @@ export function planActions(state,actions) {
     const count=Math.max(1,Math.ceil(distance(start,point)/9),Math.ceil(Math.max(...rpy.map((v,i)=>Math.abs(v-orientation[i])))/5));
     for(let i=1;i<=count;i++){
       const target=start.map((v,j)=>v+(point[j]-v)*i/count),next=orientation.map((v,j)=>v+(rpy[j]-v)*i/count),result=ikTool(target,s.q,'nearest',next);
-      if(!result.q)throw Object.assign(Error('reach'),{detail:{target,orientation:next,requestedPosition:point,requestedOrientation:rpy,solver:result.error}});
+      if(!result.q){const detail={target,orientation:next,requestedPosition:point,requestedOrientation:rpy,solver:result.error};throw Object.assign(Error('reach'),{detail,preview:diagnostic('reach',detail)});}
       const seconds=Math.max(.035,distance(toolPose(s.q).tip,toolPose(result.q).tip)/160,Math.max(...result.q.map((v,j)=>Math.abs(v-s.q[j])))/90);
       joints(result.q,next,seconds,contact);
     }
@@ -157,7 +162,7 @@ export function planActions(state,actions) {
     const startingContact=!s.held?s.objects.find(o=>distance(o.position,current)<25)?.id:null;
     let failure;const attempts=[];
     // Try a direct elevated transfer, then routes around the base in both directions.
-    for(const turnAt of (desired.some((v,i)=>Math.abs(v-saved.rpy[i])>.1)?['destination','raised','source']:['raised']))for(const route of ['direct','short','long'])for(const level of [clearance,Math.max(clearance,160)]){
+    for(const turnAt of (desired.some((v,i)=>Math.abs(v-saved.rpy[i])>.1)?['destination','raised','source']:['raised']))for(const route of ['direct','home','short','long'])for(const level of [clearance,Math.max(clearance,160)]){
       Object.assign(s,structuredClone(saved));steps.length=length;
       try{
         if(turnAt==='source')move(current,desired,startingContact||contact);
@@ -165,6 +170,7 @@ export function planActions(state,actions) {
         if(turnAt==='raised')move(toolPose(s.q).tip,desired);
         const travel=turnAt==='destination'?s.rpy:desired;
         if(route==='direct')move([point[0],point[1],level],travel);
+        else if(route==='home'){move(HOME,travel);move([point[0],point[1],level],travel);}
         else{
           const a=Math.atan2(current[1],current[0]),b=Math.atan2(point[1],point[0]);let delta=((b-a+3*Math.PI)%(2*Math.PI))-Math.PI;
           if(route==='long')delta+=delta>0?-2*Math.PI:2*Math.PI;
@@ -217,21 +223,31 @@ export function planActions(state,actions) {
     let xy=action.position||home?.position.slice(0,2)||AREAS[action.target];
     if(action.beside){if(!anchor||anchor.id===s.held)throw Error('destination');const axis=['left','right'].includes(action.side)?1:0,sign=['left','rear'].includes(action.side)?-1:1;xy=anchor.position.slice(0,2);xy[axis]+=sign*((heldSize[axis]+footprint(anchor)[axis])/2+35);}
     const surface=xy&&(s.obstacles||[]).find(o=>o.surface&&[0,1].every(i=>Math.abs(xy[i]-o.position[i])<(o.size[i]+heldSize[i])/2));
-    if(surface&&![0,1].every(i=>Math.abs(xy[i]-surface.position[i])+heldSize[i]/2<=surface.size[i]/2-2))throw Object.assign(Error('destination'),{detail:{reason:'the object would overhang the organizer shelf; choose a different shelf space or place it beside the other object in another direction'}});
-    if(anchor&&anchor.position[2]-footprint(anchor)[2]/2>1&&!surface)throw Object.assign(Error('destination'),{detail:{reason:'there is not enough shelf space on that side; choose another direction or a clear shelf space'}});
     const point=start?[...start.origin.slice(0,2),heldSize[2]/2]:(support?[support.position[0],support.position[1],support.position[2]+(footprint(support)[2]+heldSize[2])/2]:xy?[...xy,(surface?surface.position[2]+surface.size[2]/2:0)+heldSize[2]/2]:null);
     if(!point)throw Error('destination');
-    if(s.kit==='desk'&&[0,1].some(i=>point[i]-heldSize[i]/2<DESK.min[i]+2||point[i]+heldSize[i]/2>DESK.max[i]-2))throw Object.assign(Error('destination'),{detail:{reason:'the item would extend beyond the desk edge; choose a position on the desk or organizer'}});
-    if(s.objects.some(o=>o.id!==s.held&&o.id!==support?.id&&[0,1,2].every(i=>Math.abs(o.position[i]-point[i])<(footprint(o)[i]+heldSize[i])/2+(i===2?-.3:8))))throw Error('occupied');
+    destination={...structuredClone(held),position:[...point],rpy:[...rpy]};
+    if(surface&&![0,1].every(i=>Math.abs(xy[i]-surface.position[i])+heldSize[i]/2<=surface.size[i]/2-2))throw Object.assign(Error('shelfEdge'),{preview:diagnostic('placement')});
+    if(anchor&&anchor.position[2]-footprint(anchor)[2]/2>1&&!surface)throw Object.assign(Error('shelfEdge'),{preview:diagnostic('placement')});
+    if(s.kit==='desk'&&[0,1].some(i=>point[i]-heldSize[i]/2<DESK.min[i]+2||point[i]+heldSize[i]/2>DESK.max[i]-2))throw Object.assign(Error('destination'),{preview:diagnostic('placement'),detail:{constraint:'deskEdge',reason:'the item would extend beyond the desk edge; choose a position on the desk or organizer'}});
+    const occupant=s.objects.find(o=>o.id!==s.held&&o.id!==support?.id&&[0,1,2].every(i=>Math.abs(o.position[i]-point[i])<(footprint(o)[i]+heldSize[i])/2+(i===2?-.3:8)));
+    if(occupant){const detail={blocker:occupant.id};throw Object.assign(Error('occupied'),{detail,preview:diagnostic('collision',detail)});}
     const toolR=multiply(rotationFromEuler(rpy),transpose(s.grasp?.rotation||identity)),toolRpy=euler(toolR),offset=transform(toolR,s.grasp?.offset||[0,0,0]),graspPoint=point.map((v,i)=>v-offset[i]);
     const endpoint=ikTool(graspPoint,s.q,'nearest',toolRpy);
-    if(endpoint.error==='solve')throw Object.assign(Error('reach'),{detail:{requestedPosition:graspPoint,requestedOrientation:rpy,reason:'the requested object pose cannot be reached with this grip'}});
+    if(endpoint.error==='solve'){const detail={requestedPosition:graspPoint,requestedOrientation:rpy,reason:'the requested object pose cannot be reached with this grip'};throw Object.assign(Error('reach'),{detail,preview:diagnostic('reach',detail)});}
     cruiseTo(graspPoint,toolRpy);
     const released=s.held,step={type:'release',position:[...point],rpy:[...rpy]};applyStep(s,step);steps.push(step);
     move([graspPoint[0],graspPoint[1],Math.max(140,graspPoint[2]+45)],toolRpy,released);
   }
   function arrange(action){
     const saved=structuredClone(s),length=steps.length,id=action.object||s.held;
+    if(action.beside&&(!action.side||action.side==='auto')){
+      let failure;
+      for(const side of ['front','rear','left','right']){
+        Object.assign(s,structuredClone(saved));steps.length=length;destination=null;
+        try{arrange({...action,side});return;}catch(error){failure=error;}
+      }
+      Object.assign(s,saved);steps.length=length;throw failure;
+    }
     if(!id)throw Error('empty');if(s.held&&s.held!==id)throw Error('holding');
     const object=s.objects.find(o=>o.id===id);if(!object)throw Error('unknown');
     const orientations=action.posture?postureOrientations(object,action.posture):[action.orientation||object.rpy];
@@ -251,10 +267,11 @@ export function planActions(state,actions) {
           try{place({...action,orientation});return;}catch(error){failure=error;}
         }
       }catch(error){failure=error;}
-      if(!action.posture&&!action.orientation)break;
+      // A different grasp can clear an obstacle without changing the object's
+      // requested orientation or destination.
     }
     Object.assign(s,saved);steps.length=length;
-    if(action.posture)throw Object.assign(Error('posture'),{detail:{object:id,posture:action.posture,reason:failure?.message,blocker:failure?.detail?.blocker,explanation:failure?.detail?.reason}});
+    if(action.posture)throw Object.assign(Error('posture'),{preview:failure?.preview,detail:{object:id,posture:action.posture,reason:failure?.message,blocker:failure?.detail?.blocker,explanation:failure?.detail?.reason}});
     throw failure;
   }
   function restore(){
@@ -290,9 +307,9 @@ export function planActions(state,actions) {
       try{cruiseTo(point,s.rpy);turn(euler(multiply(rotationFromEuler(rpy),transpose(s.grasp?.rotation||identity))));s.objects.find(o=>o.id===s.held).rpy=[...rpy];return;}catch(error){failure=error;}
     }
     Object.assign(s,saved);steps.length=length;
-    throw Object.assign(Error('rotation'),{detail:{axis,angle:action.angle,requestedOrientation:rpy,reason:failure.message,blocker:failure.detail?.blocker,attemptedTurningPositions:6}});
+    throw Object.assign(Error('rotation'),{preview:failure?.preview,detail:{axis,angle:action.angle,requestedOrientation:rpy,reason:failure.message,blocker:failure.detail?.blocker,attemptedTurningPositions:6}});
   }
-  for(const [actionIndex,action] of actions.entries()){try{
+  for(const [actionIndex,action] of actions.entries()){destination=null;try{
     if(action.type==='pick')pick(action.object);
     else if(action.type==='transfer'){
       if(s.held&&s.held!==action.object)throw Object.assign(Error('holding'),{detail:{object:action.object,reason:'put down the currently held object before picking up a different one'}});
@@ -318,8 +335,15 @@ export function planActions(state,actions) {
         else if(action.type==='bob'){for(let i=0;i<2;i++){move([210,0,175],[0,0,0]);move([210,0,130],[0,0,0]);}move(HOME,[0,0,0]);}
       }
     }
-  }catch(error){error.action=action;error.detail={...error.detail,actionIndex,held:s.held};throw error;}}
+  }catch(error){error.action=action;error.detail={...error.detail,actionIndex,held:s.held};if(!error.preview&&destination)error.preview=diagnostic('placement');if(error.preview)error.preview.actionIndex=actionIndex;throw error;}}
   return {steps,result:s};
+}
+// Replay on a copy: previews never modify the live scene or undo history.
+export function previewSteps(state,steps){
+  const s=structuredClone(state),destinations=[],path=[toolPose(s.q).tip];
+  for(const step of steps){const held=s.held;applyStep(s,step);if(step.type==='move')path.push(toolPose(s.q).tip);if(step.type==='release')destinations.push(structuredClone(s.objects.find(o=>o.id===held)));}
+  if(s.held)destinations.push(structuredClone(s.objects.find(o=>o.id===s.held)));
+  return {kind:'ready',state:s,showArm:true,destinations,path};
 }
 export function applyStep(state,step){
   if(step.type==='move'){

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from '../beginner-3axis/vendor/three/examples/jsm/controls/OrbitControls.js';
-import { fk, toolPose } from './kinematics.mjs?v=chat-20261021-1';
-import { CATALOG, HOMES, DESK, graspWidth, footprint } from './world.mjs?v=chat-20261021-1';
+import { fk, toolPose } from './kinematics.mjs?v=preview-20261021-1';
+import { CATALOG, HOMES, DESK, graspWidth, footprint } from './world.mjs?v=preview-20261021-1';
 
 export function createScene(container) {
   const scene=new THREE.Scene(); scene.background=new THREE.Color('#eeeee7');
@@ -171,6 +171,37 @@ export function createScene(container) {
     return g;
   }
   let currentLanguage='en';
+  const ghosts=new THREE.Group();station.add(ghosts);
+  function clearPreview(){
+    ghosts.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material)o.material.dispose();});
+    ghosts.clear();
+  }
+  function preview(data){
+    clearPreview();if(!data)return;
+    const color=data.kind==='ready'?'#159a76':data.kind==='collision'?'#e63843':'#d48215';
+    const material=()=>new THREE.MeshBasicMaterial({color,transparent:true,opacity:.24,depthWrite:false,depthTest:false});
+    function ghostObject(object){
+      const source=objects.get(object.id);if(!source)return;
+      const clone=source.clone(true);clone.traverse(o=>{if(o.isMesh){o.geometry=o.geometry.clone();o.material=material();o.castShadow=false;o.receiveShadow=false;o.renderOrder=9;}});
+      clone.position.copy(v(object.position));clone.rotation.set(...object.rpy.map(n=>n*Math.PI/180),'ZYX');ghosts.add(clone);
+      const shape=new THREE.BoxGeometry(...object.size),outline=new THREE.LineSegments(new THREE.EdgesGeometry(shape),new THREE.LineBasicMaterial({color,transparent:true,opacity:.9,depthTest:false}));shape.dispose();
+      outline.position.copy(clone.position);outline.quaternion.copy(clone.quaternion);outline.renderOrder=10;ghosts.add(outline);
+    }
+    for(const object of data.destinations||[])ghostObject(object);
+    if(data.showArm){
+      const pose=fk(data.state.q),tool=toolPose(data.state.q);
+      pose.points.slice(1).forEach((b,i)=>{const a=pose.points[i],link=cylinder([20,17,13,11,10][i],v(a).distanceTo(v(b)),material(),ghosts);orient(link,a,b);link.renderOrder=8;link.castShadow=false;});
+      const grip=gripper.clone(true);grip.traverse(o=>{if(o.isMesh){o.geometry=o.geometry.clone();o.material=material();o.castShadow=false;o.receiveShadow=false;o.renderOrder=9;}});
+      const r=tool.rotation;grip.position.copy(v(tool.tip));grip.quaternion.setFromRotationMatrix(new THREE.Matrix4().set(r[0],r[1],r[2],0,r[3],r[4],r[5],0,r[6],r[7],r[8],0,0,0,0,1));
+      // Finger spacing follows the simulated load, not the live robot's grip.
+      fingers.forEach((finger,i)=>{const copy=grip.children[gripper.children.indexOf(finger)];if(copy)copy.position.x=(i?1:-1)*(data.state.held?graspWidth(data.state)/2+3.5:29);});ghosts.add(grip);
+      if(data.state.held&&data.kind!=='ready')ghostObject(data.state.objects.find(o=>o.id===data.state.held));
+    }
+    if(data.path?.length>1){const path=new THREE.Line(new THREE.BufferGeometry().setFromPoints(data.path.map(v)),new THREE.LineDashedMaterial({color,dashSize:7,gapSize:5,transparent:true,opacity:.65,depthTest:false}));path.computeLineDistances();path.renderOrder=7;ghosts.add(path);}
+    const blocker=[...data.state.objects,...data.state.obstacles].find(o=>o.id===data.blocker);
+    if(blocker){const shape=new THREE.BoxGeometry(...(blocker.rpy?footprint(blocker):blocker.size));const outline=new THREE.LineSegments(new THREE.EdgesGeometry(shape),new THREE.LineBasicMaterial({color:'#e63843',depthTest:false}));shape.dispose();outline.position.copy(v(blocker.position));outline.renderOrder=10;ghosts.add(outline);}
+    if(data.kind==='reach'&&data.target){const marker=mesh(new THREE.SphereGeometry(8,16,12),material(),ghosts);marker.position.copy(v(data.target));marker.renderOrder=10;}
+  }
   function orient(m,a,b) { const A=v(a),B=v(b),d=B.clone().sub(A); m.position.copy(A.add(B).multiplyScalar(.5));m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize()); }
   function update(s) {
     const isDesk=s.kit==='desk',width=DESK.max[0]-DESK.min[0],depth=DESK.max[1]-DESK.min[1],centre=(DESK.max[0]+DESK.min[0])/2;
@@ -227,5 +258,5 @@ export function createScene(container) {
     }
     renderer.render(scene,camera);
   });
-  return {update,language:lang=>{currentLanguage=lang;labels.forEach(draw=>draw(lang));},resetView:()=>{camera.position.set(1000,-1100,980);controls.target.set(-60,150,-40);}};
+  return {update,preview,clearPreview,language:lang=>{currentLanguage=lang;labels.forEach(draw=>draw(lang));},resetView:()=>{camera.position.set(1000,-1100,980);controls.target.set(-60,150,-40);}};
 }

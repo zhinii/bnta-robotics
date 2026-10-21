@@ -1,5 +1,13 @@
 export const words={
  en:{
+  previewReady:'Preview: green outlines show planned placements; the dashed line is the gripper path. Nothing has moved. Run it when you are ready.',
+  previewCollision:'Red ghost: a rejected candidate would touch {object}. The outline marks the obstacle. This is one checked approach, not proof that every route is blocked. Nothing moved.',
+  previewPlacement:'Amber outline: the proposed placement does not fit or cannot be supported here. Nothing moved.',
+  previewReach:'Amber preview: I could not find a reachable pose for this approach. This is a reach limit, not a confirmed collision. Nothing moved.',
+  previewRun:'Run movement',previewDismiss:'Dismiss preview',previewCancel:'Cancel movement',previewWaiting:'Review the preview, then run or cancel.',previewCancelled:'Movement cancelled. Nothing moved.',collisionSurface:'the marked surface',
+  occupiedBy:'The {object} occupies that placement. Its outline is marked in red. Choose another side or tell me where to move it first.',
+  shelfEdge:'That placement would extend beyond the shelf or lose its support. Choose another side or a clearer shelf space.',
+  deskEdge:'That placement would extend beyond the desk edge. Choose another side of the object or a position farther onto the desk.',
   postureBlocked:'I couldn’t place the {object} on that edge there. I tried other grips and approaches; the last approach would touch the {blocker}. Nothing moved. Choose a clearer shelf space or move that obstacle first if it is movable.',
   postureReach:'I couldn’t reach that location while holding the {object} on the requested edge, even with other grips. Nothing moved. Try the left or middle shelf space, or another nearby clear position; I’ll keep the requested edge.',
   posture:'I couldn’t find a clear, reachable grip and path for that supporting edge at the requested location. Nothing moved. Choose another shelf space or clear some room beside the item; I’ll keep the orientation you requested.',
@@ -28,6 +36,14 @@ export const words={
   mic:'Dictate a command',micStop:'Finish dictation',listening:'Listening… tap the microphone to finish.',speechReady:'Review the words above, then press Send.',speechUnavailable:'Speech recognition isn’t available in this browser. Open the page in a supported browser, or type your command.',speechDenied:'Microphone or speech permission was denied. Allow it in your browser’s site settings, or type your command.',speechEmpty:'I didn’t hear a command. Tap the microphone and try again, or type it.',speechDevice:'I couldn’t start the microphone. Check that a working microphone is connected and available.',speechNetwork:'The browser’s speech service could not complete recognition. Check the connection or type your command.',speechNote:'Dictation uses your browser’s speech service. Review before sending.'
  },
  zh:{
+  previewReady:'预览：绿色轮廓表示计划放置的位置，虚线表示夹爪的路径。实际场景尚未移动。确认后点击执行。',
+  previewCollision:'红色虚影：这条候选路径会碰到{object}，轮廓标出了障碍物。这只是检查过的一条路径，不代表所有路径都不可行。实际场景尚未移动。',
+  previewPlacement:'橙色轮廓：物品在此处放不下或无法获得支撑。实际场景尚未移动。',
+  previewReach:'橙色预览：未找到这条路径所需的可达姿态。这是可达性限制，不代表已经确认碰撞。实际场景尚未移动。',
+  previewRun:'执行动作',previewDismiss:'关闭预览',previewCancel:'取消动作',previewWaiting:'查看预览，然后执行或取消。',previewCancelled:'动作已取消。实际场景尚未移动。',collisionSurface:'标出的表面',
+  occupiedBy:'{object}占据了这个位置，已用红色轮廓标出。请选择另一侧，或告诉我先把它移到哪里。',
+  shelfEdge:'这个位置会使物品超出整理架边缘或失去支撑。请选择另一侧或更空的位置。',
+  deskEdge:'这个位置会使物品超出书桌边缘。请选择物品的另一侧或更靠近桌面内部的位置。',
   postureBlocked:'我无法把{object}以指定的边放在那里。我尝试了其他夹持方式和路径，最后的路径仍会碰到{blocker}。机械臂没有移动。请选择更空的位置，或先移动可移动的障碍物。',
   postureReach:'即使尝试其他夹持方式，我仍无法在保持{object}以指定的边摆放时到达那个位置。机械臂没有移动。请尝试整理架左侧、中间或附近空位；我会保留你要求的边。',
   posture:'我未能找到能在指定位置以所要求的边支撑、且无碰撞的夹持与移动路径。机械臂没有移动。请选择另一个整理架空位，或先腾出物品旁的空间；我会保留你要求的摆放方向。',

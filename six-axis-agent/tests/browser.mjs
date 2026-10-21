@@ -30,8 +30,8 @@ try{
    'put everything back':[{type:'restore'}],
    'do a dance for me':[{type:'dance',style:'lively'}],
    'make a new pose':[{type:'move',position:[220,30,160],orientation:[5,-5,20]}],
-   'move through the divider':[{type:'move',position:[70,135,70]}],
-   'pick up the ruler':[{type:'pick',object:'ruler'}]
+   'move toward the wall':[{type:'move',position:[210,200,100]}],
+   'pick up the pencil':[{type:'pick',object:'pencil'}]
   };
   if(q.question==='connection_check')response={reply:'Hello',actions:[]};
   else if(q.feedback)response={reply:'I cannot take that path because the tall divider is in the way. Please choose another destination or a higher intermediate pose.',actions:[]};
@@ -43,11 +43,11 @@ try{
  await page.goto(base);await page.waitForFunction(()=>!!window.robotLabSnapshot);assert.equal(await page.locator('#render-error').isVisible(),false);assert.equal(await page.locator('#scene canvas').count(),1);
  assert.equal((await page.evaluate(()=>window.robotLabSnapshot().scene)).objects.length,7);
  if(output)await page.screenshot({path:output+'/desktop-bedroom-connect.png'});
- await page.locator('#kit').selectOption('school');
+ assert.equal(await page.locator('#kit').count(),0);assert.equal(await page.locator('#new-scene').count(),0);assert.ok(!(await page.locator('header').innerText()).includes('BNTA'));
  await page.locator('#api-key').fill('fake-browser-test-key');await page.locator('#send').click();await page.waitForFunction(()=>window.robotLabSnapshot().connected&&!window.robotLabSnapshot().busy);
  assert.ok(!(await page.locator('#messages').innerText()).includes('fake-browser-test-key'));assert.ok(!(await page.evaluate(()=>JSON.stringify(localStorage))).includes('fake-browser-test-key'));
  const scene=()=>page.evaluate(()=>window.robotLabSnapshot().scene),initial=await scene();
- const send=async text=>{await page.locator('#prompt').fill(text);await page.locator('#send').click();await page.waitForFunction(()=>!window.robotLabSnapshot().busy,{},{timeout:90000});console.log('Checked command:',text);};
+ const send=async text=>{const before=await scene();await page.locator('#prompt').fill(text);await page.locator('#send').click();await page.waitForFunction(()=>!window.robotLabSnapshot().busy||!document.getElementById('preview-panel').hidden&&!document.getElementById('preview-run').hidden,{},{timeout:90000});if(await page.locator('#preview-run').isVisible()){assert.deepEqual(await scene(),before);await page.locator('#preview-run').click();}await page.waitForFunction(()=>!window.robotLabSnapshot().busy,{},{timeout:90000});console.log('Checked command:',text);};
  await send('pick this up');assert.deepEqual(await scene(),initial);
  await page.locator('#mic').click();assert.equal(await page.evaluate(()=>window.testSpeech.lang),'en-US');
  await page.evaluate(()=>{window.testSpeech.onresult({results:[[{transcript:'pick up the eraser'}]]});window.testSpeech.onend();});
@@ -61,12 +61,12 @@ try{
  if(output){await page.waitForTimeout(250);await page.screenshot({path:output+'/desktop-school-stack.png'});}
  await send('put everything back');for(const o of (await scene()).objects)assert.deepEqual(o.position,o.origin);
  await send('do a dance for me');await send('make a new pose');
- const beforeFailure=await scene();await send('move through the divider');assert.deepEqual(await scene(),beforeFailure);assert.match(await page.locator('#messages').innerText(),/tall divider.*another destination/);assert.equal(seen.at(-1).feedback,undefined);
+ const beforeFailure=await scene();await send('move toward the wall');assert.deepEqual(await scene(),beforeFailure);assert.equal(await page.locator('#preview-panel').getAttribute('data-kind'),'collision');assert.equal(await page.locator('#preview-run').isVisible(),false);assert.equal(seen.at(-1).feedback,undefined);
  await send('fly');assert.deepEqual(await scene(),beforeFailure);
- await page.locator('#reset').click();await page.locator('#prompt').fill('pick up the ruler');await page.locator('#send').click();await page.locator('#activity').filter({hasText:'Moving'}).waitFor();await page.waitForTimeout(500);await page.locator('#stop').click();
+ await page.locator('#reset').click();await page.locator('#prompt').fill('pick up the pencil');await page.locator('#send').click();await page.locator('#preview-run').click();await page.locator('#activity').filter({hasText:'Moving'}).waitFor();await page.waitForTimeout(500);await page.locator('#stop').click();
  const stopped=await scene();assert.equal(stopped.canUndo,false);await page.waitForTimeout(300);assert.deepEqual(await scene(),stopped);
  await page.locator('#reset').click();await page.locator('#prompt').fill('slow');await page.locator('#send').click();await page.locator('#stop').click();await page.waitForTimeout(1400);assert.deepEqual((await scene()).objects,initial.objects);
- await page.locator('#new-scene').click();assert.notDeepEqual((await scene()).objects.map(o=>o.position),initial.objects.map(o=>o.position));
+ await page.locator('#reset').click();assert.deepEqual((await scene()).objects,initial.objects);
  await page.locator('#challenge').click();assert.ok((await page.locator('#prompt').inputValue()).length>20);
  await page.locator('#language').click();await page.locator('#mic').click();assert.equal(await page.evaluate(()=>window.testSpeech.lang),'zh-CN');
  await page.evaluate(()=>{window.testSpeech.onerror({error:'not-allowed'});window.testSpeech.onend();});assert.match(await page.locator('#messages').innerText(),/权限被拒绝/);
@@ -74,5 +74,5 @@ try{
  await page.setViewportSize({width:390,height:844});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));assert.ok(await page.locator('#send').isVisible());assert.ok(await page.locator('#mic').isVisible());
  if(output)await page.screenshot({path:output+'/mobile-school-chinese.png',fullPage:true});
  await page.reload();await page.waitForFunction(()=>!!window.robotLabSnapshot);assert.equal(await page.evaluate(()=>window.robotLabSnapshot().language),'zh');assert.equal(await page.evaluate(()=>window.robotLabSnapshot().connected),false);
- assert.deepEqual(errors,[]);console.log('PASS: school objects, stack/restore, undo, custom pose, dance, specific refusal feedback, Stop, random arrangements, EN/ZH dictation review and denied permission, mobile, key exclusion. Provider and speech responses were mocked.');
+ assert.deepEqual(errors,[]);console.log('PASS: desk objects, preview before execution, collision feedback, simplified header, stack/restore, undo, custom pose, dance, Stop, EN/ZH dictation, mobile, key exclusion. Provider and speech responses were mocked.');
 }finally{await browser.close();server?.close();}

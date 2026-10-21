@@ -78,7 +78,7 @@ test('user-selected stacks and side-by-side orders preserve shelf height and can
  }
  const s=initialState(0,'desk');run(s,[{type:'transfer',object:'pen',target:'shelf-middle'},{type:'transfer',object:'pencil',beside:'pen',side:'rear'}]);
  assert.equal(s.objects.find(o=>o.id==='pencil').position[2],36);assert.ok(s.objects.find(o=>o.id==='pencil').position[0]<s.objects.find(o=>o.id==='pen').position[0]);
- assert.throws(()=>planActions(s,[{type:'transfer',object:'book',beside:'pencil',side:'rear'}]),e=>e.message==='destination'&&/overhang|not enough shelf space/.test(e.detail.reason));
+ assert.throws(()=>planActions(s,[{type:'transfer',object:'book',beside:'pencil',side:'rear'}]),e=>e.message==='shelfEdge'&&e.preview.kind==='placement');
  run(s,[{type:'restore'}]);sameObjects(s,initialState(0,'desk'));
  assert.throws(()=>planActions(s,[{type:'move',position:[150,210,120]}]),/blocked/);
  assert.throws(()=>validateActions([{type:'pick',object:'laptop'}]),/unknown/);

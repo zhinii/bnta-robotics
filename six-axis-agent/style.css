@@ -8,3 +8,5 @@
 /* Mask API tokens without presenting a login password field to Chrome. */
 #api-key[type="text"]{-webkit-text-security:disc}
 #api-key::placeholder{-webkit-text-security:none}
+#preview-panel{margin:0 0 10px;padding:12px;border:1px solid #a9cbbc;border-radius:10px;background:#eef7f1;font-size:12px;line-height:1.5}#preview-panel[data-kind="collision"]{border-color:#e3a8a8;background:#fff0ed}#preview-panel[data-kind="reach"],#preview-panel[data-kind="placement"]{border-color:#d7bd8e;background:#fff6e6}#preview-description{margin:0 0 9px}#preview-panel>div{display:flex;gap:8px;flex-wrap:wrap}#preview-panel button{border:1px solid #bac9bf;background:#fffefa;border-radius:7px;padding:9px 12px;font-size:12px;min-height:40px}#preview-run{background:#244b3d!important;color:white}
+.scene-heading{padding:18px 20px;border:1px solid #ffffffa3;border-radius:16px;background:#faf9f0c9;box-shadow:0 5px 20px #3040340a;backdrop-filter:blur(6px);gap:16px}.brand b{margin-left:0}@media(max-width:700px){.scene-heading{padding:13px 15px;border-radius:12px}.scene-mission{max-width:240px}}
