@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Robot Lab · Dialogue prototype / 对话原型</title>
+  <link rel="stylesheet" href="./quest-prototype.css">
+  <script type="importmap">{"imports":{"three":"./vendor/three/build/three.module.js"}}</script>
+</head>
+<body>
+  <main>
+    <section id="world" aria-label="Robot world / 机器人世界">
+      <div id="scene"></div>
+      <div id="view-tools">
+        <button data-command="home" data-en="⌂ View" data-zh="⌂ 视角"></button>
+        <button data-command="trail" aria-pressed="true" data-en="Trail" data-zh="轨迹"></button>
+        <button data-command="path" aria-pressed="true" data-en="Path" data-zh="路径"></button>
+        <button data-command="clear trail" data-en="Clear" data-zh="清除"></button>
+      </div>
+    </section>
+    <aside id="quest" aria-label="Coach · Quest Log / 教练 · 任务日志">
+      <header>
+        <button id="chat-toggle" aria-expanded="true" aria-controls="conversation">
+          <span id="chat-title">Coach · Quest Log</span><span id="chat-state"></span><span id="toggle-icon">−</span>
+        </button>
+        <select id="language" aria-label="Language / 语言"><option value="en">EN</option><option value="zh">中文</option></select>
+        <button id="stop" data-command="stop" data-en="■ Stop" data-zh="■ 停止"></button>
+      </header>
+      <div id="chat-body">
+        <div id="conversation" role="log" aria-live="off" tabindex="0"></div>
+        <section id="operation" hidden>
+          <div class="operation-top"><button data-command="controls" data-en="Controls" data-zh="控制"></button><button data-command="steps" data-en="Program" data-zh="程序"></button><button data-command="status" data-en="Status" data-zh="状态"></button></div>
+          <output id="actual"></output>
+          <div id="movement">
+            <form id="target-form">
+              <div class="coordinates">
+                <label>X <input id="x" type="number" step="any" inputmode="decimal"></label>
+                <label>Y <input id="y" type="number" step="any" inputmode="decimal"></label>
+                <label>Z <input id="z" type="number" step="any" inputmode="decimal"></label>
+              </div>
+              <div class="inline"><button id="preview" type="button" data-en="Preview (mm)" data-zh="预览（毫米）"></button><button class="accent" type="submit" data-en="Move" data-zh="移动"></button><button type="button" data-command="open" data-en="Open" data-zh="张开"></button><button type="button" data-command="close" data-en="Close" data-zh="闭合"></button></div>
+            </form>
+          </div>
+          <div id="program" hidden><ol id="steps-list"></ol></div>
+          <div class="inline playback"><button id="record" data-en="Record off" data-zh="录制关"></button><button data-command="run" data-en="Run" data-zh="运行"></button><button data-command="pause" data-en="Pause" data-zh="暂停"></button><button data-command="reset" data-en="Reset" data-zh="重置"></button></div>
+        </section>
+      </div>
+      <div id="options" aria-label="Suggested replies / 建议回复"></div>
+      <form id="composer">
+        <button type="button" data-command="menu" aria-label="Menu / 菜单">☰</button>
+        <input id="message" autocomplete="off" maxlength="2000" aria-label="Message / 消息">
+        <button id="send" type="submit" class="accent" data-en="Send" data-zh="发送"></button>
+      </form>
+    </aside>
+  </main>
+  <output id="announcement" aria-live="polite" class="sr-only"></output>
+  <script type="module" src="./quest-prototype.mjs"></script>
+</body>
+</html>

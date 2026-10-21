@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { registerHooks } from "node:module";
 const { JSDOM } = await import(process.env.BNTA_JSDOM_PATH || "jsdom");
-const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+const html = readFileSync(new URL("../classic.html", import.meta.url), "utf8");
 const dom = new JSDOM(html, {
     url: "http://localhost/bnta-robotics/beginner-3axis/",
     pretendToBeVisual: true,
