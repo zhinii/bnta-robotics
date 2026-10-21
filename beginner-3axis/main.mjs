@@ -1,3 +1,4 @@
+import { createGameUI } from "./game-ui.mjs";
 import { buildDesignQuestions } from "./practical-presentation.mjs";
 import { paginateScenarios } from "./coordinate-presentation.mjs";
 import { SCENARIOS, scenarioIllustration } from "./assessment-visuals.mjs";
@@ -66,6 +67,7 @@ const $ = (id) => document.getElementById(id),
 let learning = createLearningState(),
   exercise = createExerciseState(),
   exploreUI,
+  gameUI,
   startingGuides,
   exploreStarted = false,
   language = "en",
@@ -96,6 +98,7 @@ let learning = createLearningState(),
   coachKey = "coach.preview.question";
 const c = new Controller({
   onEvent: (event) => {
+    gameUI?.onEvent(event);
     if (["SCENE_RESET", "SCENE_CHANGED"].includes(event.type))
       renderer?.clearTrail();
     if (mode === "learn") learning = recordLearningEvent(learning, event);
@@ -171,6 +174,7 @@ function persist() {
       program: c.state.program,
       scene: c.state.scene,
       exercise,
+      game: gameUI?.state || saved?.value?.game || null,
       learning,
       language,
       learnerName: $("learner-name")?.value || "",
@@ -408,7 +412,7 @@ function render() {
   $("run").textContent = tr(
     s.execution.status === "paused" ? "control.resume" : "control.run",
   );
-  if (mode === "explore" && s.execution.status !== "paused") {
+  if (mode === "explore" && gameUI?.state.mode !== "learn" && s.execution.status !== "paused") {
     const resetNeeded =
       s.program.steps.length && sceneDifference(s.scene, s.program.startScene);
     $("run").textContent =
@@ -594,6 +598,7 @@ function render() {
   }
   motionControls?.update(language, busy || !!journey?.demo);
   renderLessonNavigation();
+  gameUI?.render();
 }
 function renderProgram() {
   const program = c.state.program;
@@ -634,6 +639,11 @@ function renderProgram() {
     select.setAttribute("aria-expanded", String(selectedProgram === i));
     select.addEventListener("click", () => {
       selectedProgram = i;
+      c.emit("PROGRAM_STEP_SELECTED", {
+        stepId: step.id,
+        stepType: step.type,
+        index: i,
+      });
       renderProgram();
       if (step.type === "move" && !c.busy) {
         for (const axis of ["x", "y", "z"])
@@ -1085,7 +1095,7 @@ $("record").addEventListener("change", () => {
     render();
   }
 });
-const runProgram = () => report(mode === "explore" ? c.testProgram() : c.run());
+const runProgram = () => report(gameUI?.state.mode === "learn" || mode !== "explore" ? c.run() : c.testProgram());
 $("run").addEventListener("click", runProgram);
 $("pause").addEventListener("click", () => report(c.pause()));
 $("drawer-run").addEventListener("click", runProgram);
@@ -1244,6 +1254,7 @@ function download(kind) {
       learnerName: $("learner-name").value,
       scene: c.state.scene,
       exercise,
+      game: gameUI?.state || null,
     }),
   );
   if (!r.ok) return report(r);
@@ -1362,6 +1373,7 @@ fileInput.onchange = async () => {
   c.stop();
   if (c.state.program.steps.length) c.clearProgram(true);
   const data = result.value;
+  gameUI?.restore(data.game);
   renderer.clearTrail();
   c.changeScene(data.scene || initialScene());
   c.initialScene = initialScene({
@@ -1419,6 +1431,14 @@ imageButton.onclick = () => {
   persist();
   render();
 };
+gameUI = createGameUI({
+  get: () => ({ c, exercise, language, tr }),
+  initial: saved.value?.game,
+  renderer,
+  persist,
+  render,
+  startExercise,
+});
 uiReady = true;
 $("prediction").value = currentAttempt(learning)?.prediction || "";
 $("reflection").value = currentAttempt(learning)?.reflection || "";
@@ -1431,6 +1451,7 @@ function animate(now) {
   const delta = lastFrame === null ? 0 : Math.min(now - lastFrame, 100);
   lastFrame = now;
   journey?.tick(delta);
+  gameUI?.tick(delta);
   if (c.operation && c.state.execution.status !== "paused") {
     c.tick(reduced ? 1e9 : delta);
     if (!c.busy) persist();

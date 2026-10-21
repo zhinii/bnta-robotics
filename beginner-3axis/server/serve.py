@@ -4,6 +4,7 @@ from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit, unquote
 from assessment_api import configured, respond
+from guide_api import respond as guide_respond
 ROOT=Path(__file__).resolve().parents[1]
 # Never serve server code, reference rubrics, tests, credentials, or node_modules.
 def asset(path):
@@ -31,7 +32,8 @@ class Handler(BaseHTTPRequestHandler):
         except (BrokenPipeError,ConnectionResetError): pass
     def do_GET(self):
         path=urlsplit(self.path).path
-        if path=="/api/assessment/status": return self.reply(200,{"configured":configured(),"source":"qwen"})
+        if path in ("/api/assessment/status", "/api/guide/status"):
+            return self.reply(200,{"configured":configured(),"source":"qwen","guide":True})
         if path=="/health": return self.reply(200,{"ok":True,"module":"beginner-3axis"})
         if path in ("/","/beginner-3axis"):
             self.send_response(302); self.send_header("Location","/beginner-3axis/"); self.end_headers(); return
@@ -40,7 +42,8 @@ class Handler(BaseHTTPRequestHandler):
         mime="text/plain; charset=utf-8" if file.name in ("LICENSE","README.md") else "text/javascript" if file.suffix in (".mjs",".js") else mimetypes.guess_type(file.name)[0] or "application/octet-stream"
         self.reply(200,file.read_bytes(),mime)
     def do_POST(self):
-        if urlsplit(self.path).path!="/api/assessment": return self.reply(404,{"error":"not_found"})
+        path=urlsplit(self.path).path
+        if path not in ("/api/assessment", "/api/guide"): return self.reply(404,{"error":"not_found"})
         origin=self.headers.get("Origin")
         if origin and urlsplit(origin).netloc!=self.headers.get("Host"): return self.reply(403,{"error":"origin_rejected"})
         if self.headers.get("Sec-Fetch-Site")=="cross-site": return self.reply(403,{"error":"origin_rejected"})
@@ -49,7 +52,7 @@ class Handler(BaseHTTPRequestHandler):
             if size<1 or size>48000 or self.headers.get("Content-Type","").split(";")[0]!="application/json": raise ValueError()
             self.connection.settimeout(30); body=json.loads(self.rfile.read(size))
         except (ValueError,OSError): return self.reply(400,{"error":"invalid_request"})
-        status,result=respond(body); self.reply(status,result)
+        status,result=(guide_respond if path == "/api/guide" else respond)(body); self.reply(status,result)
 if __name__=="__main__":
     parser=argparse.ArgumentParser();parser.add_argument("--host",default="127.0.0.1");parser.add_argument("--port",type=int,default=4205)
     args=parser.parse_args(); print(f"Robot Lab: http://{args.host}:{args.port}/beginner-3axis/ (AI configured: {configured()})",flush=True)

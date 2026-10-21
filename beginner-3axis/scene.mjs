@@ -1,3 +1,4 @@
+import { createClassroom, LAB_FAR_PLANE } from "./classroom.mjs";
 /** Read-only, Z-up millimetre rendering of the verified educational model. */
 import * as THREE from "three";
 import { OrbitControls } from "./vendor/three/examples/jsm/controls/OrbitControls.js";
@@ -6,11 +7,11 @@ import { BASE, proxies as robotProxies } from "./geometry.mjs";
 import { t } from "./i18n.mjs";
 
 const COLOURS = Object.freeze({
-  arm: 0xd3dae4,
+  arm: 0xe78b39,
   tool: 0x303b4e,
-  joint: 0x466ce3,
+  joint: 0x253b48,
   current: 0xc57428,
-  target: 0x376be8,
+  target: 0x36bad0,
   invalid: 0xb34237,
   part: 0xe39133,
   base: 0x354154,
@@ -162,7 +163,8 @@ function clearGroup(group) {
  */
 export function buildSceneGraph() {
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0xf1f3f6);
+  scene.background = new THREE.Color(0xaabdc7);
+  scene.add(createClassroom());
   const robot = nameNode(new THREE.Group(), "robot");
   const debug = nameNode(new THREE.Group(), "collisionProxies");
   const fixtures = nameNode(new THREE.Group(), "fixtures");
@@ -189,7 +191,7 @@ export function buildSceneGraph() {
 
   const floor = new THREE.Mesh(
     new THREE.PlaneGeometry(620, 520),
-    material(0xf0f2f5, { side: THREE.DoubleSide }),
+    material(0x879ba4, { side: THREE.DoubleSide }),
   );
   floor.position.set(70, 10, -0.06);
   floor.name = "floor";
@@ -236,7 +238,7 @@ export function buildSceneGraph() {
   ]) {
     const shell = new THREE.Mesh(
       new THREE.CylinderGeometry(radius * 0.72, radius, length, 12),
-      material(0xe0e5ed),
+      material(0xec9344),
     );
     shell.name = `housing:${id}`;
     shell.userData.decorative = true;
@@ -914,7 +916,7 @@ export function fitCamera(camera, bounds, controls, resetDirection = false) {
 
   const oldTarget = controls?.target || centre;
   const direction = resetDirection
-    ? new THREE.Vector3(1.05, -1.6, 0.95).normalize()
+    ? new THREE.Vector3(1.05, -1.6, 0.48).normalize()
     : camera.position.clone().sub(oldTarget).normalize();
   if (!direction.lengthSq()) direction.set(1.05, -1.6, 0.95).normalize();
   const right = new THREE.Vector3()
@@ -940,7 +942,7 @@ export function fitCamera(camera, bounds, controls, resetDirection = false) {
   }
   camera.position.copy(centre).addScaledVector(direction, distance);
   camera.near = 0.5;
-  camera.far = Math.max(2500, distance + radius * 8);
+  camera.far = Math.max(LAB_FAR_PLANE, distance + radius * 8);
   camera.lookAt(centre);
   camera.updateProjectionMatrix();
   if (controls) {
@@ -1229,7 +1231,8 @@ export function createScene(container, options = {}) {
     if (disposed || failed) return;
     const rect = host.getBoundingClientRect();
     layoutWidth = Math.max(1, rect.width || container.clientWidth || 640);
-    layoutHeight = Math.max(160, rect.height || 360);
+    // Fit the actual reserved canvas area, including compact phone lessons.
+    layoutHeight = Math.max(1, rect.height || 360);
     renderer.setSize(layoutWidth, layoutHeight, false);
     camera.aspect = layoutWidth / layoutHeight;
     camera.updateProjectionMatrix();
@@ -1327,9 +1330,13 @@ export function createScene(container, options = {}) {
     });
     if (!context) throw new Error("WEBGL2_UNAVAILABLE");
     renderer = new THREE.WebGLRenderer({ canvas, context, antialias: true });
-    renderer.setPixelRatio(Math.min(win.devicePixelRatio || 1, 2));
+    const compact =
+      win.innerWidth < 700 || (win.navigator?.hardwareConcurrency || 8) <= 4;
+    renderer.setPixelRatio(
+      Math.min(win.devicePixelRatio || 1, compact ? 1.25 : 1.75),
+    );
     renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.enabled = !compact;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.domElement.setAttribute("role", "img");
     renderer.domElement.setAttribute("aria-label", strings.canvas);

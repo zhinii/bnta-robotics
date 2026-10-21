@@ -5,7 +5,10 @@
   "type": "module",
   "scripts": {
     "test": "node --test tests/*.test.mjs",
-    "test:dom": "node tests/ui.dom.mjs"
+    "test:dom": "node tests/lesson-flow.dom.mjs && node tests/guide.dom.mjs",
+    "test:lessons:ai": "node tests/lesson-flow.ai.dom.mjs",
+    "test:guide": "node --test tests/guide-commands.test.mjs tests/guide-ai.test.mjs && node tests/guide.dom.mjs",
+    "test:dom:legacy": "node tests/ui.dom.mjs"
   },
   "devDependencies": {
     "jsdom": "26.1.0"

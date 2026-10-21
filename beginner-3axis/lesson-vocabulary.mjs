@@ -1,6 +1,8 @@
 const term = (en, zh, meaning, meaningZh) => ({ en, zh, meaning, meaningZh });
 export const VOCABULARY = {
   types: [
+    term("Degrees of freedom", "自由度", "The independent motions a mechanism can control. This arm has three positioning motions; opening the gripper is a separate action.", "机构能独立控制的运动。本机械臂有三个定位自由度，夹爪开合是独立动作。"),
+    term("Workspace", "工作空间", "The region a robot can reach, limited by its link lengths, joint ranges and obstacles.", "机器人能到达的区域，受连杆长度、关节范围和障碍物限制。"),
     term(
       "SCARA",
       "SCARA机器人",
