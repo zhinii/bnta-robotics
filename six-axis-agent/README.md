@@ -8,7 +8,7 @@ A conversational classroom activity set in an ordinary student dorm room: **This
 
 “Drop the pen into the holder” turns it upright, carries it above a free opening, releases it and animates a short vertical fall. The planner checks the cup walls, floor and the entire drop volume. Both writing tools can be stored together and retrieved. Undo after a drop plans a real pickup and replacement, rather than reversing gravity. If no checked return path exists, undo is unavailable; restore remains a separately checked task. Stop during the brief fall lets the released item settle while stopping the arm. These are kinematic drops, without bouncing or friction simulation.
 
-The pen holder is a hollow round cup with a circular floor, rim and graspable handle. Move it empty or filled onto the middle shelf, then add or retrieve pens at its new location. It stays upright to retain its contents. Collision checks use conservative bounds around the curved walls, keeping the opening clear for both writing tools.
+The pen holder is a hollow round cup with a circular floor, rim and graspable handle. Its body is 51 mm in diameter and 32.2 mm tall (25% narrower and 15% taller than the earlier cup). Move it empty or filled onto the middle shelf, then add or retrieve pens at its new location. It stays upright to retain its contents. Collision checks use conservative bounds around the curved walls and individual gripper parts, keeping the opening clear for both writing tools.
 
 After placing an item on the shelf, the assistant asks whether that spot works or whether you would like it elsewhere. A conversational “yes” leaves it in place.
 

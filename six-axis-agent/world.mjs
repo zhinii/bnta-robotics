@@ -1,4 +1,4 @@
-import { homeFor, ikTool, toolPose, valid, distance, transform, rotationFromEuler, multiply, JOINTS } from './kinematics.mjs?v=cup-20261021-1';
+import { homeFor, ikTool, toolPose, valid, distance, transform, rotationFromEuler, multiply, JOINTS } from './kinematics.mjs?v=cup-20261021-2';
 
 export const AREAS={left:[170,-230],right:[170,230],rear:[-280,0],front:[280,0]};
 export const HOME=[210,0,150];
@@ -6,7 +6,7 @@ export const BLOCKS=['red','blue','yellow'];
 // Robot-local coordinates: the mount is near the short edge, facing across the desk.
 export const DESK={min:[-60,-215],max:[560,215]};
 export const ORGANIZER={id:'organizer',name:'low organizer shelf',zh:'矮整理架',position:[230,160,14],size:[220,100,28],surface:true,fixed:true};
-export const PEN_HOLDER={id:'pen-holder',name:'round pen cup',zh:'圆形笔筒',position:[140,65,14],size:[118,68,28],radius:34,wall:3,fixed:false,container:true,accepts:['pen','pencil'],slots:[[0,19],[0,-19]],floor:4};
+export const PEN_HOLDER={id:'pen-holder',name:'round pen cup',zh:'圆形笔筒',position:[140,65,16.1],size:[101,51,32.2],radius:25.5,wall:3,fixed:false,container:true,accepts:['pen','pencil'],slots:[[0,11],[0,-11]],floor:4};
 const holderPartCache=new Map();
 export function holderParts(holder){
   const key=JSON.stringify([holder.position,holder.size,holder.radius,holder.wall,holder.floor,holder.rpy]);
@@ -14,8 +14,8 @@ export function holderParts(holder){
   const [x,y,z]=holder.position,h=holder.size[2],r=holder.radius,inner=r-holder.wall,parts=[];
   // Conservative boxes enclose short circular wall arcs, leaving the opening
   // empty. Cardinal extrema occur at the segment endpoints in this partition.
-  for(let i=0;i<16;i++){
-    const angles=[i*Math.PI/8,(i+.5)*Math.PI/8,(i+1)*Math.PI/8];
+  for(let i=0;i<64;i++){
+    const angles=[i*Math.PI/32,(i+.5)*Math.PI/32,(i+1)*Math.PI/32];
     const points=[inner,r].flatMap(radius=>angles.map(a=>[radius*Math.cos(a),radius*Math.sin(a)]));
     const lo=[0,1].map(axis=>Math.min(...points.map(p=>p[axis]))),hi=[0,1].map(axis=>Math.max(...points.map(p=>p[axis])));
     parts.push({position:[x+(lo[0]+hi[0])/2,y+(lo[1]+hi[1])/2,z],size:[hi[0]-lo[0],hi[1]-lo[1],h]});
@@ -125,6 +125,20 @@ function corners(tip,rotation,held,carried,width=51) {
   if(held)for(const x of [-held.size[0]/2,held.size[0]/2])for(const y of [-held.size[1]/2,held.size[1]/2])for(const z of [-held.size[2]/2,held.size[2]/2])points.push(transform(carried.rotation,[x,y,z]).map((v,i)=>v+carried.position[i]));
   return points;
 }
+// Match the visible housing, rails and jaws instead of filling all the air
+// between them. This matters when gripping two tools inside a narrow cup.
+function gripperEnvelopes(tip,rotation,width){
+  const parts=[[[0,0,36],[24,24,10]],[[0,0,29],[70,32,12]],...[-16.5,16.5].map(y=>[[0,y,27],[62,3.6,3.6]])];
+  for(const side of [-1,1]){
+    const x=side*(width/2+3.5);
+    parts.push([[x,0,22],[12,28,8]],[[x+side*.5,0,6],[6,24,26]],[[x-side*3,0,2],[1,22,18]]);
+  }
+  return parts.map(([centre,size])=>{
+    const position=transform(rotation,centre).map((v,i)=>v+tip[i]);
+    const extent=[0,1,2].map(i=>size.reduce((sum,v,j)=>sum+Math.abs(rotation[i*3+j])*v/2,0));
+    return {low:position.map((v,i)=>v-extent[i]),high:position.map((v,i)=>v+extent[i])};
+  });
+}
 export function clearPose(q,state,contact=null,detail={}) {
   const blocked=(reason,blocker)=>{Object.assign(detail,{reason,blocker});return false;};
   if(!valid(q))return blocked('joint or table clearance limit');
@@ -133,12 +147,12 @@ export function clearPose(q,state,contact=null,detail={}) {
   if(vertices.some(p=>p[2]<-.3||Math.hypot(p[0],p[1])>400))return blocked('the gripper or held object would cross the tabletop or working envelope','table');
   if(Math.hypot(tip[0],tip[1])<85&&tip[2]<145)return blocked('the tool would enter the robot base','robot base');
   const bounds={position:[0,1,2].map(i=>(Math.min(...vertices.map(p=>p[i]))+Math.max(...vertices.map(p=>p[i])))/2),size:[0,1,2].map(i=>Math.max(...vertices.map(p=>p[i]))-Math.min(...vertices.map(p=>p[i])))};
+  const envelopes=[...gripperEnvelopes(tip,pose.rotation,graspWidth(state)),...[vertices.slice(8)].filter(p=>p.length).map(points=>({low:[0,1,2].map(i=>Math.min(...points.map(p=>p[i]))),high:[0,1,2].map(i=>Math.max(...points.map(p=>p[i])))}))];
   for(const obstacle of [...(state.obstacles||[]),...state.objects.filter(o=>o.container&&o.id!==state.held)]){
     if(obstacle.container){
       const broad={position:obstacle.position,size:footprint(obstacle)};
       const nearTool=[0,1,2].every(i=>Math.abs(bounds.position[i]-broad.position[i])<(bounds.size[i]+broad.size[i])/2+3);
       if(!nearTool&&!pose.points.slice(1).some((p,i)=>segmentBox(pose.points[i],p,broad,23)))continue;
-      const envelopes=[vertices.slice(0,8),vertices.slice(8)].filter(p=>p.length).map(points=>({low:[0,1,2].map(i=>Math.min(...points.map(p=>p[i]))),high:[0,1,2].map(i=>Math.max(...points.map(p=>p[i])))}));
       // Test the cup's real walls and floor, not a solid box across its opening.
       // Keep tool and load separate: the tool can stay above the rim while a
       // long pencil extends down inside the cup.
@@ -163,7 +177,7 @@ export function clearPose(q,state,contact=null,detail={}) {
     const envelope={position:block.position,size:footprint(block)};
     for(let i=1;i<pose.points.length;i++)if(segmentBox(pose.points[i-1],pose.points[i],envelope,[20,17,13,11,10][i-1]+2))return blocked('an arm link would hit this object',block.id);
     const aboveTop=bounds.position[2]-bounds.size[2]/2>=block.position[2]+footprint(block)[2]/2-.3;
-    if(block.id!==contact&&!aboveTop&&[0,1,2].every(i=>Math.abs(bounds.position[i]-envelope.position[i])<(bounds.size[i]+envelope.size[i])/2+3))return blocked('the tool or carried object would collide with this object',block.id);
+    if(block.id!==contact&&!aboveTop&&envelopes.some(({low,high})=>[0,1,2].every(i=>low[i]<envelope.position[i]+envelope.size[i]/2+3&&high[i]>envelope.position[i]-envelope.size[i]/2-3)))return blocked('the tool or carried object would collide with this object',block.id);
   }
   return true;
 }
@@ -263,7 +277,7 @@ export function planActions(state,actions) {
     if(s.held)throw Error('holding');const block=s.objects.find(o=>o.id===id);if(!block)throw Object.assign(Error('unknown'),{detail:{object:id}});if(blocksAbove(s,id).length)throw Object.assign(Error('covered'),{detail:{object:id,blocker:blocksAbove(s,id).at(-1).id}});
     const saved=structuredClone(s),length=steps.length;let failure;
     const tilted=block.rpy.slice(0,2).some(v=>Math.abs(v)>.1);
-    for(const candidate of (block.container?[{cup:true}]:choice?[choice]:[...(inHolder(s,block)?[{grasp:{rotation:identity,offset:[0,0,0]}}]:[]),...(block.retrievalPath?[{grasp:block.lastGrasp,path:block.retrievalPath}]:[]),...(block.lastGraspQ?[{grasp:block.lastGrasp,q:block.lastGraspQ}]:[]),...(block.lastGrasp?[{grasp:block.lastGrasp}]:[]),...(tilted?[null,{yaw:0},{yaw:90},{yaw:-90},{yaw:180}]:[null])])){
+    for(const candidate of (block.container?[{cup:true}]:choice?[choice]:[...(inHolder(s,block)?[block.rpy,euler(multiply(rotationFromEuler(block.rpy),rotationFromEuler([0,0,180]))),[90,0,0],[-90,0,0],[90,0,180],[-90,0,180]].map(rpy=>({grasp:{rotation:multiply(transpose(rotationFromEuler(rpy)),rotationFromEuler(block.rpy)),offset:transform(transpose(rotationFromEuler(rpy)),[0,0,-5])}})):[]),...(block.retrievalPath?[{grasp:block.lastGrasp,path:block.retrievalPath}]:[]),...(block.lastGraspQ?[{grasp:block.lastGrasp,q:block.lastGraspQ}]:[]),...(block.lastGrasp?[{grasp:block.lastGrasp}]:[]),...(tilted?[null,{yaw:0},{yaw:90},{yaw:-90},{yaw:180}]:[null])])){
       Object.assign(s,structuredClone(saved));steps.length=length;
       try{
         const object=s.objects.find(o=>o.id===id),rpy=candidate?.grasp?euler(multiply(rotationFromEuler(object.rpy),transpose(candidate.grasp.rotation))):candidate?.cup?object.rpy:candidate?[0,0,candidate.yaw]:object.rpy,point=[...object.position];
@@ -310,9 +324,11 @@ export function planActions(state,actions) {
     if(surface&&![0,1].every(i=>Math.abs(xy[i]-surface.position[i])+heldSize[i]/2<=surface.size[i]/2-2))throw Object.assign(Error('shelfEdge'),{preview:diagnostic('placement')});
     if(anchor&&anchor.position[2]-footprint(anchor)[2]/2>1&&!surface)throw Object.assign(Error('shelfEdge'),{preview:diagnostic('placement')});
     if(s.kit==='desk'&&[0,1].some(i=>point[i]-heldSize[i]/2<DESK.min[i]+2||point[i]+heldSize[i]/2>DESK.max[i]-2))throw Object.assign(Error('destination'),{preview:diagnostic('placement'),detail:{constraint:'deskEdge',reason:'the item would extend beyond the desk edge; choose a position on the desk or organizer'}});
-    const occupant=s.objects.find(o=>o.id!==s.held&&o.id!==holder?.id&&!s.cargo?.some(c=>c.id===o.id)&&o.id!==support?.id&&(o.container?obstacleParts(o):[{position:o.position,size:footprint(o)}]).some(part=>[0,1,2].every(i=>Math.abs(part.position[i]-point[i])<(part.size[i]+heldSize[i])/2+(i===2?-.3:8))));
+    const occupant=s.objects.find(o=>o.id!==s.held&&o.id!==holder?.id&&!s.cargo?.some(c=>c.id===o.id)&&o.id!==support?.id&&(o.container?obstacleParts(o):[{position:o.position,size:footprint(o)}]).some(part=>[0,1,2].every(i=>Math.abs(part.position[i]-point[i])<(part.size[i]+heldSize[i])/2+(i===2?-.3:holder?2:8))));
     if(occupant){const detail={blocker:occupant.id};throw Object.assign(Error('occupied'),{detail,preview:diagnostic('collision',detail)});}
-    const releasePoint=holder?[point[0],point[1],point[2]+holder.size[2]+8-holder.floor]:point;
+    // Release 16 mm above the rim: the higher approach clears the laptop
+    // when the cup is on the shelf and keeps the preferred grip retrievable.
+    const releasePoint=holder?[point[0],point[1],point[2]+holder.size[2]+16-holder.floor]:point;
     if(holder){
       // Check the entire vertical drop, not just the final resting position.
       const centre=point.map((v,i)=>(v+releasePoint[i])/2),size=[heldSize[0],heldSize[1],heldSize[2]+releasePoint[2]-point[2]];
@@ -361,7 +377,7 @@ export function planActions(state,actions) {
     if(action.target==='pen-holder'&&!['pen','pencil'].includes(id))throw Error('holderFit');
     if(action.target==='pen-holder'&&['flat','long-edge'].includes(action.posture))throw Error('holderFit');
     const orientations=action.posture?postureOrientations(object,action.posture):[action.orientation||object.rpy];
-    if(action.target==='pen-holder'&&!action.orientation)orientations.unshift([-90,0,0]);
+    if(action.target==='pen-holder'&&!action.orientation)orientations.unshift([90,0,0]);
     if(object.container&&(action.posture&&action.posture!=='flat'||action.orientation?.slice(0,2).some(v=>Math.abs(v)>.1)))throw Error('cupUpright');
     const holderTask=action.target==='pen-holder'||inHolder(saved,object);
     let failure;

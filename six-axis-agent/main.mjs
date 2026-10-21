@@ -1,9 +1,9 @@
-import { initialState, snapshot, applyStep, CATALOG, objectPosture, previewSteps, inHolder, footprint } from './world.mjs?v=cup-20261021-1';
-import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=cup-20261021-1';
-import { createScene } from './scene.mjs?v=cup-20261021-1';
-import { createSpeech } from './speech.mjs?v=cup-20261021-1';
-import { words, challenges } from './i18n.mjs?v=cup-20261021-1';
-import deployment from './deployment.mjs?v=cup-20261021-1';
+import { initialState, snapshot, applyStep, CATALOG, objectPosture, previewSteps, inHolder, footprint } from './world.mjs?v=cup-20261021-2';
+import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=cup-20261021-2';
+import { createScene } from './scene.mjs?v=cup-20261021-2';
+import { createSpeech } from './speech.mjs?v=cup-20261021-2';
+import { words, challenges } from './i18n.mjs?v=cup-20261021-2';
+import deployment from './deployment.mjs?v=cup-20261021-2';
 const serverMode=deployment?.mode==='school';
 
 const $=id=>document.getElementById(id);
@@ -87,7 +87,7 @@ function prepare(actions){
     return Promise.resolve({plan:{steps:undo.at(-1)},undoing:true});
   }
   return new Promise((resolve,reject)=>{
-    const planner=new Worker(new URL('./planner-worker.mjs?v=cup-20261021-1',import.meta.url),{type:'module'});worker=planner;
+    const planner=new Worker(new URL('./planner-worker.mjs?v=cup-20261021-2',import.meta.url),{type:'module'});worker=planner;
     const finish=()=>{clearTimeout(timer);planner.terminate();if(worker===planner){worker=null;workerReject=null;}};
     const timer=setTimeout(()=>{finish();reject(Error('planningTimeout'));},45000);
     workerReject=error=>{finish();reject(error);};

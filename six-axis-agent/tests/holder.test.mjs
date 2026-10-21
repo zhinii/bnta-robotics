@@ -9,6 +9,10 @@ test('desk inventory has five movable items including an open round cup',()=>{
  const h=snapshot(s).containers[0];
  assert.equal(h.fixed,false);assert.deepEqual(h.accepts,['pen','pencil']);assert.deepEqual(h.contents,[]);
  assert.equal(h.radius,h.size[1]/2);
+ assert.equal(h.radius*2,68*.75,'cup diameter is 25 percent smaller');
+ assert.ok(Math.abs(h.size[2]-28*1.15)<1e-10,'cup is 15 percent taller');
+ assert.equal(h.position[2],h.size[2]/2,'cup rests on the desk');
+ for(const [x,y] of h.slots)assert.ok(Math.hypot(Math.abs(x)+7,Math.abs(y)+8)<h.radius-h.wall,'both tool envelopes fit inside the round opening');
 });
 
 test('cup contents must fit the circular opening, not just its bounding square',()=>{

@@ -7,7 +7,7 @@ test('cup can move to the shelf before filling and tools can be retrieved and re
  const start=initialState(0,'desk');
  const p=planActions(start,[{type:'transfer',object:'pen-holder',target:'shelf-middle'},...fill]);
  const cup=p.result.objects.find(o=>o.container);
- assert.deepEqual(cup.position,[195,160,42]);
+ assert.deepEqual(cup.position,[195,160,44.1]);
  for(const id of ['pen','pencil'])assert.ok(inHolder(p.result,p.result.objects.find(o=>o.id===id)));
  const restored=planActions(p.result,[{type:'restore'}]).result;
  for(const before of start.objects){const after=restored.objects.find(o=>o.id===before.id);assert.ok(distance(after.position,before.position)<.15,before.id);assert.ok(distance(after.rpy,before.rpy)<.02,before.id);}
