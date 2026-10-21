@@ -77,6 +77,13 @@ export class Controller {
         error: result.error,
         targetMm: action.targetMm,
       });
+    else
+      this.emit("ACTION_REJECTED", {
+        before: this.state.scene,
+        after: this.state.scene,
+        action,
+        error: result.error,
+      });
     this.state.target.error = result.error;
     this.notify();
     return result;
@@ -412,7 +419,8 @@ export class Controller {
     this.notify();
     return success(true);
   }
-  stop() {
+  stop(reason = "user") {
+    const wasReplay = this.operation?.source === "replay";
     const wasManual = this.state.execution.status === "movingManual",
       before = clone(this.state.scene);
     ++this.state.execution.operationId;
@@ -420,12 +428,12 @@ export class Controller {
     this.state.execution.status = "stopped";
     if (wasManual && this.state.recording.enabled)
       this.state.recording = { enabled: false, blockedReason: "interrupted" };
-    this.emit("STOPPED", { before, after: this.state.scene });
+    this.emit("STOPPED", { before, after: this.state.scene, wasReplay, reason });
     this.notify();
     return success(true);
   }
   reset() {
-    this.stop();
+    this.stop("reset");
     const before = clone(this.state.scene),
       version = before.sceneVersion + 1;
     this.state.scene = clone(
@@ -453,6 +461,32 @@ export class Controller {
     });
     this.notify();
     return success(true);
+  }
+  savePosition() {
+    if (this.busy) return failure("BUSY");
+    const p = clone(this.state.program),
+      scene = this.state.scene;
+    if (!p.steps.length) p.startScene = clone(scene);
+    const step = {
+      id: `pose-${this.sequence + 1}`,
+      name: `Position ${p.steps.length + 1}`,
+      nameIsDefault: true,
+      type: "move",
+      modelId: CONFIG.modelId,
+      completionEvidenceId: `event-${this.sequence + 1}`,
+      targetMm: clone(fk(scene.actualJoints).C),
+    };
+    p.steps.push(step);
+    p.revision++;
+    this.state.program = revalidateProgram(p);
+    this.emit("POSE_SAVED", {
+      step,
+      program: this.state.program,
+      before: scene,
+      after: scene,
+    });
+    this.notify();
+    return success(step);
   }
   editProgram(index, operation, value) {
     if (this.busy) return failure("BUSY");

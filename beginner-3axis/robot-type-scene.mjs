@@ -1,3 +1,4 @@
+import { createClassroom, LAB_FAR_PLANE } from "./classroom.mjs";
 import * as THREE from "./vendor/three/build/three.module.js";
 import { robotTypePose, DELTA_GEOMETRY } from "./robot-type-motion.mjs";
 import { drawDelta } from "./delta-model.mjs";
@@ -20,12 +21,19 @@ export function createRobotTypeScene(host) {
     context: gl,
     antialias: true,
   });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-  renderer.shadowMap.enabled = true;
+  const compact =
+    window.innerWidth < 700 ||
+    (window.navigator?.hardwareConcurrency || 8) <= 4;
+  renderer.setPixelRatio(
+    Math.min(window.devicePixelRatio || 1, compact ? 1.25 : 1.75),
+  );
+  renderer.shadowMap.enabled = !compact;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color("#eef2f7");
-  const camera = new THREE.PerspectiveCamera(36, 1, 1, 1500);
+  scene.background = new THREE.Color("#aabdc7");
+  const classroom = createClassroom({ yUp: true });
+  scene.add(classroom);
+  const camera = new THREE.PerspectiveCamera(36, 1, 1, LAB_FAR_PLANE);
   scene.add(new THREE.HemisphereLight(0xffffff, 0x788699, 2.8));
   const light = new THREE.DirectionalLight(0xffffff, 3);
   light.position.set(150, 300, 160);
@@ -85,9 +93,9 @@ export function createRobotTypeScene(host) {
     return geometry;
   }
   const colors = {
-    silver: 0xdce3ec,
+    silver: 0xe78b39,
     dark: 0x26364b,
-    blue: 0x2563eb,
+    blue: 0x27aabd,
     orange: 0xf59e0b,
     green: 0x7dc7b2,
     white: 0xffffff,
@@ -123,6 +131,8 @@ export function createRobotTypeScene(host) {
     const points = [];
     for (let i = 0; i <= 48; i++) {
       const p = robotTypePose(type, i / 48);
+      if (p.points)
+        for (const v of p.points) points.push(new THREE.Vector3(...v));
       for (const v of [p.base, p.joint, p.tip, p.source, p.destination])
         if (v) points.push(new THREE.Vector3(...v));
       if (type === "scara")
@@ -159,8 +169,8 @@ export function createRobotTypeScene(host) {
       .getCenter(new THREE.Vector3());
     const direction = (
         type === "delta"
-          ? new THREE.Vector3(0.75, 0.5, 1.6)
-          : new THREE.Vector3(1, 0.72, 1.35)
+          ? new THREE.Vector3(0.75, 0.44, 1.6)
+          : new THREE.Vector3(1, 0.42, 1.35)
       ).normalize(),
       right = new THREE.Vector3().crossVectors(up, direction).normalize(),
       vertical = new THREE.Vector3().crossVectors(direction, right).normalize();
@@ -219,9 +229,11 @@ export function createRobotTypeScene(host) {
     m.quaternion.setFromUnitVectors(up, delta.normalize());
     return m;
   }
-  function grip(tip, direction, gap, fingerExtension = 6) {
+  function grip(tip, direction, gap, fingerExtension = 6, toolSide = null) {
     const forward = new THREE.Vector3(...direction).normalize();
-    let side = new THREE.Vector3().crossVectors(forward, up);
+    let side = toolSide
+      ? new THREE.Vector3(...toolSide)
+      : new THREE.Vector3().crossVectors(forward, up);
     if (side.length() < 0.01) side.set(1, 0, 0);
     side.normalize();
     const p = new THREE.Vector3(...tip),
@@ -292,7 +304,21 @@ export function createRobotTypeScene(host) {
     camera.updateProjectionMatrix();
     for (const m of parts.values()) m.visible = false;
     const f = robotTypePose(type, t);
-    if (type === "mobile") {
+    if (type === "sixaxis") {
+      rod("foot", [0, 0, 0], [0, 8, 0], 27, "dark");
+      for (let i = 0; i < 6; i++) {
+        rod(
+          `six-link-${i}`,
+          f.points[i],
+          f.points[i + 1],
+          i < 3 ? 10 : 6,
+          "silver",
+        );
+        joint(`six-joint-${i}`, f.points[i], f.axes[i], i < 3 ? 13 : 8);
+      }
+      grip(f.tip, f.dir, 12, 6, f.side);
+      box("test-object", [115, 12, -50], [20, 24, 20], "green");
+    } else if (type === "mobile") {
       const groupPoint = (x, y, z) => [
         f.tip[0] + x * Math.cos(f.heading) + z * Math.sin(f.heading),
         y,
@@ -430,6 +456,10 @@ export function createRobotTypeScene(host) {
     grid.material.dispose();
     floor.geometry.dispose();
     floor.material.dispose();
+    classroom.traverse((n) => {
+      n.geometry?.dispose();
+      if (n.material) n.material.dispose();
+    });
     renderer.dispose();
   }
   window.addEventListener("pagehide", dispose, { once: true });

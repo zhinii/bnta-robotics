@@ -1,2 +1,7 @@
 # Preserve supplied source and vendor checksums on Windows.
 * text eol=lf
+# Screenshots must retain their original bytes rather than newline conversion.
+*.jpg binary
+*.jpeg binary
+*.png binary
+*.webp binary

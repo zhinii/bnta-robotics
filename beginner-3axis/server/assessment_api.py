@@ -49,6 +49,15 @@ def prepare(body):
 def respond(body):
     try: messages=prepare(body)
     except (ValueError,TypeError): return 400,{"error":"invalid_request"}
+    return provider_response(messages, assessment_result)
+
+def assessment_result(result):
+    if not isinstance(result,dict) or any(not isinstance(result.get(k),str) or not result[k].strip() for k in ("feedback","question")):
+        raise ValueError("invalid_response")
+    return {"source":"qwen","feedback":result["feedback"][:2600],"question":result["question"][:600]}
+
+def provider_response(messages, validate):
+    """Shared bounded transport; output validators define each endpoint's contract."""
     if not configured(): return 503,{"error":"not_configured"}
     base=os.getenv("QIANWEN_BASE_URL","https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1").rstrip("/")
     parts=urlsplit(base)
@@ -65,10 +74,7 @@ def respond(body):
         with urllib.request.urlopen(request,timeout=25) as response: data=json.loads(response.read(128000))
         raw=data["choices"][0]["message"]["content"].strip()
         if raw.startswith("```"): raw=raw.split("\n",1)[-1].rsplit("```",1)[0].strip()
-        result=json.loads(raw)
-        if not isinstance(result,dict) or any(not isinstance(result.get(k),str) or not result[k].strip() for k in ("feedback","question")):
-            raise ValueError("invalid_response")
-        return 200,{"source":"qwen","feedback":result["feedback"][:2600],"question":result["question"][:600]}
+        return 200,validate(json.loads(raw))
     except urllib.error.HTTPError as e:
         return 502,{"error":{401:"provider_auth",403:"provider_access",429:"provider_quota"}.get(e.code,"provider_unavailable")}
     except (TimeoutError,socket.timeout): return 504,{"error":"provider_timeout"}

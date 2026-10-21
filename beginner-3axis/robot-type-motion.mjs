@@ -1,3 +1,4 @@
+import * as THREE from "./vendor/three/build/three.module.js";
 // Illustrative mechanism geometry, independent of the learner's robot and evidence.
 const mix = (a, b, t) => a.map((n, i) => n + (b[i] - n) * t);
 const smooth = (t) => t * t * (3 - 2 * t);
@@ -26,6 +27,61 @@ export function robotTypePose(type, progress) {
   const t = Math.max(0, Math.min(1, progress)),
     phase = Math.min(3, Math.floor(t * 4));
   const u = t === 1 ? 1 : smooth((t * 4) % 1);
+
+  if (type === "sixaxis") {
+    // Forward kinematics: six real revolute transforms, wrist axes independent.
+    const q = [0.25, -0.5, 0.8, 0, -0.4, 0];
+    const active = Math.min(5, Math.floor(t * 6));
+    q[active] += 0.5 * Math.sin((t * 6 - active) * Math.PI * 2);
+    const axes = [
+      [0, 1, 0],
+      [0, 0, 1],
+      [0, 0, 1],
+      [1, 0, 0],
+      [0, 0, 1],
+      [1, 0, 0],
+    ];
+    const offsets = [
+      [0, 55, 0],
+      [0, 80, 0],
+      [65, 0, 0],
+      [28, 0, 0],
+      [18, 0, 0],
+      [22, 0, 0],
+    ];
+    const matrix = new THREE.Matrix4(),
+      points = [[0, 0, 0]],
+      worldAxes = [];
+    for (let i = 0; i < 6; i++) {
+      const axis = new THREE.Vector3(...axes[i]).transformDirection(matrix);
+      worldAxes.push(axis.toArray());
+      matrix.multiply(
+        new THREE.Matrix4().makeRotationAxis(
+          new THREE.Vector3(...axes[i]),
+          q[i],
+        ),
+      );
+      matrix.multiply(new THREE.Matrix4().makeTranslation(...offsets[i]));
+      points.push(new THREE.Vector3().setFromMatrixPosition(matrix).toArray());
+    }
+    const tip = points.at(-1),
+      dir = new THREE.Vector3(1, 0, 0).transformDirection(matrix).toArray();
+    return {
+      type,
+      t,
+      phase,
+      base: points[1],
+      joint: points[2],
+      tip,
+      points,
+      axes: worldAxes,
+      dir,
+      side: new THREE.Vector3(0, 0, 1).transformDirection(matrix).toArray(),
+      active,
+      source: [100, 10, 55],
+      destination: [95, 10, -65],
+    };
+  }
   if (type === "mobile") {
     const tip =
       phase === 0

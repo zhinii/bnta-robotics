@@ -1,3 +1,5 @@
+import { validGameState, answerStats, GAME_LESSONS } from "./game-learning.mjs";
+import { CORE_LESSONS } from "./lesson-flow.mjs";
 /** Versioned device-only storage and locally generated portfolio exports.
  * No network, names from device accounts, identifiers, imports, or legacy keys.
  */
@@ -386,6 +388,7 @@ export function createProgressPayload(
     learnerName = "",
     scene = null,
     exercise = null,
+    game = null,
   } = {},
   now = new Date().toISOString(),
 ) {
@@ -401,6 +404,7 @@ export function createProgressPayload(
     learning: clone(learning),
     scene: scene ? clone(scene) : null,
     exercise: exercise ? clone(exercise) : null,
+    game: game ? clone(game) : null,
   };
 }
 export function validateProgressPayload(payload, evaluationOptions = {}) {
@@ -416,6 +420,12 @@ export function validateProgressPayload(payload, evaluationOptions = {}) {
         typeof payload.learnerName === "string" &&
         payload.learnerName.length <= 80 &&
         finiteTree(payload) &&
+        validGameState(payload.game) &&
+        (payload.game?.design?.versions || []).every(
+          (v) =>
+            (!v.program || validateStoredProgram(v.program)) &&
+            (!v.scene || validateStoredScene(v.scene)),
+        ) &&
         validateLearningState(payload.learning, evaluationOptions) &&
         validateStoredProgram(payload.program) &&
         validExerciseState(
@@ -583,6 +593,7 @@ export function exportPortfolio(
     language = "en",
     scene = null,
     exercise = null,
+    game = null,
   } = {},
   now = new Date().toISOString(),
 ) {
@@ -590,6 +601,7 @@ export function exportPortfolio(
     typeof learnerName !== "string" ||
     learnerName.length > 80 ||
     !validateLearningState(learning) ||
+    !validGameState(game) ||
     !validateStoredProgram(program) ||
     !validExerciseState(exercise, validateStoredProgram, validateStoredScene)
   )
@@ -622,10 +634,11 @@ export function exportPortfolio(
     learnerName,
     program: clone(program),
     exercise: exercise ? clone(exercise) : null,
+    game: game ? clone(game) : null,
     lessonEvidence,
     evidenceEvents: clone(learning.evidenceEvents),
     resume: createProgressPayload(
-      { program, learning, learnerName, language, scene, exercise },
+      { program, learning, learnerName, language, scene, exercise, game },
       now,
     ),
     verification,
@@ -640,6 +653,50 @@ export function exportPortfolio(
     line("programSteps", program?.steps?.length ?? 0),
     "",
   ];
+  if (game) {
+    const zh = language === "zh",
+      stats = answerStats(game);
+    lines.push(zh ? "课堂工作坊证据" : "Classroom workshop evidence");
+    if (stats.answered) lines.push(`${zh ? "历史评估首次回答正确率" : "Historical assessment first-answer accuracy"}: ${stats.correct}/${stats.answered}`);
+    for (const a of game.runs) {
+      if (a.flow) {
+        lines.push(
+          `${CORE_LESSONS[a.lesson].title[language]} · ${a.id} · ${a.flow.stage}`,
+          `${zh ? "预测" : "Prediction"}: ${a.prediction}`,
+          `${zh ? "已探索词汇" : "Words explored"}: ${a.flow.visited.join(", ")}`,
+          `${zh ? "任务选择（不评分）" : "Job choices (ungraded)"}: ${JSON.stringify(a.flow.jobs)}`,
+          `${zh ? "实践检查" : "Practical checks"}: ${JSON.stringify(a.flow.checks)}`,
+          `${zh ? "实测数据" : "Measured movement"}: ${JSON.stringify(a.measurement || null)}`,
+          `${zh ? "计算" : "Calculation"}: ${a.flow.calculation}`,
+          `${zh ? "问题与改进" : "Problem and improvement"}: ${a.flow.programNote}`,
+          `${zh ? "反思" : "Reflection"}: ${a.reflection}`,
+          `${zh ? "未完成的回答草稿" : "Unsubmitted response draft"}: ${a.flow.draft}`,
+          `${zh ? "操作证据" : "Practical evidence"}: ${a.evidence.map(e => e.id + ":" + e.type).join(", ")}`,
+          "",
+        );
+        continue;
+      }
+      lines.push(
+        `${GAME_LESSONS[a.lesson].title[language]} · ${a.id} · ${a.phase}`,
+        `${zh ? "预测" : "Prediction"}: ${a.prediction}`,
+        `${zh ? "回答记录" : "Submitted answers"}: ${JSON.stringify(a.submissions)}`,
+        `${zh ? "操作证据" : "Practical evidence"}: ${a.evidence.map((e) => e.id + ":" + e.type).join(", ")}`,
+        `${zh ? "提示 / 重看 / 辅助" : "Hints / replays / assisted"}: ${a.hintCount} / ${a.replays} / ${!!a.assisted}`,
+        `${zh ? "计算" : "Calculations"}: ${JSON.stringify(a.calculations || [])}`,
+        `${zh ? "反思" : "Reflection"}: ${a.reflection}`,
+        "",
+      );
+    }
+    lines.push(
+      `${zh ? "设计问题" : "Design problem"}: ${game.design.problem}`,
+      `${zh ? "标准" : "Criteria"}: ${game.design.criteria}`,
+      `${zh ? "反思" : "Reflection"}: ${game.design.reflection}`,
+      `${game.design.versions.length} ${zh ? "个版本" : "versions"}; ${game.design.images?.length || 0} ${zh ? "张图片包含在JSON中" : "images embedded in JSON"}`,
+      `${zh ? "挑战反思" : "Challenge reflections"}: ${JSON.stringify(game.challengeReflections || {})}`,
+      `${zh ? "AI讨论（不用于自动评分）" : "AI dialogue (not an automatic assessment)"}: ${JSON.stringify(game.aiTurns || [])}`,
+      "",
+    );
+  }
   for (const lesson of lessonEvidence) {
     lines.push(
       `${t(language, `lessons.${lesson.lessonId}.title`)}: ${t(language, `status.${lesson.status}`)}`,

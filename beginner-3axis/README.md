@@ -2,21 +2,19 @@
 
 An isolated beginner entry for **Robot Lab, developed by Christopher Hansen**. The original six-axis simulator and all nine original repository files are unchanged. Open `beginner-3axis/` directly; the original root application remains separate.
 
-**Verification:** automated tests and in-app browser learner checks are documented in [LOCAL_VERIFICATION.md](LOCAL_VERIFICATION.md). Physical phone/tablet touch and full assistive-technology acceptance remain outstanding. The published module is at https://zhinii.github.io/bnta-robotics/beginner-3axis/.
+## Classroom HUD preview (local feature branch)
 
-## Explore first, lessons when ready
+The classroom redesign is on `codex/classroom-game-interface`. It has **not been published**. See [GAME_REVIEW.md](GAME_REVIEW.md) for the feature map, verification scope and limitations, and [the screenshot review](review-game/index.html).
 
-First visits show a language selector and three brief feature descriptions: Explore, Learn, and Program & save. Start exploring dismisses the welcome, with that preference remembered locally. Learn opens directly without an additional introduction.
+The default screen is **Explore** with recording off. The Guide menu opens six lessons and three challenges. **Guide / Controls / Program** share one persistent chat input. The 3D scene stays visible above the scrolling panel on phones. Design and graded assessments are deferred; their source and historical records are preserved.
 
-New learners land in **Explore**, with recording off and a simple Z-plus/Move suggestion. **Start lessons** opens the seven lessons voluntarily. The free exploration tab is not graded; the three optional exercise tabs retain their tested completion checks. Existing projects and recorded steps are preserved when switching between Learn and Explore.
-
-Guided practice highlights the actual next control in green and gives one short action at a time. Examples show target entry separately from Move. The recording example demonstrates Reset, Record on, movements/gripper actions, Record off, Reset and Run on an isolated controller. Correcting a target refreshes its preview and feedback; invalid saved steps display a specific explanation in the program list. Progress remains exportable as JSON, with no database requirement.
+Lessons use the supplied bilingual `curriculum.mjs` content and the existing vocabulary and tour units: **Words → Guided tour → Practice → Reflection**. Words can be explored in any order. Tours play isolated demonstrations; Next advances at the learner's pace. Practical checks require actual controller events. Predictions, calculations, program notes and reflections use the shared input; no score is assigned to the learner's reasoning.
 
 ## Movement and program controls
 
 XYZ sets a world-position target in millimetres; press Move to execute it. Joints turns one joint to a selected angle in degrees. Jog moves the actual TCP one selected 1, 5 or 10 mm step per tap along a world axis. All three modes use collision checking and can record completed movements when Record is on. Jog does not use a pending XYZ target. Joint movements replay as joint movements, preserving their curved tool path; they are not silently converted to straight XYZ moves.
 
-Test program, Pause and Stop sit directly beneath Record at the top of the control panel. Test restores the recorded starting scene and disables recording before playback. Save / load in the header opens JSON import/export and image/learning-evidence export. Model notes remain in this document rather than another controls dropdown.
+Program playback, Pause and Stop remain available with the controls. Explore's Test restores the recorded starting scene; Learn's Run requires the learner to Reset deliberately. The Guide menu opens save/load and evidence export. Model notes remain in this document.
 
 ## Run locally
 
@@ -30,11 +28,29 @@ Open `http://localhost:8000/beginner-3axis/` in a current WebGL2-capable browser
 
 No application build, backend, account, runtime package installation or network API is required for lessons, operation, reflections or JSON export. Optional AI assessment feedback uses the separate server described below. Three.js is pinned and served locally. With WebGL2 unavailable, the page explicitly reports the limitation and keeps text coordinates and controls available; this is not a working 3D view.
 
-## Optional AI assessment dialogue
+## Persistent Guide: offline and AI
 
-**Without AI:** Save reflection saves locally and includes the response in project JSON. Lessons and completion checks work without a connection. There is no invented AI feedback.
+Guide is the shared navigation and conversation panel. Its input stays available in Guide, Controls and Program. The menu opens modes, six lessons, challenges, movement/recording commands, view settings, language and save/export. Typing offers up to three English/Chinese command suggestions; selecting a suggestion fills the input without executing it. Coordinate examples are editable drafts.
 
-**With AI:** Saving a response requests Qwen feedback automatically, then learners can reply and revise their reasoning in a dialogue. The response is saved before the request; a timeout or provider error keeps it intact and offers Retry. Dialogue is included in JSON and the readable portfolio. AI cannot move the robot, award completion or substitute for teacher judgement. Independent-task discussion opens after the delivery test.
+When a lesson requests an answer, the send button becomes **Save**. `/ask …` asks a question without submitting an answer; `/help` opens help, and `/controls` opens controls. `cancel` pauses answer entry while retaining its draft; `answer` resumes it. Stop, Pause, Help, Status and language commands remain available during answer entry. Drafts survive reload and language changes. Suggestions are suppressed while typing a free-text answer.
+
+Lesson commands include `words`, `word 1`, `tour`, `next`, `back`, `practice`, `prepare`, `inspect`, `calculate`, `program note`, `changed task`, and `reflect`. The equivalent action chips call the same dispatcher; a lesson-action menu is under All commands → Learning & help. English and Chinese commands are supported.
+
+The six practice checks are: five ungraded robot/job choices; a J1-only ±10° turn; a +10 mm Z move with unchanged X/Y and calculation from measured displacement, distance and simulated time; confirmed grasp and a 10 mm held lift; a recorded transfer to A, actual Pause/Stop, complete replay and problem/improvement note; and a rejected direct carrying path, successful detour to A, then independently recorded replay to B. Reflection completes a lesson only after its practical checks pass. Destination B retains coordinates and controller feedback but pauses route hints, examples and AI coaching.
+
+All listed commands work offline, including `lesson 3`, `task 1`, `controls`, `program`, `target 120 -80 100`, `move 120 -80 100`, `open`, `close`, `record on`, `record off`, `save position`, `run`, `pause`, `stop`, `reset`, `why` and `language zh`. XYZ values are millimetres; Joints and Jog open their precise controls. `target` previews; `move` executes through the existing checked controller. `home` resets the camera, not the robot. `why` reports the latest controller rejection. Program editing remains in Program.
+
+On phones, the conversation and menus scroll within their panel while the scene, three panel buttons and input remain available. The latest guidance is brought into view when opening Guide. Stop remains in the header. Touch targets remain at least 44 pixels; the keyboard layout uses the visual viewport.
+
+With the optional Qwen school server, open-ended requests can return an explanation or one proposed command. The Guide displays the exact command and requires **Execute command** or **Cancel**. Proposals never execute automatically. Both typed and confirmed AI commands use the same dispatcher and simulator checks. A changed robot/activity context discards stale proposals; the AI cannot award completion or bypass collision checks. An AI outage returns the indicator to Offline and keeps commands working. The latest unanswered question is saved in project state and can be retried from Guide or Menu after checking the connection.
+
+The bilingual language selector controls new guidance and AI replies. Conversation text is retained as authored. AI questions send a bounded robot/activity snapshot and recent AI conversation through the existing school server; credentials remain server-side.
+
+## Optional AI server
+
+**Without AI:** The guide is labelled Offline guide. Lessons, hints, assessments, reflections, movement and JSON export work without a provider. No generated answers are implied.
+
+**With a configured school server:** the same Guide input also accepts open-ended questions and action requests. The `/api/guide` endpoint returns text and an optional command proposal; `/api/assessment` remains available for assessment feedback. No key is shipped in browser files. Live Qwen use was not tested for this local redesign; labelled provider mocks and server tests cover the contract.
 
 Run the optional same-origin server from the repository root:
 
@@ -59,12 +75,14 @@ Optional DOM integration uses jsdom, strictly as a development dependency:
 cd beginner-3axis
 npm ci --ignore-scripts
 npm run test:dom
-node tests/tutor.dom.mjs
+npm run test:lessons:ai
 ```
 
-The optional server also has six mocked provider/security tests: `python -m unittest discover -s beginner-3axis/server -p "test_*.py" -v` from the repository root.
+The optional server has ten mocked provider/security tests: `python -m unittest discover -s beginner-3axis/server -p "test_*.py" -v` from the repository root.
 
-The DOM harness exercises the actual page event handlers and controller, including the seven-lesson journey. **jsdom does not test pixels, layout, WebGL, real keyboard focus trapping, touch, or physical devices.** The normal unit suite does not need jsdom or npm installation. A test-only `BNTA_JSDOM_PATH` override can point to an already-installed jsdom module.
+Guide verification: `node tests/guide.dom.mjs` from this module exercises the real page/controller with offline and mocked-AI responses. `node tests/guide.browser.mjs` additionally checks responsive layouts in headless Edge; it needs Playwright and a localhost preview. Optional `BNTA_PLAYWRIGHT_PATH`, `BNTA_PREVIEW_URL`, `BNTA_SCREENSHOTS` and `BNTA_PYTHON_PATH` configure that browser check. When the Python path is supplied, the check starts and stops its own preview server with the provider key explicitly empty.
+
+The DOM harness completes all six lessons using actual page handlers and controller events, both offline and with a labelled mock AI provider. It checks practical evidence, draft capture, independent-task restrictions and JSON/text export. Older `tests/game.dom.mjs`, `tests/ui.dom.mjs` and `tests/tutor.dom.mjs` describe earlier interfaces and are retained as historical fixtures. **jsdom does not test pixels, layout, WebGL, real keyboard focus trapping, touch, or physical devices.** The normal unit suite does not need jsdom or npm installation. A test-only `BNTA_JSDOM_PATH` override can point to an already-installed jsdom module.
 
 ## Mechanism and coordinate contract
 
@@ -104,33 +122,33 @@ Wireframe markers are abstract support/capture fixtures. Pickup requires the act
 
 ## Learning and privacy
 
-Explore is an exercise workspace with three task tabs: **Reach a point**, **Pick & place**, and **Avoid an obstacle**. A status strip reports Programming, Testing, Paused, Complete, or a revision needed. Task reference contains coordinates and hints; Use target previews a position without moving the robot. Current coordinates stay outside the canvas so they cannot cover the tool.
+The Guide menu offers three challenges: **Reach a point**, **Pick & place**, and **Avoid an obstacle**. Task references contain coordinates and hints; Use target previews a position without moving the robot. Current coordinates stay outside the canvas so they cannot cover the tool.
 
 Explore's **Reset & test** explicitly restores the recorded starting scene and runs the program after preflight succeeds. Recording turns off for replay. Learn retains its separate, strict Run/Reset teaching behavior. Completion requires a successful recorded replay that meets the selected exercise's goal; manual positioning alone does not complete it. Completed programs and final scenes are retained per task in exported project JSON. Switching tasks warns before clearing the current program and offers Save JSON.
 
-On phones, Explore keeps a smaller square scene while programming and enlarges it while testing or paused. Controls scroll independently. Run `node beginner-3axis/tests/explore.dom.mjs` for the three-exercise DOM journey, in addition to the model tests and seven-lesson DOM journey.
+On phones, the scene stays above the independently scrolling Guide, Controls and Program panels. The shared input stays outside those scrolling areas. Desktop uses a side panel.
 
 Examples in Lessons 1–6 now show a numbered action list with a synchronised current-step highlight. On phones, programming keeps a compact scene; replay (including Pause) enlarges it and exposes playback controls. World axes originate at the model's (0,0,0), with larger directional arrows and a tighter camera fit.
 
-Lessons 4–6 assessments use **Predict → Operate → Explain**. The task and live scene are visible before writing; each question sits directly above its own answer box. Saving the prediction opens the robot controls. Review checks actual operations before asking for the explanation, and confirms when it is saved. TCP coordinates sit below the scene instead of over the gripper. Narrow screens keep the scene and scrollable controls in separate rows. Lesson 7 remains unchanged while its redesign is on hold.
+Saving a prediction enables practice setup. Preparing a practical lesson archives any nonempty program before resetting the scene; confirmation explains that change. Teaching and answer entry bring Guide forward. Practical operation brings Controls forward, except the J1 activity whose two movement chips stay in Guide. A manual panel choice persists until the next activity transition. The chat input remains available throughout.
 
-Learn uses **Vocabulary → Concept → Demo → Assessment**. Lesson 1 pairs each robot’s concept with its Three.js demonstration before moving to the next robot: articulated, gantry, SCARA, delta, then mobile. Vocabulary comes first and assessment comes after all five pairs. The swipeable presentation provides five job demonstrations, with Play/Pause, Reset and scrubbing. Their motion and graphics are separate from learner state. The course's three-axis articulated-arm focus is stated after completing that assessment. Reading and written assessment pages omit the operating workspace; arm-specific examples and hands-on assessment bring it back. Explore remains the full three-axis operating workspace. Bold vocabulary terms open bilingual definitions throughout lesson text. Practical assessment separates operation from explanation/checking, and both contribute to the portfolio.
+Lesson 1 pairs each robot's concept with its Three.js demonstration: articulated, gantry, SCARA, delta, then mobile. Their motion and graphics are separate from learner state. A wrist-axis comparison illustrates another articulated arm; the programming robot remains the three-axis model. Bold vocabulary terms open bilingual definitions. The supplied task text is preserved, including its earlier “Assessment” wording; in this interface those calculation and problem/improvement responses are entered in Guide.
 
-The remaining lessons also use short concept/demo pairs before their assessment; learners can replay the relevant example and return without losing answers. Lesson 1 uses five illustrated job scenarios to match robot bodies to applications. These are original explanatory illustrations, not photographs.
+The remaining lessons use short concept/demo pairs before practice. Learners can replay examples and revisit words. Lesson 1's five illustrated job choices are saved for discussion without grading; the illustrations are original explanatory graphics.
 
-Seven short lessons introduce body plans, anatomy, joint-vs-XYZ movement, actual grasping, recording/replay, obstacle planning and an interest-led design proposal. Body-plan definitions, example jobs, trade-offs, morphology/cobot distinctions, sensor caveats and a post-replay six-axis comparison are visible teaching content. Answer checks and actual controller events supply evidence; predictions and learner-authored reflections remain separate. The scripted coach does not grade open-ended reasoning or operate the robot.
+Six core lessons introduce body plans, anatomy, joint-vs-XYZ movement, grasping, recording/replay and obstacle planning. `lesson-flow.mjs` owns the flow and practical requirements; `game-learning.mjs` retains legacy attempts and assessment logic. Assessments and Design are disabled by default. Their configuration switches and historical code are preserved; enabling those older interfaces requires separate acceptance testing.
 
-The changed-target attempt uses destination B, a new/edited recorded program and actual replay release evidence. Hints and worked examples are tracked; the independent attempt hides them and clears prior coaching. Fixture goal coordinates remain available as task information.
+The changed-target attempt uses destination B, a new recorded program and an actual successful replay ending with a supported release. New hints, examples and AI requests are paused until B is complete. Earlier conversation remains in history. Fixture coordinates remain available as task information.
 
 English and 简体中文 use paired offline dictionaries, including the lesson framework. Learner-written names and reflections are preserved as authored. Significant errors/completions use a polite status region. The app uses semantic controls, confirmation dialogs, focus styling, reduced-motion support and responsive CSS. See LOCAL_VERIFICATION.md for measured browser checks; physical-device and full assistive-technology acceptance remain separate.
 
 Only the new local key `bnta3axis:v1` is used as a convenience copy. The old application's data is never read, migrated or cleared. Recording never restores ON. Bad/stale stored data is retained and blocks overwrite; quota/privacy failures keep the current session usable and visibly request an export. Save project JSON includes a validated resume payload, and Open project JSON validates before confirming replacement of current work. No server database is used.
 
-Evidence history is capped at 2,000 events: the app warns and stops adding evidence rather than silently deleting it. Text fields are length-limited. Names are optional and blank by default. JSON and readable text exports include actual events, predictions, calculations, reflections and limitations. Save scene image creates a separate PNG; retain it with the project. There is no analytics or hardware connection. Without an AI connection, no response is uploaded. When connected, the saved response, recent dialogue, lesson reference and a bounded simulator snapshot are sent through the school server to Qwen; learner names are excluded from the snapshot. The interface explains this before a response is submitted. The server does not store conversations or log their content. The operational guide remains explicitly scripted; assessment dialogue is separately labelled Qwen feedback.
+Core attempts keep practical check event IDs, up to 40 supporting event snapshots, word visits, job choices, measurements, predictions, calculations, program notes and reflections. JSON and readable text exports include those records; JSON also retains response drafts. Conversation history retains the latest 150 turns. Names are optional. There is no analytics or hardware connection. Saving an answer is local and does not automatically send it to AI. An explicit AI question sends recent AI discussion and a bounded activity snapshot through the school server to Qwen, including saved lesson responses and measurements but excluding the learner-name field. The server does not store conversations or log their content.
 
 ## Brief revision and reusable teaching framework
 
-Read [BRIEF_REVIEW.md](BRIEF_REVIEW.md) for the pre-change learner audit and [TEACHING_FRAMEWORK.md](TEACHING_FRAMEWORK.md) for lesson outcomes, evidence and teacher review. All seven lessons use Vocabulary, paired Concept/example, then Assessment. Lessons 4–6 put a live robot beside focused operation controls, followed by a review of actual test evidence and reflection. Lesson 7 uses four short proposal questions. Examples use an isolated controller and never contribute student completion evidence. A new anatomy attempt requires actual joint operation; a new coordinate attempt also requires a calculation checked against the actual movement and model time. Earlier stored attempts remain compatible.
+Read [BRIEF_REVIEW.md](BRIEF_REVIEW.md) and [TEACHING_FRAMEWORK.md](TEACHING_FRAMEWORK.md) for the earlier learner audit and assessment design. The six-lesson implementation described above supersedes their default interface flow. Examples use isolated controllers and never contribute student completion evidence. Earlier stored attempts remain compatible.
 
 Ghost shows the target arm pose. A dashed blue line shows expected TCP travel; the program panel shows the whole saved route. Red indicates an invalid move/program, not simulated impact. The orange trail follows actual movement and can be hidden or cleared. These overlays do not move the robot or change a program. The gripper now has a connecting slide bridge included in collision checks.
 
