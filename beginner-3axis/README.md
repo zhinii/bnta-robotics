@@ -2,19 +2,23 @@
 
 An isolated beginner entry for **Robot Lab, developed by Christopher Hansen**. The original six-axis simulator and all nine original repository files are unchanged. Open `beginner-3axis/` directly; the original root application remains separate.
 
-## Classroom HUD preview (local feature branch)
+## Chat-driven beginner interface
 
-The classroom redesign is on `codex/classroom-game-interface`. It has **not been published**. See [GAME_REVIEW.md](GAME_REVIEW.md) for the feature map, verification scope and limitations, and [the screenshot review](review-game/index.html).
+The default entry uses **Coach · Quest Log**: a desktop side panel or mobile bottom sheet, with one input that remains available during teaching and robot operation. The release URL is [the three-axis beginner lab](https://zhinii.github.io/bnta-robotics/beginner-3axis/). See [QUEST_REVIEW.md](QUEST_REVIEW.md) for the requirement-by-requirement checks and evidence.
 
-The default screen is **Explore** with recording off. The Guide menu opens six lessons and three challenges. **Guide / Controls / Program** share one persistent chat input. The 3D scene stays visible above the scrolling panel on phones. Design and graded assessments are deferred; their source and historical records are preserved.
+Open `quest-prototype.html` for the content-free dialogue prototype shown before lesson integration, or `index.html` / `quest-lab.html` for the complete six-lesson course. `classic.html` preserves the previous interface and its saved-work namespace. The six-axis root application is unchanged.
 
-Lessons use the supplied bilingual `curriculum.mjs` content and the existing vocabulary and tour units: **Words → Guided tour → Practice → Reflection**. Words can be explored in any order. Tours play isolated demonstrations; Next advances at the learner's pace. Practical checks require actual controller events. Predictions, calculations, program notes and reflections use the shared input; no score is assigned to the learner's reasoning.
+Lessons use the supplied bilingual content and existing vocabulary/tour units: **Words → Guided tour → Practice → Reflection**. Words can be explored in any order. Tours play isolated demonstrations; Next advances at the learner's pace. Practice requires actual controller events. Predictions, optional calculations, program notes and reflections use the shared input. Reasoning is ungraded. Lesson 1 job matching and Lesson 6 route B are optional.
 
 ## Movement and program controls
 
-XYZ sets a world-position target in millimetres; press Move to execute it. Joints turns one joint to a selected angle in degrees. Jog moves the actual TCP one selected 1, 5 or 10 mm step per tap along a world axis. All three modes use collision checking and can record completed movements when Record is on. Jog does not use a pending XYZ target. Joint movements replay as joint movements, preserving their curved tool path; they are not silently converted to straight XYZ moves.
+Type `help` or `帮助` for commands. Controls and Program are inside the compact conversation panel; Stop and the composer remain visible. XYZ previews a target in millimetres; Move executes it. Lesson 2 includes J1 ±10° controls. Program supports recording, reordering, removal, pause, stop, reset and replay. Full joint/jog controls and the older import/export tools remain in `classic.html`.
 
-Program playback, Pause and Stop remain available with the controls. Explore's Test restores the recorded starting scene; Learn's Run requires the learner to Reset deliberately. The Guide menu opens save/load and evidence export. Model notes remain in this document.
+Run requires the recorded start state; Reset restores it without deleting steps. Changing practice scenes archives existing programs. The new interface saves locally under `bnta:quest-course:v1`; Menu → Export progress downloads answers, evidence, current program and archived scenes. It does not overwrite the previous interface's saves. A reload pauses motion and recording.
+
+All lessons work without AI. When the same-origin Qwen service is configured, optional free-text questions use it; AI commands require confirmation and local controller validation. Static GitHub Pages works offline without this service. A host can also supply `window.robotLabAgent.respond(question, context)` before startup. Live-provider calls are not part of the automated test results.
+
+Checks: `npm test`, `npm run test:dom`, `npm run test:lessons:ai`. Browser scripts accept `BNTA_PLAYWRIGHT_PATH` or a Playwright module path as their first argument: `tests/quest-prototype.browser.mjs`, `tests/quest-lessons.browser.mjs`, and `tests/quest-practice.browser.mjs`.
 
 ## Run locally
 

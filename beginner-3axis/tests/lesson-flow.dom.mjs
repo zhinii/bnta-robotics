@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { registerHooks } from "node:module";
 const { JSDOM } = await import(process.env.BNTA_JSDOM_PATH || "jsdom");
-const dom = new JSDOM(readFileSync(new URL("../index.html", import.meta.url), "utf8"), { url: "http://localhost/beginner-3axis/", pretendToBeVisual: true });
+const dom = new JSDOM(readFileSync(new URL("../classic.html", import.meta.url), "utf8"), { url: "http://localhost/beginner-3axis/", pretendToBeVisual: true });
 const w = dom.window, queue = new Map();
 let now = 0, sequence = 0, apiCalls = 0;
 w.requestAnimationFrame = fn => { queue.set(++sequence, fn); return sequence; };
