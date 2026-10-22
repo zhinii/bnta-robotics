@@ -39,6 +39,34 @@ test('hosted frontend sends no key, authorization header or chosen provider URL'
  assert.equal(seen.url,RELAY);assert.equal(seen.headers.Authorization,undefined);assert.equal(seen.headers['X-Alibaba-Base'],undefined);assert.ok(!seen.body.includes(key));
 });
 
+test('schema repair keeps its scene envelope and a request error is not mislabeled as a model configuration error',async()=>{
+ const original=globalThis.fetch;let calls=0;
+ globalThis.fetch=async(_url,init)=>{
+  calls++;const upstream=JSON.parse(init.body),task=JSON.parse(upstream.messages.at(-1).content);
+  assert.equal(task.question,'put the blue book upside down');assert.ok(Array.isArray(task.scene.objects));
+  if(calls===2)assert.match(task.feedback.responseRepair,/allowed action schema/);
+  return Response.json({choices:[{message:{content:JSON.stringify({reply:'I will turn the blue book over.',actions:[{type:'transfer',object:'notebook',target:'start',posture:calls===1?'upside-down':'face-down'}]})}}]});
+ };
+ try{
+  const result=await askAgent({hosted:true},{question:'put the blue book upside down',language:'en',history:[],scene:{objects:[]}},undefined,async(_url,init)=>POST(new Request(url,{method:'POST',headers:{...headers,'CF-Connecting-IP':'repair-client'},body:init.body})));
+  assert.equal(calls,2);assert.equal(result.actions[0].posture,'face-down');
+  await assert.rejects(()=>askAgent({hosted:true},{question:'hello',language:'en',history:[],scene:{objects:[]}},undefined,async()=>Response.json({error:'scene_required'},{status:400})),/requestError/);
+ }finally{globalThis.fetch=original;}
+});
+
+test('already-open older pages receive compatible flip angles and their known repair request retains scene validation',async()=>{
+ const original=globalThis.fetch;
+ globalThis.fetch=async()=>Response.json({choices:[{message:{content:JSON.stringify({reply:'I will turn it over.',actions:[{type:'transfer',object:'book',target:'start',posture:'face-down'}]})}}]});
+ try{
+  const legacy=body();legacy.messages.push({role:'assistant',content:'invalid action'}, {role:'user',content:'Your response did not match the allowed action schema. Return valid JSON.'});
+  const response=await POST(new Request(url,{method:'POST',headers:{...headers,'CF-Connecting-IP':'old-client'},body:JSON.stringify(legacy)}));
+  assert.equal(response.status,200);const parsed=JSON.parse((await response.json()).choices[0].message.content);
+  assert.deepEqual(parsed.actions[0].orientation,[180,0,0]);assert.equal(parsed.actions[0].posture,undefined);
+  legacy.messages.at(-1).content='An arbitrary non-scene request';
+  assert.equal((await POST(new Request(url,{method:'POST',headers,body:JSON.stringify(legacy)}))).status,400);
+ }finally{globalThis.fetch=original;}
+});
+
 test('shared relay limits simultaneous calls and per-client requests',async()=>{
  const original=globalThis.fetch,releases=[];
  globalThis.fetch=async()=>new Promise(resolve=>releases.push(()=>resolve(Response.json({choices:[{message:{content:'{"reply":"Hello","actions":[]}'}}]}))));

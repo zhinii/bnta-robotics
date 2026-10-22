@@ -52,12 +52,14 @@ test('90 degree X, Y and Z turns preserve the requested axis and can restore or 
   for(const step of inverse)applyStep(s,step);sameObjects(s,before);assert.deepEqual(s.q,before.q);
  }
 });
-test('placing preserves rotation and an impossible tilted placement rejects the entire task',()=>{
+test('placing preserves rotation, uses checked detours, and rejects an unreachable placement atomically',()=>{
  const s=initialState(0,'desk'),before=structuredClone(s);
  run(s,[{type:'pick',object:'book'},{type:'rotate',axis:'z',angle:90},{type:'place',target:'start'}]);
  assert.deepEqual(s.objects[0].rpy,[0,0,90]);assert.deepEqual(s.objects[0].position,s.objects[0].origin);assert.equal(s.held,null);
  run(s,[{type:'restore'}]);sameObjects(s,before);
- assert.throws(()=>planActions(s,[{type:'pick',object:'book'},{type:'rotate',axis:'x',angle:90},{type:'place',target:'start'}]),e=>['reach','blocked'].includes(e.message)&&e.action.type==='place');
+ const upright=planActions(s,[{type:'pick',object:'book'},{type:'rotate',axis:'x',angle:90},{type:'place',target:'start'}]).result;
+ assert.deepEqual(upright.objects[0].rpy,[90,0,0]);assert.equal(upright.held,null);
+ assert.throws(()=>planActions(s,[{type:'pick',object:'book'},{type:'rotate',axis:'x',angle:90},{type:'place',position:[300,-120]}]),e=>['reach','blocked'].includes(e.message)&&e.action.type==='place');
  sameObjects(s,before);assert.equal(s.held,null);
  assert.throws(()=>validateActions([{type:'rotate',axis:'w',angle:90}]),/angle/);
  assert.deepEqual(parseResponse('{"reply":"I will turn it.","actions":[{"type":"rotate","axis":"y","angle":90}]}').actions,[{type:'rotate',axis:'y',angle:90}]);

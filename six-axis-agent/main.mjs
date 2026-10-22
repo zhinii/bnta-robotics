@@ -1,9 +1,9 @@
-import { initialState, snapshot, applyStep, CATALOG, objectPosture, previewSteps, inHolder, footprint, graspWidth } from './world.mjs?v=shelf-20261022-2';
-import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=shelf-20261022-2';
-import { createScene } from './scene.mjs?v=shelf-20261022-2';
-import { createSpeech } from './speech.mjs?v=shelf-20261022-2';
-import { words, challenges } from './i18n.mjs?v=shelf-20261022-2';
-import deployment from './deployment.mjs?v=shelf-20261022-2';
+import { initialState, snapshot, applyStep, CATALOG, objectPosture, objectLocation, previewSteps, inHolder, footprint, graspWidth } from './world.mjs?v=spatial-20261022-1';
+import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=spatial-20261022-1';
+import { createScene } from './scene.mjs?v=spatial-20261022-1';
+import { createSpeech } from './speech.mjs?v=spatial-20261022-1';
+import { words, challenges } from './i18n.mjs?v=spatial-20261022-1';
+import deployment from './deployment.mjs?v=spatial-20261022-1';
 const serverMode=deployment?.mode==='school',hostedMode=deployment?.mode==='hosted',managedConnection=serverMode||hostedMode;
 
 const $=id=>document.getElementById(id);
@@ -15,7 +15,7 @@ let connectionFailed=false;
 let state=initialState(0,'desk'),connection=null,busy=false,epoch=0,abort=null,history=[],activity='',view=null,undo=[],worker=null,workerReject=null,challengeIndex=0;
 let previewData=null,previewResolve=null,settling=null;
 const t=(key,vars={})=>Object.entries(vars).reduce((s,[k,v])=>s.replaceAll('{'+k+'}',v),words[language][key]||key);
-const name=id=>CATALOG[id]?.[language==='zh'?'zh':'name']||state.obstacles.find(o=>o.id===id)?.[language==='zh'?'zh':'name']||({table:'桌面','robot arm':'机械臂','robot base':'机械臂底座','tall divider':'高挡板','low divider':'矮挡板'}[id]&&language==='zh'?{table:'桌面','robot arm':'机械臂','robot base':'机械臂底座','tall divider':'高挡板','low divider':'矮挡板'}[id]:id);
+const name=id=>CATALOG[id]?.[language==='zh'?'zh':'name']||state.obstacles.find(o=>o.id===id)?.[language==='zh'?'zh':'name']||({table:'桌面','robot arm':'机械臂','robot base':'机械臂底座','tall divider':'高挡板','low divider':'矮挡板'}[id]&&language==='zh'?{table:'桌面','robot arm':'机械臂','robot base':'机械臂底座','tall divider':'高挡板','low divider':'矮挡板'}[id]:id)||(language==='zh'?'物品':'item');
 const perception=()=>({...snapshot(state),canUndo:undo.length>0});
 const compactLayout=matchMedia('(max-width:900px)');
 compactLayout.addEventListener('change',event=>{
@@ -46,7 +46,7 @@ const speech=createSpeech({
   onState:active=>{activity=active?'listening':'';refresh();},
   onMessage:key=>{if(key==='speechReady'){$('activity').textContent=t(key);focusInput($('prompt'));}else say(key,{},'system');}
 });
-function onShelf(object){const shelf=state.obstacles.find(o=>o.id==='organizer');return shelf&&object.id!==state.held&&object.position[2]-footprint(object)[2]/2>=28-.3&&[0,1].every(i=>Math.abs(object.position[i]-shelf.position[i])+footprint(object)[i]/2<=shelf.size[i]/2);}
+function onShelf(object){return objectLocation(state,object).onShelf;}
 let inventoryKey='';
 function render(){
   view?.update(state);$('scene-state').textContent=state.held?t('holding',{object:name(state.held)}):t('empty');
@@ -103,7 +103,7 @@ function prepare(actions){
     return Promise.resolve({plan:{steps:undo.at(-1)},undoing:true});
   }
   return new Promise((resolve,reject)=>{
-    const planner=new Worker(new URL('./planner-worker.mjs?v=shelf-20261022-2',import.meta.url),{type:'module'});worker=planner;
+    const planner=new Worker(new URL('./planner-worker.mjs?v=spatial-20261022-1',import.meta.url),{type:'module'});worker=planner;
     const finish=()=>{clearTimeout(timer);planner.terminate();if(worker===planner){worker=null;workerReject=null;}};
     const timer=setTimeout(()=>{finish();reject(Error('planningTimeout'));},45000);
     workerReject=error=>{finish();reject(error);};
@@ -150,16 +150,18 @@ async function animate(steps,id){
 function reportError(error){
   const managedError=managedConnection&&({auth:'managedAuth',model:'managedModel',network:'managedNetwork'})[error instanceof TypeError?'network':error.message];
   if(managedError){say(managedError,{},'assistant',true);return t(managedError);}
-  if(error.preview)showPreview(error.preview);
+  if(error.preview&&error.message!=='planningTimeout')showPreview(error.preview);
   if(error.detail?.constraint==='deskEdge'){say('deskEdge',{},'assistant',true);return t('deskEdge');}
   const key=error.message==='empty'?'emptyError':error.message==='holding'?'holdingError':words[language][error.message]?error.message:error instanceof TypeError?'network':'provider';
+  const errorObject=error.action?.object||error.detail?.object||error.detail?.held||state.held;
   if(key==='occupied'&&error.detail?.blocker){const vars={object:name(error.detail.blocker),objectId:error.detail.blocker};say('occupiedBy',vars,'assistant',true);return t('occupiedBy',vars);}
   if(key==='reach'&&error.detail?.approach&&error.detail.approach!=='auto'){const vars={side:t('approach'+error.detail.approach)};say('pickupSideReach',vars,'assistant',true);return t('pickupSideReach',vars);}
+  if(['reach','blocked'].includes(key)&&error.detail?.stage==='pickup'){const vars={object:name(errorObject)};say('pickupFailed',vars,'assistant',true);return t('pickupFailed',vars);}
   if(key==='posture'&&error.detail?.blocker){const vars={object:name(error.detail.object),blocker:name(error.detail.blocker)};say('postureBlocked',vars,'assistant',true);return t('postureBlocked',vars);}
   if(key==='posture'&&error.detail?.reason==='reach'){const vars={object:name(error.detail.object)};say('postureReach',vars,'assistant',true);return t('postureReach',vars);}
   if(key==='blocked'&&error.detail?.blocker){const vars={object:name(error.detail.blocker),objectId:error.detail.blocker};say('blockedBy',vars,'assistant',true);return t('blockedBy',vars);}
   if(key==='rotation'){const vars={object:name(error.detail.held),axis:error.detail.axis.toUpperCase(),angle:error.detail.angle};say('rotation',vars,'assistant',true);return t('rotation',vars);}
-  if(['reach','blocked'].includes(key)&&['place','transfer'].includes(error.action?.type)&&error.detail?.requestedOrientation?.slice(0,2).some(v=>Math.abs(v)>.1)){const vars={object:name(error.detail.held),angles:error.detail.requestedOrientation.map(v=>Math.round(v)).join('°, ')+'°'};say('tiltedPlacement',vars,'assistant',true);return t('tiltedPlacement',vars);}
+  if(['reach','blocked'].includes(key)&&['place','transfer'].includes(error.action?.type)&&error.action?.orientation?.slice(0,2).some(v=>Math.abs(v)>.1)){const vars={object:name(errorObject),angles:error.action.orientation.map(v=>Math.round(v)).join('°, ')+'°'};say('tiltedPlacement',vars,'assistant',true);return t('tiltedPlacement',vars);}
   say(key,{},'assistant',true);return t(key);
 }
 async function connect(){
@@ -203,7 +205,7 @@ async function send(question){
     if(rotated){
       const items=state.objects.filter(o=>o.id===state.held||touched.has(o.id));
       const technical=response.actions.some(a=>a.type==='rotate'||a.orientation)||/\b(?:axis|degrees?)\b|轴|度/u.test(question);
-      completion=last.type==='restore'?t('restoreDone'):items.length?items.map(o=>t(o.id===state.held?(technical?'postureHeld':'postureHeldSimple'):(technical?'posturePlaced':'posturePlacedSimple'),{object:name(o.id),posture:t('posture_'+objectPosture(o)),angles:o.rpy.map(v=>Math.round(v)).join('°, ')+'°'})).join('\n'):t(key,vars);
+      completion=last.type==='restore'?t('restoreDone'):items.length?items.map(o=>t(o.id===state.held?(technical?'postureHeld':'postureHeldSimple'):(technical?'posturePlaced':'posturePlacedSimple'),{object:name(o.id),posture:t('posture_'+(objectPosture(o)==='flat'&&Math.cos(o.rpy[0]*Math.PI/180)*Math.cos(o.rpy[1]*Math.PI/180)<-.999?'face-down':objectPosture(o))),angles:o.rpy.map(v=>Math.round(v)).join('°, ')+'°'})).join('\n'):t(key,vars);
     }
     if(!rotated&&response.actions.some(a=>a.target==='shelf'))completion=state.objects.filter(o=>touched.has(o.id)&&onShelf(o)&&!inHolder(state,o)).map(o=>t('placedOnShelf',{object:name(o.id)})).join('\n')||completion;
     if(last.type!=='restore'&&last.type!=='undo'&&state.objects.some(o=>touched.has(o.id)&&onShelf(o))&&!/[?？]/u.test(completion))completion+='\n'+t('shelfFollowup');

@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {initialState,planActions,validateActions,applyStep,clearPose,objectPosture,inHolder} from '../world.mjs';
-import {toolPose,distance} from '../kinematics.mjs';
+import {initialState,planActions,validateActions,applyStep,clearPose,objectPosture,inHolder,reverseSteps} from '../world.mjs';
+import {toolPose,distance,rotationFromEuler} from '../kinematics.mjs';
+import {objectBounds} from '../shapes.mjs';
 import {askAgent,placementIntent,pickupIntent,SYSTEM} from '../agent.mjs';
 
 // Replay intermediate joint poses too: endpoints alone do not prove a clear route.
@@ -30,10 +31,26 @@ test('occupied shelf searches separate gaps, carrying a pencil with the holder',
  assert.ok(inHolder(s,s.objects.find(o=>o.id==='pencil')));
  s=checked(s,[{type:'transfer',object:'book',target:'shelf',posture:'short-edge'}]);
  assert.equal(objectPosture(s.objects.find(o=>o.id==='book')),'short-edge');
+ const placed=objectBounds(s.objects.find(o=>o.id==='book'));assert.ok(Math.abs(placed.low[2]-28)<.001);assert.ok(placed.low[0]>=122&&placed.high[0]<=338,'a generic shelf task never spills onto the desk beside it');
  assert.deepEqual(s.objects.find(o=>o.id==='notebook').position,notebook.position);
  const before=structuredClone(s);
  assert.throws(()=>planActions(s,[{type:'transfer',object:'pen',target:'shelf-middle'}]),e=>['occupied','blocked'].includes(e.message));
  assert.deepEqual(s,before);
+});
+
+test('turn a flat book face down beside an upright book using a visible set-down and opposite-face regrasp',()=>{
+ let s=initialState(0,'desk');
+ s=checked(s,[{type:'transfer',object:'notebook',target:'shelf',posture:'short-edge'},{type:'transfer',object:'pencil',target:'pen-holder'}]);
+ const before=structuredClone(s),actions=[{type:'transfer',object:'book',beside:'notebook',posture:'face-down'}],plan=planActions(s,actions);
+ assert.deepEqual(s,before,'planning and previews never change the scene');
+ const grips=plan.steps.filter(step=>step.type==='grip');assert.equal(grips.length,2);assert.ok(grips.every(step=>step.object==='book'));
+ const firstRelease=plan.steps.findIndex(step=>step.type==='release'),secondGrip=plan.steps.findLastIndex(step=>step.type==='grip');assert.ok(firstRelease<secondGrip,'grasp changes only after a real release');
+ const result=checked(s,actions),book=result.objects.find(o=>o.id==='book'),bounds=objectBounds(book);
+ assert.equal(result.held,null);assert.equal(objectPosture(book),'flat');assert.ok(rotationFromEuler(book.rpy)[8]<-.999);
+ assert.ok(Math.abs(bounds.low[2]-28)<.001,'the upside-down book rests on the shelf');assert.ok(bounds.low[0]>=122&&bounds.high[0]<=338);
+ for(const object of before.objects.filter(o=>o.id!=='book'))assert.deepEqual(result.objects.find(o=>o.id===object.id),object);
+ const reversed=structuredClone(plan.result);for(const step of reverseSteps(before,plan.steps))applyStep(reversed,step);
+ for(const object of before.objects){const restored=reversed.objects.find(o=>o.id===object.id);assert.deepEqual(restored.position,object.position);assert.deepEqual(restored.rpy,object.rpy);}
 });
 
 test('front and top grips are distinct and an unreachable explicit front grip never silently changes',()=>{
@@ -67,6 +84,8 @@ test('plain and misspelled shelf commands preserve explicit regions and relative
  assert.deepEqual(placementIntent(beside,'on the shelf right of the book'),beside);
  assert.equal(pickupIntent(response,'pick up the book from the front').actions[0].approach,'front');
  assert.equal(pickupIntent(response,'从上面夹起书').actions[0].approach,'top');
+ const face=placementIntent({...response,actions:[{type:'transfer',object:'book',beside:'notebook',orientation:[45,0,0]}]},'put the red book upside down next to the blue one');
+ assert.equal(face.actions[0].posture,'face-down');assert.equal(face.actions[0].orientation,undefined);
 });
 
 test('questions and unreferenced pointing never replay a failed job, while creative requests reach the model',async()=>{

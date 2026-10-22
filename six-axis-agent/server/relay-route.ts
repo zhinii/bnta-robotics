@@ -39,7 +39,12 @@ export async function POST(request:Request) {
     const body=JSON.parse(new TextDecoder().decode(bytes));
     if(!Array.isArray(body.messages)||!body.messages.length||body.messages.length>14||body.messages.some((m:any)=>!['system','assistant','user'].includes(m.role)||typeof m.content!=='string'||m.content.length>12000))return reply({error:'request'},400);
     const last=body.messages.at(-1);if(last.role!=='user')return reply({error:'request'},400);
-    let task;try{task=JSON.parse(last.content);}catch{return reply({error:'scene_required'},400);}
+    let task;try{task=JSON.parse(last.content);}catch{
+      // Older pages sent the schema-repair sentence without its scene envelope.
+      // Accept only that bounded, known retry shape with the preceding scene.
+      if(!/^Your response (?:was cut off before completion|did not match the allowed action schema)\./.test(last.content)||body.messages.at(-2)?.role!=='assistant'||body.messages.at(-3)?.role!=='user')return reply({error:'scene_required'},400);
+      try{task=JSON.parse(body.messages.at(-3).content);}catch{return reply({error:'scene_required'},400);}
+    }
     if(typeof task.question!=='string'||task.question.length>1600||!['en','zh'].includes(task.language)||!Array.isArray(task.scene?.objects))return reply({error:'scene_required'},400);
     const minute=Math.floor(Date.now()/60000);
     if(windowMinute!==minute){windowMinute=minute;windowCount=0;for(const [ip,value] of clients)if(value.minute!==minute)clients.delete(ip);}
@@ -52,8 +57,13 @@ export async function POST(request:Request) {
     const upstream=await fetch(config.base+'/chat/completions',{method:'POST',redirect:'manual',signal:AbortSignal.timeout(25000),headers:{'Content-Type':'application/json',Authorization:'Bearer '+config.key},body:JSON.stringify({model:config.model,messages,max_tokens:2000,response_format:{type:'json_object'},temperature:body.temperature===.6?.6:.2,stream:false,enable_thinking:false})});
     if(!upstream.ok)return reply({error:'provider'},[400,401,403,404,429].includes(upstream.status)?upstream.status:502);
     stage='parse';
-    const data:any=await upstream.json(),content=data?.choices?.[0]?.message?.content;
+    const data:any=await upstream.json();let content=data?.choices?.[0]?.message?.content;
     if(typeof content!=='string'||content.length>12000)return reply({error:'response'},502);
+    // A newly deployed relay must still speak the action schema understood by
+    // an already-open older page. This is the same flat 180-degree orientation.
+    if(!body.messages.some((m:any)=>m.role==='system'&&m.content.includes('posture:"face-down"'))){
+      try{const parsed=JSON.parse(content);if(Array.isArray(parsed.actions)){parsed.actions=parsed.actions.map((a:any)=>{if(a.posture!=='face-down')return a;const result={...a,orientation:[180,0,0]};delete result.posture;return result;});content=JSON.stringify(parsed);}}catch{}
+    }
     return reply({choices:[{message:{content},finish_reason:data.choices[0].finish_reason==='length'?'length':'stop'}]});
   } catch(error) { return reply({error:'connection',stage,kind:error instanceof TypeError?'type':error instanceof SyntaxError?'json':'transport'},502); }
   finally{if(admitted)inFlight--;}

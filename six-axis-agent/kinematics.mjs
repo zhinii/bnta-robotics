@@ -42,15 +42,17 @@ function analyticIK(p,current,branch,fore=ARM.fore){const [x,y,z]=p,r=Math.hypot
  candidates.sort((a,b)=>distance(a,current)-distance(b,current));if(!candidates.length)return {error:'limits'};const q=candidates.find(q=>pathSafe(current,q));return q?{q}:{error:'path'};
 }
 function linearSolve(matrix,vector){const a=matrix.map((row,i)=>[...row,vector[i]]),n=a.length;for(let c=0;c<n;c++){let pivot=c;for(let r=c+1;r<n;r++)if(Math.abs(a[r][c])>Math.abs(a[pivot][c]))pivot=r;[a[c],a[pivot]]=[a[pivot],a[c]];if(Math.abs(a[c][c])<1e-12)return null;const d=a[c][c];for(let j=c;j<=n;j++)a[c][j]/=d;for(let r=0;r<n;r++)if(r!==c){const f=a[r][c];for(let j=c;j<=n;j++)a[r][j]-=f*a[c][j];}}return a.map(row=>row[n]);}
-function numericalIK(p,current,desired,pose=fk,extraSeeds=[],accept=null){const n=current.length,base=Math.atan2(p[1],p[0])/rad,seeds=[[...current],homeFor(n)];for(const s of [25,70,120])for(const e of [-110,-45,65]){const seed=homeFor(n);seed[0]=base;seed[1]=s;seed[2]=e;if(n>=4)seed[3]=s===120?70:-35;seeds.push(seed);}seeds.push(...extraSeeds);let blocked=false;
- for(const seed of seeds){let q=[...seed];for(let iteration=0;iteration<280;iteration++){const f=pose(q),pos=sub(p,f.tip),ori=desired?orientationError(desired,f.rotation):[],error=[...pos,...ori.map(v=>v*90)];if(Math.hypot(...pos)<.12&&(!desired||Math.hypot(...ori)<.004)){if(valid(q)){if(pathSafe(current,q)&&(!accept||accept(q)))return {q};blocked=true;}break;}
+function numericalIK(p,current,desired,pose=fk,extraSeeds=[],accept=null,checkPath=true){const n=current.length,base=Math.atan2(p[1],p[0])/rad,seeds=[[...current],homeFor(n)];for(const s of [25,70,120])for(const e of [-110,-45,65]){const seed=homeFor(n);seed[0]=base;seed[1]=s;seed[2]=e;if(n>=4)seed[3]=s===120?70:-35;seeds.push(seed);}seeds.push(...extraSeeds);let blocked=false;
+ for(const seed of seeds){let q=[...seed];for(let iteration=0;iteration<280;iteration++){const f=pose(q),pos=sub(p,f.tip),ori=desired?orientationError(desired,f.rotation):[],error=[...pos,...ori.map(v=>v*90)];if(Math.hypot(...pos)<.12&&(!desired||Math.hypot(...ori)<.004)){if(valid(q)){if((!checkPath||pathSafe(current,q))&&(!accept||accept(q)))return {q};blocked=true;}break;}
  const columns=f.axes.map((axis,i)=>[...cross(axis,sub(f.tip,f.origins[i])).map(v=>v*rad),...(desired?axis.map(v=>v*rad*90):[])]),rows=error.length;
  const matrix=Array.from({length:rows},(_,r)=>Array.from({length:rows},(_,c)=>columns.reduce((sum,j)=>sum+j[r]*j[c],0)+(r===c?.45:0)));
  const y=linearSolve(matrix,error);if(!y)break;let delta=columns.map(col=>col.reduce((sum,v,j)=>sum+v*y[j],0)),max=Math.max(...delta.map(Math.abs));if(max>9)delta=delta.map(v=>v*9/max);const next=q.map((v,i)=>Math.max(JOINTS[i].limits[0],Math.min(JOINTS[i].limits[1],v+delta[i])));if(distance(next,q)<1e-7)break;q=next;
  }}return {error:blocked?'path':'solve'};
 }
 export function ik(p,current=ARM.home,branch='nearest',orientation=null){if(!Array.isArray(p)||p.length!==3||p.some(v=>!Number.isFinite(v)))return {error:'numbers'};if(!valid(current))return {error:'limits'};if(orientation&&(current.length!==6||!Array.isArray(orientation)||orientation.length!==3||orientation.some(v=>!Number.isFinite(v)||Math.abs(v)>180)))return {error:'orientationInvalid'};if(distance(p,[0,0,ARM.base])>reachFor(current.length)+1e-7)return {error:'reach'};if(p[2]<12)return {error:'limits'};return current.length===3?analyticIK(p,current,branch):numericalIK(p,current,orientation?rotationFromEuler(orientation):null);}
-export function ikTool(p,current=ARM.home,branch='nearest',orientation=null,accept=null){
+// Endpoint-only solving is for planners that independently validate the full
+// swept route. Ordinary Cartesian moves retain the direct-path requirement.
+export function ikTool(p,current=ARM.home,branch='nearest',orientation=null,accept=null,checkPath=true){
  if(!Array.isArray(p)||p.length!==3||p.some(v=>!Number.isFinite(v)))return {error:'numbers'};
  if(!valid(current))return {error:'limits'};
  if(orientation&&(current.length!==6||!Array.isArray(orientation)||orientation.length!==3||orientation.some(v=>!Number.isFinite(v)||Math.abs(v)>180)))return {error:'orientationInvalid'};
@@ -61,7 +63,7 @@ export function ikTool(p,current=ARM.home,branch='nearest',orientation=null,acce
  const wrist=down?((base-orientation[2]+540)%360)-180:0;
  const seeds=down?[[base,80,-90,0,-80,wrist],[base,90,-110,0,-70,wrist]]:[];
  if(orientation&&!down)for(const swivel of [-90,90])for(const roll of [-90,90])for(const shoulder of [50,100])seeds.push([base,shoulder,-100,swivel,-60,roll]);
- return current.length===3?analyticIK(p,current,branch,ARM.fore+TOOL_LENGTH):numericalIK(p,current,orientation?rotationFromEuler(orientation):null,toolPose,seeds,accept);
+ return current.length===3?analyticIK(p,current,branch,ARM.fore+TOOL_LENGTH):numericalIK(p,current,orientation?rotationFromEuler(orientation):null,toolPose,seeds,accept,checkPath);
 }
 export function readProgram(data){
  const n=data?.version===1?3:data?.jointCount;
