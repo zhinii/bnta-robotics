@@ -1,9 +1,9 @@
-import { initialState, snapshot, applyStep, CATALOG, objectPosture, restingFace, objectLocation, previewSteps, inHolder, footprint, graspWidth } from './world.mjs?v=vision-20261022-1';
-import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=vision-20261022-1';
-import { createScene } from './scene.mjs?v=vision-20261022-1';
-import { createSpeech } from './speech.mjs?v=vision-20261022-1';
-import { words, challenges } from './i18n.mjs?v=vision-20261022-1';
-import deployment from './deployment.mjs?v=vision-20261022-1';
+import { initialState, snapshot, applyStep, CATALOG, objectPosture, restingFace, objectLocation, previewSteps, inHolder, footprint, graspWidth } from './world.mjs?v=freedom-20261022-1';
+import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=freedom-20261022-1';
+import { createScene } from './scene.mjs?v=freedom-20261022-1';
+import { createSpeech } from './speech.mjs?v=freedom-20261022-1';
+import { words, challenges } from './i18n.mjs?v=freedom-20261022-1';
+import deployment from './deployment.mjs?v=freedom-20261022-1';
 const serverMode=deployment?.mode==='school',hostedMode=deployment?.mode==='hosted',managedConnection=serverMode||hostedMode;
 
 const $=id=>document.getElementById(id);
@@ -50,7 +50,7 @@ function onShelf(object){return objectLocation(state,object).onShelf;}
 let inventoryKey='';
 function render(){
   view?.update(state);$('scene-state').textContent=state.held?t('holding',{object:name(state.held)}):t('empty');
-  const items=state.objects.map(o=>({id:o.id,color:o.color,location:o.id===state.held?'inventoryHeld':inHolder(state,o)?'inventoryHolder':onShelf(o)?'inventoryShelf':''}));
+  const items=state.objects.map(o=>({id:o.id,color:o.color,location:o.id===state.held?'inventoryHeld':inHolder(state,o)?'inventoryHolder':onShelf(o)?'inventoryShelf':objectLocation(state,o).location==='floor'?'inventoryFloor':''}));
   const key=JSON.stringify([language,items]);if(key!==inventoryKey){inventoryKey=key;$('inventory-items').replaceChildren(...items.map(o=>{const li=document.createElement('li'),dot=document.createElement('i'),text=document.createElement('span');dot.style.background=o.color;dot.setAttribute('aria-hidden','true');text.textContent=name(o.id)+(o.location?' · '+t(o.location):'');li.append(dot,text);return li;}));}
 }
 function refresh(){
@@ -103,7 +103,7 @@ function prepare(actions){
     return Promise.resolve({plan:{steps:undo.at(-1)},undoing:true});
   }
   return new Promise((resolve,reject)=>{
-    const planner=new Worker(new URL('./planner-worker.mjs?v=vision-20261022-1',import.meta.url),{type:'module'});worker=planner;
+    const planner=new Worker(new URL('./planner-worker.mjs?v=freedom-20261022-1',import.meta.url),{type:'module'});worker=planner;
     const finish=()=>{clearTimeout(timer);planner.terminate();if(worker===planner){worker=null;workerReject=null;}};
     const timer=setTimeout(()=>{finish();reject(Error('planningTimeout'));},45000);
     workerReject=error=>{finish();reject(error);};
@@ -117,9 +117,10 @@ async function animate(steps,id){
     const step=steps[index];
     if(id!==epoch)throw Error('cancelled');
     if(step.type==='fall'){
-      const object=state.objects.find(o=>o.id===step.object),from=[...object.position];settling=step;
+      const falling=(step.positions||[step]).map(item=>({...item,object:state.objects.find(o=>o.id===item.object)}));
+      for(const item of falling)item.from=[...item.object.position];settling=step;
       await new Promise((resolve,reject)=>{let start;
-        function frame(now){if(id!==epoch)return reject(Error('cancelled'));start??=now;const u=Math.min(1,(now-start)/(step.seconds*1000));object.position=from.map((v,i)=>v+(step.position[i]-v)*u*u);render();if(u===1){applyStep(state,step);settling=null;resolve();}else requestAnimationFrame(frame);}requestAnimationFrame(frame);
+        function frame(now){if(id!==epoch)return reject(Error('cancelled'));start??=now;const u=Math.min(1,(now-start)/(step.seconds*1000));for(const item of falling)item.object.position=item.from.map((v,i)=>v+(item.position[i]-v)*u*u);render();if(u===1){applyStep(state,step);settling=null;resolve();}else requestAnimationFrame(frame);}requestAnimationFrame(frame);
       });continue;
     }
     if(step.type==='preshape'){

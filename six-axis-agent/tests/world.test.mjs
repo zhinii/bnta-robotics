@@ -37,8 +37,8 @@ test('both books can rest on the long edge and be laid flat again without a yaw-
 test('upright books are not advertised as broad stacking supports and blocked posture tasks are atomic',()=>{
  const s=initialState(0,'desk');run(s,[{type:'transfer',object:'book',target:'shelf-middle',posture:'short-edge'}]);const before=structuredClone(s);
  assert.equal(snapshot(s).objects.find(o=>o.id==='book').stackable,false);
- assert.throws(()=>planActions(s,[{type:'transfer',object:'notebook',target:'book'}]),/unstable/);assert.deepEqual(s,before);
- assert.throws(()=>planActions(s,[{type:'transfer',object:'notebook',target:'rear',posture:'short-edge'}]),/posture/);assert.deepEqual(s,before);
+ const stacked=planActions(s,[{type:'transfer',object:'notebook',target:'book'}]).result;assert.ok(Math.abs(objectBounds(stacked.objects.find(o=>o.id==='notebook')).low[2]-objectBounds(s.objects.find(o=>o.id==='book')).high[2])<.02);assert.deepEqual(s,before);
+ const offDesk=planActions(s,[{type:'transfer',object:'notebook',target:'rear',posture:'short-edge'}]);assert.equal(snapshot(offDesk.result).objects.find(o=>o.id==='notebook').location,'floor');assert.deepEqual(s,before);
 });
 test('90 degree X, Y and Z turns preserve the requested axis and can restore or undo',()=>{
  for(const [axis,index] of [['x',0],['y',1],['z',2]]){
@@ -83,7 +83,7 @@ test('user-selected stacks and side-by-side orders preserve shelf height and can
  assert.equal(s.objects.find(o=>o.id==='pencil').position[2],35);assert.ok(s.objects.find(o=>o.id==='pencil').position[0]<s.objects.find(o=>o.id==='pen').position[0]);
  run(s,[{type:'transfer',object:'book',beside:'pencil',side:'rear'}]);
  assert.ok(s.objects.find(o=>o.id==='book').position[0]<s.objects.find(o=>o.id==='pencil').position[0],'the book fits beside the pencil with physical finger clearance');
- assert.throws(()=>planActions(s,[{type:'transfer',object:'notebook',beside:'book',side:'rear'}]),e=>e.message==='shelfEdge'&&e.preview.kind==='placement');
+ run(s,[{type:'transfer',object:'notebook',beside:'book',side:'rear'}]);assert.ok(s.objects.find(o=>o.id==='notebook').position[0]<s.objects.find(o=>o.id==='book').position[0]);
  run(s,[{type:'restore'}]);sameObjects(s,initialState(0,'desk'));
  assert.throws(()=>planActions(s,[{type:'move',position:[150,210,120]}]),/blocked/);
  assert.throws(()=>validateActions([{type:'pick',object:'laptop'}]),/unknown/);
@@ -98,7 +98,7 @@ test('side mount, desk edges and laptop are shared by perception and planning',(
  assert.equal(scene.obstacles.find(o=>o.id==='laptop').fixed,true);assert.equal(scene.obstacles.some(o=>o.id==='computer'),false);
  const wall=scene.obstacles.find(o=>o.id==='wall');assert.equal(wall.position[1]-wall.size[1]/2,DESK.max[1]);assert.equal(wall.fixed,true);
  assert.ok(s.objects.every(o=>o.position[0]>0));
- assert.throws(()=>planActions(s,[{type:'transfer',object:'book',target:'rear'}]),e=>e.message==='destination'&&e.detail.reason.includes('desk edge'));
+ const dropped=planActions(s,[{type:'transfer',object:'book',target:'rear'}]);assert.ok(dropped.steps.some(step=>step.type==='fall'));assert.equal(snapshot(dropped.result).objects.find(o=>o.id==='book').location,'floor');
 });
 test('restore can undo swapped starts on the narrow desk using a clear shelf space',()=>{
  const s=initialState(0,'desk'),before=structuredClone(s);
@@ -189,7 +189,7 @@ test('arbitrary table placement and relative placement use each object size',()=
 });
 test('rejected actions are atomic and report actionable collision or support details',()=>{
  const s=initialState(),before=structuredClone(s);
- assert.throws(()=>planActions(s,[{type:'pick',object:'book'},{type:'place',target:'glue'}]),e=>e.message==='unstable'&&e.detail.support==='glue');
+ const placed=planActions(s,[{type:'pick',object:'book'},{type:'place',target:'glue'}]);assert.equal(placed.result.held,null);assert.ok(Math.abs(objectBounds(placed.result.objects.find(o=>o.id==='book')).low[2]-objectBounds(s.objects.find(o=>o.id==='glue')).high[2])<.02);
  assert.deepEqual(s,before);
  assert.throws(()=>planActions(s,[{type:'move',position:[70,135,70]}]),e=>e.message==='blocked'&&!!e.detail.blocker);
  assert.deepEqual(s,before);

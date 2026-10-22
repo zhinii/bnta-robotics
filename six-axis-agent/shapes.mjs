@@ -1,5 +1,5 @@
-import {box,cylinder,xyz,I,at,bounds,alongY} from './collision.mjs?v=vision-20261022-1';
-import {transform} from './kinematics.mjs?v=vision-20261022-1';
+import {box,cylinder,xyz,I,at,bounds,alongY} from './collision.mjs?v=freedom-20261022-1';
+import {transform} from './kinematics.mjs?v=freedom-20261022-1';
 const zAxis=xyz([90,0,0]);
 export const GRIPPER={maxOpening:62,clearance:1,travelOpening:0,jawSpeed:60};
 export const LINK_RADII=[20,17,13,11,10],JOINT_RADII=[28,24,22,17,15,12],JOINT_LENGTHS=[38,44,39,30,27,24],CAP_RADII=[20,18,16,12,10,8],CAP_OFFSETS=[20,23,20.5,16,14.5,13];

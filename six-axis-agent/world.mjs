@@ -1,12 +1,13 @@
-import { homeFor, ikTool, toolPose, valid, distance, transform, rotationFromEuler, multiply, JOINTS, orientationError } from './kinematics.mjs?v=vision-20261022-1';
-import {at,shape,cylinder,bounds,overlaps,broadOverlap,xyz} from './collision.mjs?v=vision-20261022-1';
-import {objectGeometry,objectShapes,objectBounds,gripperGeometry,armGeometry,projectedWidth,GRIPPER,GRIPPER_CONTACT} from './shapes.mjs?v=vision-20261022-1';
+import { homeFor, ikTool, toolPose, valid, distance, transform, rotationFromEuler, multiply, JOINTS, orientationError } from './kinematics.mjs?v=freedom-20261022-1';
+import {at,shape,cylinder,bounds,overlaps,broadOverlap,xyz} from './collision.mjs?v=freedom-20261022-1';
+import {objectGeometry,objectShapes,objectBounds,gripperGeometry,armGeometry,projectedWidth,GRIPPER,GRIPPER_CONTACT} from './shapes.mjs?v=freedom-20261022-1';
 
 export const AREAS={left:[170,-230],right:[170,230],rear:[-280,0],front:[280,0]};
 export const HOME=[210,0,150];
 export const BLOCKS=['red','blue','yellow'];
 // Robot-local coordinates: the mount is near the short edge, facing across the desk.
 export const DESK={min:[-60,-215],max:[560,215]};
+export const FLOOR_Z=-390;
 export const ORGANIZER={id:'organizer',name:'low organizer shelf',zh:'矮整理架',position:[230,160,14],size:[220,100,28],surface:true,fixed:true};
 export const WRITING_TOOL={diameter:14,length:88};
 const holderInside=WRITING_TOOL.diameter*2.5,holderWall=3,holderHeight=WRITING_TOOL.length/2;
@@ -50,6 +51,35 @@ function carriedPose(state,pose){
 export function graspWidth(state){const o=state.objects.find(o=>o.id===state.held);return state.jawWidth??(o?projectedWidth(o,state.grasp?.rotation||identity):(state.approachWidth??GRIPPER.travelOpening));}
 export const relativeBounds=(object,rpy=object.rpy||[0,0,object.yaw||0])=>bounds(at(objectGeometry(object),[0,0,0],rotationFromEuler(Array.isArray(rpy)?rpy:[0,0,rpy])));
 export const footprint=(object,rpy)=>{const b=relativeBounds(object,rpy);return b.high.map((v,i)=>v-b.low[i]);};
+
+// Gravity checks the same individual convex parts as the robot planner. A
+// released item may land on any object or miss the finite desk and hit the floor.
+// This is vertical settling, without a rigid-body bounce or tipping simulation.
+export function dropStep(state,ids){
+  const falling=ids.map(id=>state.objects.find(o=>o.id===id));
+  if(falling.some(o=>!o))throw Error('unknown');
+  const solids=[...state.obstacles,...state.objects.filter(o=>!ids.includes(o.id))].flatMap(objectShapes);
+  solids.push(shape({kind:'box',size:[DESK.max[0]-DESK.min[0],DESK.max[1]-DESK.min[1],24],center:[(DESK.min[0]+DESK.max[0])/2,(DESK.min[1]+DESK.max[1])/2,-12]}));
+  const startBottom=Math.min(...falling.map(o=>objectBounds(o).low[2])),maximum=Math.max(0,startBottom-FLOOR_Z);
+  const collides=distance=>falling.some(o=>at(objectGeometry(o),o.position.map((v,i)=>v-(i===2?distance:0)),rotationFromEuler(o.rpy)).some(part=>solids.some(solid=>broadOverlap(part,solid)&&overlaps(part,solid,-.00001))));
+  let fall=maximum,previous=0;
+  for(let d=Math.min(1,maximum);d<=maximum&&maximum>0;d=Math.min(maximum,d+1)){
+    if(collides(d)){let low=previous,high=d;for(let n=0;n<12;n++){const mid=(low+high)/2;if(collides(mid))high=mid;else low=mid;}fall=low;break;}
+    if(d===maximum)break;previous=d;
+  }
+  const positions=falling.map(o=>({object:o.id,position:o.position.map((v,i)=>v-(i===2?fall:0))}));
+  return {type:'fall',...positions[0],positions,seconds:Math.max(.16,Math.min(1.2,Math.sqrt(2*fall/9800)))};
+}
+
+export function shiftPosition(state,action){
+  const object=state.objects.find(o=>o.id===action.object);if(!object)throw Error('unknown');
+  const origin=state.held===object.id&&state.pickup?state.pickup.position:object.position;
+  if(action.offset)return origin.slice(0,2).map((v,i)=>v+action.offset[i]);
+  const reference=state.objects.find(o=>o.id===(action.reference||object.id)),unit=action.unit||'mm';
+  const scale=unit==='cm'?10:unit==='mm'?1:unit==='width'?reference.size[0]:unit==='length'?Math.max(...reference.size):unit==='height'?footprint(reference)[2]:footprint(reference)[1];
+  const [axis,sign]={left:[0,-1],right:[0,1],front:[1,-1],back:[1,1]}[action.direction];
+  const position=origin.slice(0,2);position[axis]+=sign*action.distance*scale;return position;
+}
 
 export function objectPosture(object){
   const r=rotationFromEuler(object.rpy),axis=[0,1,2].find(i=>Math.abs(r[6+i])>.9999);
@@ -111,6 +141,9 @@ export function objectLocation(s,o,seen=new Set()){
   if(support)return {location:'on-object',support:support.id,onShelf:!!withinShelf&&objectLocation(s,support,seen).onShelf};
   if(withinShelf&&Math.abs(b.low[2]-(shelf.position[2]+shelf.size[2]/2))<.5)return {location:'shelf',support:shelf.id,onShelf:true};
   if(Math.abs(b.low[2])<.5)return {location:'desk',support:'desk',onShelf:false};
+  if(Math.abs(b.low[2]-FLOOR_Z)<.5)return {location:'floor',support:'floor',onShelf:false};
+  const fixed=s.obstacles.find(item=>item.id!=='wall'&&objectShapes(o).some(part=>objectShapes(item).some(base=>overlaps({...part,position:part.position.map((v,i)=>v-(i===2?.3:0)),low:part.low.map((v,i)=>v-(i===2?.3:0)),high:part.high.map((v,i)=>v-(i===2?.3:0))},base))));
+  if(fixed)return {location:'on-object',support:fixed.id,onShelf:false};
   return {location:'unsupported',support:null,onShelf:false};
 }
 export function shelfSpace(s,o){
@@ -151,8 +184,8 @@ export function snapshot(s) {
     containers:[...s.objects,...s.obstacles].filter(o=>o.container).map(h=>({...structuredClone(h),contents:s.objects.filter(o=>inHolder(s,o)).map(o=>o.id)})),
     objects:s.objects.map(({retrievalPath,lastGraspQ,motionHints,targetRpy,...o})=>({...structuredClone(o),...objectLocation(s,o),bounds:objectBounds(o),shelfClearance:shelfSpace(s,o),posture:objectPosture(o),restingOn:restingFace(o),worldSize:footprint(o),stackable:stackSupport(o),clearAbove:blocksAbove(s,o.id).length===0})),obstacles:structuredClone(s.obstacles||[]),homes:structuredClone(s.homes||{}),tableAreas:s.kit==='desk'?Object.fromEntries(Object.entries(AREAS).filter(([,p])=>p.every((v,i)=>v>=DESK.min[i]&&v<=DESK.max[i]))):AREAS,
     context:s.kit==='desk'?'A messy desk in an ordinary student dorm room. The robot is clamped to one short side of the desk, facing across it, not mounted in its centre. The movable items and organizer are in front of the mount within its working area. The user decides where items belong and their order, including stacks or side-by-side arrangements on the low organizer. Shelf spaces are optional homes, not assigned categories. The bed, room, laptop, lamp and organizer are fixed.':'A tabletop practice scene.',
-    ...(s.kit==='desk'?{deskBounds:DESK,robotMount:[0,0,0],viewerDirections:{left:'rear',right:'front',towardChair:'left',towardWall:'right'},layout:'The robot is on the short edge. The laptop is centred facing the chair. The low shelf runs along the wall-side long edge; shelf left-to-right follows increasing robot-local X.'}:{}),
-    capabilities:['pick uncovered school objects','place on clear desk or organizer space, beside objects, at starts, or stack on flat objects','rotate held objects around X, Y or Z, preserving orientation when placed','restore starting positions and orientations','undo completed tasks','move and orient the tool','dance, wave, bow, circle or move up and down','home'],
+    ...(s.kit==='desk'?{deskBounds:DESK,floorZ:FLOOR_Z,relativeDirections:{left:[-1,0],right:[1,0],front:[0,-1],back:[0,1]},robotMount:[0,0,0],viewerDirections:{left:'rear',right:'front',towardChair:'left',towardWall:'right'},layout:'The robot is on the short edge. The laptop is centred facing the chair. The low shelf runs along the wall-side long edge; shelf left-to-right follows increasing robot-local X.'}:{}),
+    capabilities:['pick uncovered school objects','place anywhere on continuous desk or shelf surfaces, relative to objects or current position','shift by measured distance or an object dimension','release here or drop onto any object or off the desk; gravity lands on geometry or the room floor','rotate held objects around X, Y or Z, preserving orientation when placed','restore starting positions and orientations','undo completed tasks','move and orient the tool','dance, wave, bow, circle or move up and down','home'],
     coordinates:'Robot-local mm and degrees; +X front of robot, -X behind robot, -Y robot left, +Y robot right, +Z up; position is gripper grasp centre. The whole dorm workstation is turned 90 degrees in the room and the +Y desk edge meets the wall.',limits:{position:[[-340,340],[-340,340],[8,330]],jointDegrees:JOINTS.map(j=>j.limits)},units:'mm/degrees'};
 }
 const COLLISION_GAP=.5,CONTACT_TOLERANCE=.2;
@@ -202,21 +235,36 @@ export function clearPose(q,state,contact=null,detail={}) {
 const vector=v=>Array.isArray(v)&&v.length===3&&v.every(Number.isFinite);
 export function validateActions(actions) {
   if(!Array.isArray(actions)||actions.length>12)throw Error('invalid');
-  const schema={pick:['type','object','approach'],transfer:['type','object','target','position','beside','side','orientation','posture','approach'],place:['type','target','position','beside','side','orientation','posture'],rotate:['type','angle','axis'],move:['type','position','orientation'],pose:['type','joints'],home:['type'],dance:['type','style','repeat'],wave:['type','repeat'],bow:['type','repeat'],circle:['type','repeat'],bob:['type','repeat'],gesture:['type','points','tempo','repeat'],restore:['type'],undo:['type']};
+  const placement=['type','object','target','position','beside','side','relation','surface','orientation','posture','approach'];
+  const schema={pick:['type','object','approach'],transfer:placement,place:placement,drop:placement,release:['type'],shift:['type','object','offset','direction','distance','unit','reference','approach','orientation','posture'],rotate:['type','angle','axis'],move:['type','position','orientation'],pose:['type','joints'],home:['type'],dance:['type','style','repeat'],wave:['type','repeat'],bow:['type','repeat'],circle:['type','repeat'],bob:['type','repeat'],gesture:['type','points','tempo','repeat'],restore:['type'],undo:['type']};
   return actions.map(a=>{
     if(!a||typeof a!=='object'||Array.isArray(a)||!Object.hasOwn(schema,a.type)||Object.keys(a).some(k=>!schema[a.type].includes(k)))throw Error('invalid');
-    if(['pick','transfer'].includes(a.type)&&!Object.hasOwn(CATALOG,a.object))throw Error('unknown');
+    a=structuredClone(a);
+    // Providers sometimes wrap the destination in an object. Normalize this
+    // structural equivalent once; movement semantics remain in the controller.
+    if(a.target&&typeof a.target==='object'&&!Array.isArray(a.target)&&Object.keys(a.target).every(k=>['position','beside','side','relation','surface'].includes(k))){const {target,...rest}=a;a={...rest,...target};}
+    if(['pick','transfer','shift'].includes(a.type)&&!Object.hasOwn(CATALOG,a.object))throw Error('unknown');
+    if('object'in a&&!Object.hasOwn(CATALOG,a.object))throw Error('unknown');
+    if(a.type==='shift'){
+      if('offset'in a){if(!Array.isArray(a.offset)||a.offset.length!==2||!a.offset.every(Number.isFinite)||['direction','distance','unit','reference'].some(k=>k in a))throw Error('destination');}
+      else if(!['left','right','front','back'].includes(a.direction)||!Number.isFinite(a.distance)||a.distance<=0||!['mm','cm','width','length','height','depth'].includes(a.unit||'mm')||a.reference!==undefined&&!Object.hasOwn(CATALOG,a.reference))throw Error('distance');
+    }
     if('approach'in a&&!['auto','top','front','back','left','right'].includes(a.approach))throw Error('invalid');
-    if(['place','transfer'].includes(a.type)){
-      if(['target','position','beside'].filter(k=>k in a).length!==1)throw Error('destination');
-      if('target'in a&&!Object.hasOwn(AREAS,a.target)&&!Object.hasOwn(HOMES,a.target)&&!Object.hasOwn(CATALOG,a.target)&&!['start','shelf','pen-holder'].includes(a.target)&&!Object.keys(CATALOG).some(c=>a.target===c+'-start'))throw Error('destination');
-      if('position'in a&&(!Array.isArray(a.position)||a.position.length!==2||!a.position.every(Number.isFinite)||Math.hypot(...a.position)>330))throw Error('destination');
+    if(['place','transfer','drop'].includes(a.type)){
+      if(a.target==='table')a.target='desk';
+      if(!['target','position','beside'].some(k=>k in a)&&(a.type!=='drop'||a.orientation||a.posture))a.target='current';
+      if(a.target===a.object&&(a.orientation||a.posture))a.target='current';
+      if(a.relation){const sides={left:'rear',right:'front',front:'left',back:'right',beside:'auto'};if(!a.beside||!Object.hasOwn(sides,a.relation))throw Error('destination');a.side=sides[a.relation];delete a.relation;}
+      if(['target','position','beside'].filter(k=>k in a).length!==(a.type==='drop'&&!['target','position','beside'].some(k=>k in a)?0:1))throw Error('destination');
+      if('target'in a&&!Object.hasOwn(AREAS,a.target)&&!Object.hasOwn(HOMES,a.target)&&!Object.hasOwn(CATALOG,a.target)&&!['start','current','desk','shelf','pen-holder','laptop','lamp'].includes(a.target)&&!Object.keys(CATALOG).some(c=>a.target===c+'-start'))throw Error('destination');
+      if('position'in a&&(!Array.isArray(a.position)||a.position.length!==2||!a.position.every(Number.isFinite)))throw Error('destination');
+      if('surface'in a&&!['desk','shelf'].includes(a.surface))throw Error('destination');
       if('beside'in a&&(!Object.hasOwn(CATALOG,a.beside)||(a.side!==undefined&&!['auto','left','right','front','rear'].includes(a.side))))throw Error('destination');
       if('side'in a&&!('beside'in a))throw Error('destination');
     }
     if(a.type==='rotate'&&(!Number.isFinite(a.angle)||Math.abs(a.angle)>180))throw Error('angle');
     if('axis'in a&&!['x','y','z'].includes(a.axis))throw Error('angle');
-    if(a.type==='move'&&(!vector(a.position)||Math.hypot(...a.position.slice(0,2))>340||a.position[2]<8||a.position[2]>330))throw Error('reach');
+    if(a.type==='move'&&(!vector(a.position)))throw Error('reach');
     if('orientation'in a&&(!vector(a.orientation)||a.orientation.some(v=>Math.abs(v)>180)))throw Error('angle');
     if('posture'in a&&(!['flat','short-edge','long-edge','upright','face-down','spine'].includes(a.posture)||'orientation'in a||a.posture==='spine'&&!['book','notebook',undefined].includes(a.object)))throw Error('angle');
     if(a.type==='pose'&&(!Array.isArray(a.joints)||a.joints.length!==6||!valid(a.joints)))throw Error('reach');
@@ -228,7 +276,7 @@ export function validateActions(actions) {
   });
 }
 export function planActions(state,actions,options={}) {
-  validateActions(actions);
+  actions=validateActions(actions);
   const s=structuredClone(state),steps=[];let destination=null,simpleSearch=false,deadline=Infinity,candidateDeadline=Infinity;
   const requestDeadline=performance.now()+(options.maxPlanningMs??35000);
   const checkBudget=()=>{const now=performance.now();if(now>deadline)throw Error('planningTimeout');if(now>candidateDeadline)throw Error('candidateBudget');};
@@ -451,31 +499,33 @@ export function planActions(state,actions,options={}) {
     const slots=holder?holder.slots.map(p=>transform(rotationFromEuler(holder.rpy||[0,0,0]),[...p,0]).map((v,i)=>v+holder.position[i]).slice(0,2)):[];
     const slot=slots.find(p=>!s.objects.some(o=>o.id!==held.id&&!o.container&&Math.hypot(o.position[0]-p[0],o.position[1]-p[1])<20));
     if(holder&&!slot)throw Error('holderFull');
-    if(support&&blocksAbove(s,support.id).length)throw Error('covered');
+    if(support&&action.type!=='drop'&&blocksAbove(s,support.id).length)throw Error('covered');
     const start=action.target==='start'?held:s.objects.find(o=>action.target===o.id+'-start');
-    if(support&&(!stackSupport(support)||heldSize[0]>footprint(support)[0]*1.35||heldSize[1]>footprint(support)[1]*1.35))throw Object.assign(Error('unstable'),{detail:{object:held.id,support:support.id,reason:'the support is not flat or wide enough for stable stacking'}});
     const anchor=s.objects.find(o=>o.id===action.beside);
     const home=s.homes?.[action.target];
     let xy=action.position||home?.position.slice(0,2)||AREAS[action.target];
+    if(action.target==='current')xy=(s.held===held.id&&s.pickup?s.pickup.position:held.position).slice(0,2);
+    const fixedSupport=s.obstacles.find(o=>o.id===action.target&&!o.surface);
+    if(fixedSupport)xy=fixedSupport.position.slice(0,2);
     if(action.beside){if(!anchor||anchor.id===held.id)throw Error('destination');const axis=['left','right'].includes(action.side)?1:0,sign=['left','rear'].includes(action.side)?-1:1;xy=anchor.position.slice(0,2);xy[axis]+=sign*((heldSize[axis]+footprint(anchor)[axis])/2+(action.spacing??1));}
-    const surface=xy&&(s.obstacles||[]).find(o=>o.surface&&[0,1].every(i=>Math.abs(xy[i]-o.position[i])<(o.size[i]+heldSize[i])/2));
+    const surface=action.surface!=='desk'&&xy&&(s.obstacles||[]).find(o=>o.surface&&[0,1].every(i=>Math.abs(xy[i]-o.position[i])<o.size[i]/2));
     const point=holder?[...slot,holderFloor(holder)+bottom]:start?[...start.origin.slice(0,2),bottom]:(support?[support.position[0],support.position[1],objectBounds(support).high[2]+bottom]:xy?[...xy,(surface?surface.position[2]+surface.size[2]/2:0)+bottom]:null);
     if(!point)throw Error('destination');
+    if(action.supportZ!==undefined)point[2]=action.supportZ+bottom;
+    if(action.surface==='shelf')point[2]=ORGANIZER.position[2]+ORGANIZER.size[2]/2+bottom;
     destination={...structuredClone(held),position:[...point],rpy:[...rpy]};
-    if(surface&&![0,1].every(i=>Math.abs(xy[i]-surface.position[i])+heldSize[i]/2<=surface.size[i]/2-2))throw Object.assign(Error('shelfEdge'),{preview:diagnostic('placement')});
-    if(anchor&&anchor.position[2]-footprint(anchor)[2]/2>1&&!surface)throw Object.assign(Error('shelfEdge'),{preview:diagnostic('placement')});
-    if(s.kit==='desk'&&[0,1].some(i=>point[i]-heldSize[i]/2<DESK.min[i]+2||point[i]+heldSize[i]/2>DESK.max[i]-2))throw Object.assign(Error('destination'),{preview:diagnostic('placement'),detail:{constraint:'deskEdge',reason:'the item would extend beyond the desk edge; choose a position on the desk or organizer'}});
+    if(fixedSupport)point[2]=objectBounds(fixedSupport).high[2]+bottom+35;
     const placedShapes=at(objectGeometry(held),point,rotationFromEuler(rpy));
     const occupant=s.objects.find(o=>o.id!==held.id&&!(held.container&&inHolder(s,o))&&!s.cargo?.some(c=>c.id===o.id)&&placedShapes.some(a=>objectShapes(o).some(b=>overlaps(a,b,a.low[2]>=b.high[2]-.2?-.2:COLLISION_GAP))));
-    if(occupant){const detail={blocker:occupant.id};throw Object.assign(Error('occupied'),{detail,preview:diagnostic('collision',detail)});}
+    if(occupant&&action.type!=='drop'){const detail={blocker:occupant.id};throw Object.assign(Error('occupied'),{detail,preview:diagnostic('collision',detail)});}
     // Release 30 mm above the rim: the higher approach clears the laptop
     // when the cup is on the shelf and keeps the preferred grip retrievable.
-    const releasePoint=holder?[point[0],point[1],point[2]+holder.size[2]+30-holder.floor]:point;
-    return {held,rpy,holder,point,releasePoint};
+    const releasePoint=holder?[point[0],point[1],point[2]+holder.size[2]+30-holder.floor]:action.type==='drop'?[point[0],point[1],point[2]+50]:point;
+    return {held,rpy,holder,point,releasePoint,fall:!!fixedSupport||action.type==='drop'||s.kit==='desk'&&[0,1].some(i=>point[i]<DESK.min[i]||point[i]>DESK.max[i])};
   }
   function place(action){
     checkBudget();
-    const {held,rpy,holder,point,releasePoint}=locate(action);
+    const {held,rpy,holder,point,releasePoint,fall}=locate(action);
     if(holder){
       // Check each actual writing-tool part throughout the fall, including
       // the tapered tip. The holder opening is empty space, not a solid box.
@@ -508,7 +558,7 @@ export function planActions(state,actions,options={}) {
     // Include the turning approach too, so withdrawal ends clear of the cup
     // instead of stopping beside the newly upright item.
     const approach=holder?[...steps.slice(Math.max(0,steps.findLastIndex(step=>step.type==='grip')+1),approachStart).filter(step=>step.type==='move'),approachPose,...steps.slice(approachStart).filter(step=>step.type==='move')]:null;
-    const released=s.held;opening(Math.min(GRIPPER.maxOpening,graspWidth(s)+2*GRIPPER.clearance));
+    const released=s.held,cargo=(s.cargo||[]).map(o=>o.id);opening(Math.min(GRIPPER.maxOpening,graspWidth(s)+2*GRIPPER.clearance));
     if(holder){
       const pose=toolPose(s.q),robot=[...at(gripperGeometry(graspWidth(s)),pose.tip,pose.rotation),...armGeometry(pose).map(p=>shape(p))],count=Math.ceil(releasePoint[2]-point[2]);
       for(let i=0;i<=count;i++){
@@ -524,7 +574,7 @@ export function planActions(state,actions,options={}) {
     const step={type:'release',position:[...releasePoint],rpy:[...rpy]};applyStep(s,step);steps.push(step);
     if(holder){
       const fall={type:'fall',object:released,position:[...point],seconds:.3};applyStep(s,fall);steps.push(fall);
-    }
+    }else if(fall||action.supportZ!==undefined||action.surface==='shelf'){const step=dropStep(s,[released,...cargo]);if(fall||step.positions.some(item=>distance(item.position,s.objects.find(o=>o.id===item.object).position)>.01)){applyStep(s,step);steps.push(step);}}
     const saved=structuredClone(s),length=steps.length;
     let withdrawn=false,failure;
     const tip=toolPose(s.q).tip,back=transform(rotationFromEuler(s.rpy),[0,0,32]);
@@ -548,6 +598,8 @@ export function planActions(state,actions,options={}) {
     const saved=structuredClone(s),length=steps.length,id=action.object||s.held;
     if(!id)throw Error('empty');if(s.held&&s.held!==id)throw Error('holding');
     const object=s.objects.find(o=>o.id===id);if(!object)throw Error('unknown');
+    // Resolve once, before temporary supported set-downs or regrips can move it.
+    if(action.target==='current'){const rest=s.held===id&&s.pickup?{...object,...s.pickup}:object;action={...action,position:rest.position.slice(0,2),supportZ:objectBounds(rest).low[2]};delete action.target;}
     if(action.posture==='spine'&&!['book','notebook'].includes(id))throw Error('angle');
     if(action.target==='pen-holder'&&!['pen','pencil'].includes(id))throw Error('holderFit');
     if(action.target==='pen-holder'&&['flat','long-edge'].includes(action.posture))throw Error('holderFit');
@@ -563,7 +615,11 @@ export function planActions(state,actions,options={}) {
     const placements=[];
     for(const orientation of orientations){
       let locations=[action];
-      if(action.target==='shelf'){
+      if(action.target==='desk'){
+        const origin=(s.held===id&&s.pickup?s.pickup.position:object.position).slice(0,2),positions=[origin];
+        for(const radius of [30,60,90,120,160,210,270])for(const [dx,dy] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]])positions.push([origin[0]+dx*radius,origin[1]+dy*radius]);
+        locations=positions.filter(p=>p.every((v,i)=>v>=DESK.min[i]&&v<=DESK.max[i])).map(position=>{const a={...action,position,surface:'desk'};delete a.target;return a;});
+      }else if(action.target==='shelf'){
         locations=shelfCandidates(s,object,orientation).map(position=>{const a={...action,position};delete a.target;return a;});
       }else if(action.beside){
         const sides=!action.side||action.side==='auto'?['front','rear','left','right']:[action.side];
@@ -708,6 +764,18 @@ export function planActions(state,actions,options={}) {
       arrange(action);
     }
     else if(action.type==='place')arrange(action);
+    else if(action.type==='shift'){
+      const object=s.objects.find(o=>o.id===action.object),rest=s.held===object.id&&s.pickup?{...object,...s.pickup}:object;
+      arrange({type:'transfer',object:action.object,position:shiftPosition(s,action),supportZ:objectBounds(rest).low[2],...(action.orientation?{orientation:action.orientation}:{}),...(action.posture?{posture:action.posture}:{}),...(action.approach?{approach:action.approach}:{})});
+    }
+    else if(action.type==='release'||action.type==='drop'&&!['target','position','beside'].some(k=>k in action)){
+      if(!s.held)throw Error('empty');
+      const object=s.objects.find(o=>o.id===s.held),ids=[s.held,...(s.cargo||[]).map(o=>o.id)];
+      opening(Math.min(GRIPPER.maxOpening,graspWidth(s)+2*GRIPPER.clearance));
+      const release={type:'release',position:[...object.position],rpy:[...object.rpy]};applyStep(s,release);steps.push(release);
+      const fall=dropStep(s,ids);applyStep(s,fall);steps.push(fall);
+    }
+    else if(action.type==='drop')arrange(action);
     else if(action.type==='restore')restore();
     else if(action.type==='undo')throw Error('undoOnly');
     else if(action.type==='rotate')rotate(action);
@@ -751,7 +819,7 @@ function rememberConfiguration(object,q){
 }
 export function applyStep(state,step){
   if(step.type==='preshape'){state.jawWidth=step.width;state.approachWidth=step.width;}
-  else if(step.type==='fall'){const object=state.objects.find(o=>o.id===step.object);object.position=[...step.position];}
+  else if(step.type==='fall'){for(const item of step.positions||[step])state.objects.find(o=>o.id===item.object).position=[...item.position];}
   else if(step.type==='move'){
     state.q=[...step.q];state.rpy=[...(step.rpy||[0,0,step.yaw])];state.yaw=state.rpy[2];
     if(state.held){const block=state.objects.find(o=>o.id===state.held),pose=carriedPose(state,toolPose(state.q));block.position=pose.position;block.rpy=euler(pose.rotation);block.targetRpy=euler(multiply(rotationFromEuler(state.rpy),state.grasp?.rotation||identity));block.yaw=block.rpy[2];for(const item of state.cargo||[]){const load=state.objects.find(o=>o.id===item.id);load.position=transform(pose.rotation,item.offset).map((v,i)=>v+block.position[i]);load.rpy=euler(multiply(pose.rotation,item.rotation));load.yaw=load.rpy[2];delete load.retrievalPath;delete load.lastGraspQ;}}
@@ -766,6 +834,7 @@ export function reverseSteps(state,steps,options={}){
     // of replaying the fall upward without a grip.
     const end=structuredClone(state);for(const step of steps)applyStep(end,step);
     const changed=state.objects.filter(o=>{const b=end.objects.find(b=>b.id===o.id);return distance(o.position,b.position)>.1||distance(o.rpy,b.rpy)>.1;});
+    if(changed.some(o=>objectLocation(end,end.objects.find(item=>item.id===o.id)).location==='floor'))return null;
     if(state.held)return null;
     changed.sort((a,b)=>{const x=end.objects.find(o=>o.id===a.id),y=end.objects.find(o=>o.id===b.id);return inHolder(end,x)&&inHolder(end,y)?x.position[1]-y.position[1]:y.position[2]-x.position[2];});
     try{
