@@ -1,6 +1,6 @@
 // Convex parts share their dimensions with the renderer. AABBs only reject
 // distant pairs; final overlap uses face and edge separating axes (SAT).
-import {rotationFromEuler,multiply,transform} from './kinematics.mjs?v=freedom-20261022-1';
+import {rotationFromEuler,multiply,transform} from './kinematics.mjs?v=freedom-20261022-2';
 export const I=[1,0,0,0,1,0,0,0,1];
 const dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
 const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];

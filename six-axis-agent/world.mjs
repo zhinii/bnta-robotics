@@ -1,6 +1,6 @@
-import { homeFor, ikTool, toolPose, valid, distance, transform, rotationFromEuler, multiply, JOINTS, orientationError } from './kinematics.mjs?v=freedom-20261022-1';
-import {at,shape,cylinder,bounds,overlaps,broadOverlap,xyz} from './collision.mjs?v=freedom-20261022-1';
-import {objectGeometry,objectShapes,objectBounds,gripperGeometry,armGeometry,projectedWidth,GRIPPER,GRIPPER_CONTACT} from './shapes.mjs?v=freedom-20261022-1';
+import { homeFor, ikTool, toolPose, valid, distance, transform, rotationFromEuler, multiply, JOINTS, orientationError } from './kinematics.mjs?v=freedom-20261022-2';
+import {at,shape,cylinder,bounds,overlaps,broadOverlap,xyz} from './collision.mjs?v=freedom-20261022-2';
+import {objectGeometry,objectShapes,objectBounds,gripperGeometry,armGeometry,projectedWidth,GRIPPER,GRIPPER_CONTACT} from './shapes.mjs?v=freedom-20261022-2';
 
 export const AREAS={left:[170,-230],right:[170,230],rear:[-280,0],front:[280,0]};
 export const HOME=[210,0,150];
@@ -235,7 +235,7 @@ export function clearPose(q,state,contact=null,detail={}) {
 const vector=v=>Array.isArray(v)&&v.length===3&&v.every(Number.isFinite);
 export function validateActions(actions) {
   if(!Array.isArray(actions)||actions.length>12)throw Error('invalid');
-  const placement=['type','object','target','position','beside','side','relation','surface','orientation','posture','approach'];
+  const placement=['type','object','target','position','beside','side','relation','surface','orientation','posture','approach','clearOf'];
   const schema={pick:['type','object','approach'],transfer:placement,place:placement,drop:placement,release:['type'],shift:['type','object','offset','direction','distance','unit','reference','approach','orientation','posture'],rotate:['type','angle','axis'],move:['type','position','orientation'],pose:['type','joints'],home:['type'],dance:['type','style','repeat'],wave:['type','repeat'],bow:['type','repeat'],circle:['type','repeat'],bob:['type','repeat'],gesture:['type','points','tempo','repeat'],restore:['type'],undo:['type']};
   return actions.map(a=>{
     if(!a||typeof a!=='object'||Array.isArray(a)||!Object.hasOwn(schema,a.type)||Object.keys(a).some(k=>!schema[a.type].includes(k)))throw Error('invalid');
@@ -259,6 +259,7 @@ export function validateActions(actions) {
       if('target'in a&&!Object.hasOwn(AREAS,a.target)&&!Object.hasOwn(HOMES,a.target)&&!Object.hasOwn(CATALOG,a.target)&&!['start','current','desk','shelf','pen-holder','laptop','lamp'].includes(a.target)&&!Object.keys(CATALOG).some(c=>a.target===c+'-start'))throw Error('destination');
       if('position'in a&&(!Array.isArray(a.position)||a.position.length!==2||!a.position.every(Number.isFinite)))throw Error('destination');
       if('surface'in a&&!['desk','shelf'].includes(a.surface))throw Error('destination');
+      if('clearOf'in a&&(a.type!=='drop'||!['desk','shelf'].includes(a.clearOf)))throw Error('destination');
       if('beside'in a&&(!Object.hasOwn(CATALOG,a.beside)||(a.side!==undefined&&!['auto','left','right','front','rear'].includes(a.side))))throw Error('destination');
       if('side'in a&&!('beside'in a))throw Error('destination');
     }
@@ -513,8 +514,13 @@ export function planActions(state,actions,options={}) {
     if(!point)throw Error('destination');
     if(action.supportZ!==undefined)point[2]=action.supportZ+bottom;
     if(action.surface==='shelf')point[2]=ORGANIZER.position[2]+ORGANIZER.size[2]/2+bottom;
-    destination={...structuredClone(held),position:[...point],rpy:[...rpy]};
     if(fixedSupport)point[2]=objectBounds(fixedSupport).high[2]+bottom+35;
+    if(action.clearOf){
+      const edge=action.clearOf==='desk'?DESK:{min:ORGANIZER.position.slice(0,2).map((v,i)=>v-ORGANIZER.size[i]/2),max:ORGANIZER.position.slice(0,2).map((v,i)=>v+ORGANIZER.size[i]/2)};
+      const sides=[0,1].flatMap(axis=>[{axis,sign:-1,distance:Math.abs(point[axis]-edge.min[axis])},{axis,sign:1,distance:Math.abs(point[axis]-edge.max[axis])}]).sort((a,b)=>a.distance-b.distance),side=sides[0];
+      point[side.axis]=side.sign<0?Math.min(point[side.axis],edge.min[side.axis]-heldBounds.high[side.axis]-5):Math.max(point[side.axis],edge.max[side.axis]-heldBounds.low[side.axis]+5);
+    }
+    destination={...structuredClone(held),position:[...point],rpy:[...rpy]};
     const placedShapes=at(objectGeometry(held),point,rotationFromEuler(rpy));
     const occupant=s.objects.find(o=>o.id!==held.id&&!(held.container&&inHolder(s,o))&&!s.cargo?.some(c=>c.id===o.id)&&placedShapes.some(a=>objectShapes(o).some(b=>overlaps(a,b,a.low[2]>=b.high[2]-.2?-.2:COLLISION_GAP))));
     if(occupant&&action.type!=='drop'){const detail={blocker:occupant.id};throw Object.assign(Error('occupied'),{detail,preview:diagnostic('collision',detail)});}

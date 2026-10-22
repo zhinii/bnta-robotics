@@ -1,4 +1,4 @@
-import { validateActions } from './world.mjs?v=freedom-20261022-1';
+import { validateActions } from './world.mjs?v=freedom-20261022-2';
 
 export const DEFAULTS = { base: 'https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1', model: 'qwen3.8-flash' };
 export const RELAY = 'https://bnta-robot-lab-connection.zhinii.chatgpt.site/api/chat';
@@ -55,6 +55,20 @@ export function pickupIntent(response,question){
   const side=/\bfrom (?:the )?(top|front|back|left|right)(?:[- ]hand)?(?: side)?\b/iu.exec(question)?.[1]?.toLowerCase()||({'上':'top','前':'front','后':'back','左':'left','右':'right'}[/从([上前后左右])(?:面|边|侧|方)?/u.exec(question)?.[1]]);
   if(!side)return response;
   return {...response,actions:response.actions.map(a=>['pick','transfer'].includes(a.type)?{...a,approach:side}:a)};
+}
+export function movementIntent(response,question){
+  const numeral=value=>{
+    if(Number.isFinite(Number(value)))return Number(value);
+    const named={a:1,an:1,one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,half:.5,quarter:.25,'半':.5,'零':0,'一':1,'二':2,'两':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9};
+    if(value in named)return named[value];
+    if(/^[零一二两三四五六七八九十百]+$/u.test(value)){let total=0,digit=0;for(const char of value){if(char==='十'||char==='百'){total+=(digit||1)*(char==='十'?10:100);digit=0;}else digit=named[char];}return total+digit;}
+    return NaN;
+  };
+  const measures=[...question.toLowerCase().matchAll(/(\d+(?:\.\d+)?|half|quarter|three|seven|eight|four|five|nine|one|two|six|ten|an?|[零一二两三四五六七八九十百半]+)\s*(?:an?\s+)?(centimet(?:re|er)s?|millimet(?:re|er)s?|cm\b|mm\b|厘米|公分|毫米)/gu)];
+  const shifts=response.actions.filter(a=>a.type==='shift');
+  const measured=measures.length===1&&shifts.length===1?{distance:numeral(measures[0][1]),unit:/^(?:c|厘米|公分)/u.test(measures[0][2])?'cm':'mm'}:null;
+  const offDesk=/\b(?:off|outside|beyond|over)\b.{0,45}\b(?:desk|table)\b|\b(?:desk|table)\b.{0,25}\bedge\b|(?:桌|书桌).*(?:边缘|外面|外边|掉下|扔下)|(?:扔|丢|掉).*(?:桌|书桌)/iu.test(question)&&/\b(?:drop|release|let go|off)\b|扔|丢|掉|松开/iu.test(question);
+  return {...response,actions:response.actions.map(a=>a.type==='shift'&&measured&&Number.isFinite(measured.distance)?{...a,...measured}:a.type==='drop'&&offDesk?{...a,clearOf:'desk'}:a)};
 }
 const creativeMotion=q=>/\b(?:dance|dancing|wave|wiggle|gesture|celebrate|celebration|bow|hello|hi|hey|goodbye|silly|playful)\b|跳舞|挥手|招手|扭动|庆祝|你好|再见/u.test(q.toLowerCase());
 const visionUnavailable=new WeakSet();
@@ -114,7 +128,7 @@ export async function askAgent(connection, {question,language,history,scene,feed
   const data=await response.json();
   if(data.perception?.imageStatus==='unavailable'){visionUnavailable.add(connection);sceneImage=null;}
   const raw=data?.choices?.[0]?.message?.content;
-  try { if(data?.choices?.[0]?.finish_reason==='length')throw Error('truncated');const parsed=pickupIntent(placementIntent(parseResponse(raw),question),question);return {...parsed,...(data.perception?.imageStatus?{imageStatus:data.perception.imageStatus}:{}),...(question==='connection_check'?{actions:[]}:{})}; } catch(error) {
+  try { if(data?.choices?.[0]?.finish_reason==='length')throw Error('truncated');const parsed=movementIntent(pickupIntent(placementIntent(parseResponse(raw),question),question),question);return {...parsed,...(data.perception?.imageStatus?{imageStatus:data.perception.imageStatus}:{}),...(question==='connection_check'?{actions:[]}:{})}; } catch(error) {
     if(attempt===0) {
       messages.push({role:'assistant',content:typeof raw==='string'?raw.slice(0,2500):'Invalid response'},
         {role:'user',content:JSON.stringify({question,language,scene,feedback:{...feedback,responseRepair:`Your response ${error.message==='truncated'?'was cut off before completion':'did not match the allowed action schema'}. Return a complete compact JSON object for this original request using exactly the system-defined action types and parameters. Prefer transfer for named-object placement; each transfer picks up and releases the object. If unsupported, explain why and return actions:[], without claiming execution. Keep reply and after brief.`}})});
