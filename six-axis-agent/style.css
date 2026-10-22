@@ -11,7 +11,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 header{height:64px;padding:0 3%;display:flex;justify-content:space-between;align-items:center;gap:12px;border-bottom:1px solid #dddfd7}
 .brand{display:flex;gap:10px;align-items:center;text-decoration:none;color:inherit;font-size:15px;white-space:nowrap}
 .brand b{font-weight:550}
-.brand-mark{display:grid;place-items:center;width:32px;height:32px;background:#244b3d;color:white;border-radius:9px;font-size:24px}
+.brand-mark{display:block;width:36px;height:36px;object-fit:contain;border-radius:4px;opacity:.85}
 .header-actions{display:flex;align-items:center;gap:12px}
 #language{background:transparent;border:1px solid #d5d9d2;border-radius:7px;padding:8px 12px;font-size:12px;min-height:44px}
 .status{font-size:11px;white-space:nowrap;color:#75664e}
@@ -29,9 +29,9 @@ h1{font-size:18px;font-weight:550;letter-spacing:-.025em;line-height:1.2;margin:
 .scene-mission{font-size:11px;line-height:1.4;margin:5px 0 0;color:#61746a;max-width:190px}
 .reset-button{pointer-events:auto;display:flex;align-items:center;gap:5px;flex-shrink:0;border:1px solid #617568;background:#fffefa;border-radius:7px;padding:8px 10px;min-height:44px;font-size:11px;font-weight:600}
 .reset-button>span:first-child{font-size:18px}
-#inventory{position:absolute;left:16px;bottom:35px;width:208px;padding:0 12px;background:#faf9f0e8;border:1px solid #ffffffa3;border-radius:10px;backdrop-filter:blur(5px);font-size:11px;color:#4b6053}
-#inventory summary{cursor:pointer;min-height:44px;padding:13px 0;font-weight:600}
-#inventory[open]{padding-bottom:10px}
+#inventory{position:absolute;left:16px;bottom:35px;width:max-content;max-width:174px;padding:9px 8px;background:#faf9f0e8;border:1px solid #ffffffa3;border-radius:10px;backdrop-filter:blur(5px);font-size:11px;color:#4b6053}
+#inventory h3{font-size:11px;margin:0 0 8px;font-weight:600}
+
 #inventory-items{list-style:none;margin:0 0 8px;padding:0;display:grid;gap:6px}
 #inventory-items li{display:flex;align-items:center;gap:7px}
 #inventory-items i{display:block;width:7px;height:7px;border-radius:50%;flex-shrink:0}
@@ -89,11 +89,11 @@ footer a{color:#61715f;text-decoration:none;white-space:nowrap}
 @keyframes appear{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 @media(max-width:900px){.conversation{padding:18px}.orbit-hint{display:none}}
 @media(max-width:900px){
-  header{height:60px;padding:0 12px;gap:8px}.brand{font-size:13px;gap:7px}.brand-mark{width:28px;height:28px;font-size:21px}.header-actions{gap:8px}.status{font-size:10px}#language{padding:8px 9px}
+  header{height:60px;padding:0 12px;gap:8px}.brand{font-size:12px;gap:7px}.brand-mark{width:30px;height:30px}.header-actions{gap:8px}.status{font-size:10px}#language{padding:8px 9px}
   main{display:block;height:auto;min-height:0;max-height:none}
   .workspace{height:clamp(280px,48svh,440px)}
   .scene-heading{top:12px;left:12px;width:282px;max-width:calc(100% - 24px);padding:9px 10px}.scene-heading h1{font-size:16px}.scene-mission{font-size:10px}
-  #inventory{left:12px;bottom:25px;width:185px}#inventory:not([open]){width:auto;min-width:135px}
+  #inventory{left:12px;bottom:25px;max-width:154px;padding:8px}
   .simulation-note{left:14px;bottom:8px;font-size:9px}
   .conversation{border-left:0;border-top:1px solid #dddfd7;height:auto;min-height:0;overflow:visible;padding:14px 12px 20px;gap:12px}
   #composer{padding:10px 12px}.message .body{font-size:14px}.footer-cn{display:none}footer{padding:12px;font-size:9px}

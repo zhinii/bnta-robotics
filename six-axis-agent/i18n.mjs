@@ -1,10 +1,13 @@
 export const words={
  en:{
+  cantConnect:'Can’t connect',connectionRetry:'Check your connection and press Connect to retry.',
+  hostedConnection:'Connect to the robot',hostedKeyNote:'The connection is managed for you. Press Connect to begin.',
+  managedAuth:'The robot service could not authenticate with Alibaba. Ask your teacher to check the saved server key.',managedModel:'The robot service could not use its configured AI model. Ask your teacher to check the server settings.',managedNetwork:'I couldn’t reach the robot’s AI service. Check your internet connection and press Connect to retry.',
   earlierMessages:'Earlier messages',ideas:'Command ideas',
   schoolConnection:'School server connection',schoolKeyNote:'Your school server supplies the Alibaba key. Press Connect to begin.',schoolReconnect:'Reconnect',
   resetShort:'Reset',inventory:'On the desk',inventoryHomes:'Homes: shelf · pen holder',inventoryFixed:'Fixed: laptop · lamp',inventoryHeld:'held',inventoryHolder:'in holder',inventoryShelf:'on shelf',
-  cupUpright:'Keep the cup upright so it can hold pens and pencils. I can move it to the shelf or another clear spot, or turn it around Z.',
-  holderFit:'The pen holder fits the pen and pencil standing upright. Books will not fit; choose a shelf space for them.',holderFull:'Both spaces in the pen holder are occupied. Tell me which item to take out and where it should go first.',
+  cupUpright:'Keep the holder upright so it can hold pens and pencils. I can move it to the shelf or another clear spot, or turn it around Z.',
+  holderFit:'The square holder fits the pen and pencil standing upright in opposite corners. Books will not fit; choose a shelf space for them.',holderFull:'Both spaces in the pen holder are occupied. Tell me which item to take out and where it should go first.',
   shelfFollowup:'Does that spot on the shelf work for you, or would you like it somewhere else?',
   previewReady:'Preview: green outlines show planned placements; the dashed line is the gripper path. Nothing has moved. Run it when you are ready.',
   previewCollision:'Red ghost: a rejected candidate would touch {object}. The outline marks the obstacle. This is one checked approach, not proof that every route is blocked. Nothing moved.',
@@ -42,6 +45,9 @@ export const words={
   mic:'Dictate a command',micStop:'Finish dictation',listening:'Listening… tap the microphone to finish.',speechReady:'Review the words above, then press Send.',speechUnavailable:'Speech recognition isn’t available in this browser. Open the page in a supported browser, or type your command.',speechDenied:'Microphone or speech permission was denied. Allow it in your browser’s site settings, or type your command.',speechEmpty:'I didn’t hear a command. Tap the microphone and try again, or type it.',speechDevice:'I couldn’t start the microphone. Check that a working microphone is connected and available.',speechNetwork:'The browser’s speech service could not complete recognition. Check the connection or type your command.',speechNote:'Dictation uses your browser’s speech service. Review before sending.'
  },
  zh:{
+  cantConnect:'无法连接',connectionRetry:'请检查网络连接，然后点击连接重试。',
+  hostedConnection:'连接机械臂',hostedKeyNote:'连接已配置。点击连接即可开始。',
+  managedAuth:'机械臂服务未能通过阿里云验证，请老师检查服务器中保存的密钥。',managedModel:'机械臂服务无法使用已配置的 AI 模型，请老师检查服务器设置。',managedNetwork:'无法连接机械臂的 AI 服务，请检查网络连接，然后点击连接重试。',
   earlierMessages:'之前的对话',ideas:'指令示例',
   schoolConnection:'学校服务器连接',schoolKeyNote:'阿里云密钥由学校服务器提供。点击连接开始使用。',schoolReconnect:'重新连接',
   resetShort:'重置',inventory:'桌面物品',inventoryHomes:'收纳位置：整理架 · 笔筒',inventoryFixed:'固定物品：笔记本电脑 · 台灯',inventoryHeld:'夹持中',inventoryHolder:'在笔筒内',inventoryShelf:'在整理架上',

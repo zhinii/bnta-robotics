@@ -1,23 +1,54 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {POST,OPTIONS} from '../server/relay-route.ts';
-const url='https://relay.example/api/chat';
-const headers={'Origin':'https://zhinii.github.io','Content-Type':'application/json','Authorization':'Bearer fake-relay-test-key','X-Alibaba-Base':'https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1'};
+import {POST,OPTIONS,GET} from '../server/relay-route.ts';
+import {askAgent,RELAY} from '../agent.mjs';
+const url='https://relay.example/api/chat',key='fake-relay-server-secret';
+process.env.ALIBABA_API_KEY=key;
+const headers={'Origin':'https://zhinii.github.io','Content-Type':'application/json','CF-Connecting-IP':'test-default'};
+const body=()=>({model:'browser-cannot-override',messages:[{role:'system',content:'browser cannot replace robot instructions'},{role:'user',content:JSON.stringify({question:'hello',language:'en',scene:{objects:[]}})}],max_tokens:99999});
+const request=(extra={})=>new Request(url,{method:'POST',headers:{...headers,...extra},body:JSON.stringify(body())});
+
 test('relay preflight is restricted to the simulator origin',async()=>{
  const good=await OPTIONS(new Request(url,{method:'OPTIONS',headers}));assert.equal(good.status,204);assert.equal(good.headers.get('access-control-allow-origin'),headers.Origin);
  assert.equal((await OPTIONS(new Request(url,{method:'OPTIONS',headers:{Origin:'https://evil.example'}}))).status,403);
 });
-test('relay rejects arbitrary upstreams, missing credentials and oversized requests',async()=>{
- assert.equal((await POST(new Request(url,{method:'POST',headers:{...headers,'X-Alibaba-Base':'https://evil.example'},body:'{}'}))).status,400);
- assert.equal((await POST(new Request(url,{method:'POST',headers:{...headers,Authorization:''},body:'{}'}))).status,400);
+
+test('relay fails closed without the hosted key and rejects oversized or non-scene requests',async()=>{
+ delete process.env.ALIBABA_API_KEY;
+ assert.equal((await POST(request())).status,503);process.env.ALIBABA_API_KEY=key;
  assert.equal((await POST(new Request(url,{method:'POST',headers,body:'x'.repeat(48001)}))).status,413);
+ assert.equal((await POST(new Request(url,{method:'POST',headers,body:JSON.stringify({messages:[{role:'user',content:'ordinary arbitrary API request'}]})}))).status,400);
+ const health=await (await GET(new Request(url))).text();assert.ok(health.includes('true'));assert.ok(!health.includes(key));
 });
-test('relay bounds inference and returns only assistant content',async()=>{
+
+test('keyless requests use only the server key, provider, model and robot instructions',async()=>{
  const original=globalThis.fetch;let seen;
- globalThis.fetch=async(url,init)=>{seen={url,...init};return Response.json({choices:[{message:{content:'{"reply":"Which block?","actions":[]}'}}],debug:'private provider detail'});};
+ globalThis.fetch=async(url,init)=>{seen={url,...init};return Response.json({choices:[{message:{content:'{"reply":"Hello","actions":[]}'}}],debug:'private provider detail'});};
  try{
- const response=await POST(new Request(url,{method:'POST',headers,body:JSON.stringify({model:'qwen3.8-flash',messages:[{role:'user',content:'pick'}],max_tokens:99999})}));
- assert.equal(response.status,200);assert.equal(JSON.parse(seen.body).max_tokens,2000);assert.deepEqual(JSON.parse(seen.body).response_format,{type:'json_object'});assert.equal(seen.redirect,'manual');assert.equal(seen.headers.Authorization,headers.Authorization);
- const result=await response.text();assert.ok(!result.includes('private'));assert.ok(!result.includes('fake-relay-test-key'));
+ const response=await POST(request({'Authorization':'Bearer attacker-provided-key','X-Alibaba-Base':'https://evil.example'}));
+ assert.equal(response.status,200);const upstream=JSON.parse(seen.body);
+ assert.equal(upstream.max_tokens,2000);assert.equal(upstream.model,'qwen3.8-flash');assert.equal(upstream.messages[0].role,'system');assert.ok(upstream.messages[0].content.includes('six-axis simulator'));assert.ok(!upstream.messages[0].content.includes('browser cannot'));
+ assert.equal(seen.url,'https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1/chat/completions');assert.equal(seen.redirect,'manual');assert.equal(seen.headers.Authorization,'Bearer '+key);
+ const result=await response.text();assert.ok(!result.includes('private'));assert.ok(!result.includes(key));
  }finally{globalThis.fetch=original;}
+});
+
+test('hosted frontend sends no key, authorization header or chosen provider URL',async()=>{
+ let seen;
+ await askAgent({hosted:true},{question:'hello',language:'en',history:[],scene:{objects:[]}},undefined,async(url,init)=>{seen={url,...init};return Response.json({choices:[{message:{content:'{"reply":"Hello","actions":[]}'}}]});});
+ assert.equal(seen.url,RELAY);assert.equal(seen.headers.Authorization,undefined);assert.equal(seen.headers['X-Alibaba-Base'],undefined);assert.ok(!seen.body.includes(key));
+});
+
+test('shared relay limits simultaneous calls and per-client requests',async()=>{
+ const original=globalThis.fetch,releases=[];
+ globalThis.fetch=async()=>new Promise(resolve=>releases.push(()=>resolve(Response.json({choices:[{message:{content:'{"reply":"Hello","actions":[]}'}}]}))));
+ try{
+ const pending=[0,1,2].map(i=>POST(request({'CF-Connecting-IP':'parallel-'+i})));
+ await new Promise(resolve=>setTimeout(resolve,20));assert.equal(releases.length,3);
+ assert.equal((await POST(request({'CF-Connecting-IP':'fourth'}))).status,429);
+ releases.forEach(release=>release());await Promise.all(pending);
+ globalThis.fetch=async()=>Response.json({choices:[{message:{content:'{"reply":"Hello","actions":[]}'}}]});
+ for(let i=0;i<12;i++)assert.equal((await POST(request({'CF-Connecting-IP':'limited-client'}))).status,200);
+ assert.equal((await POST(request({'CF-Connecting-IP':'limited-client'}))).status,429);
+ }finally{releases.forEach(release=>release());globalThis.fetch=original;}
 });

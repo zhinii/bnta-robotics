@@ -4,12 +4,12 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#f5f4f0">
   <meta name="description" content="This room is messy. Tell an AI-controlled robot how to organize a dorm room desk. A conversational robotics activity from Beijing New Talent Academy.">
-  <title>Robot Lab — Six Axis</title>
-  <link rel="stylesheet" href="./style.css?v=mobile-20261021-1">
+  <title>BNTA Robot Lab — Six Axis</title>
+  <link rel="stylesheet" href="./style.css?v=holder-20261022-1">
   <script type="importmap">{"imports":{"three":"../beginner-3axis/vendor/three/build/three.module.js"}}</script>
 </head>
-<body data-version="mobile-20261021-1">
-  <header><a class="brand" href="../"><span class="brand-mark">↗</span><span><b>Robot Lab</b></span></a>
+<body data-version="holder-20261022-1">
+  <header><div class="brand"><img class="brand-mark" src="./bnta-tree.png" alt="BNTA tree"><b>BNTA Robot Lab</b></div>
     <div class="header-actions"><span id="connection-state" class="status" role="status">Not connected</span><button id="language" aria-label="Switch to Chinese">中文</button></div>
   </header>
   <main>
@@ -17,17 +17,17 @@
       <div class="scene-heading"><div><span class="eyebrow" data-i18n="workspace">YOUR DORM ROOM DESK</span><h1 data-i18n="headline">This room is messy.</h1><p class="scene-mission" data-i18n="mission">Use your AI-controlled robot to organize the desk.</p></div>
         <button id="reset" class="reset-button" title="Reset scene" aria-label="Reset scene"><span aria-hidden="true">↺</span> <span data-i18n="resetShort">Reset</span></button></div>
       <div id="scene"><div id="render-error" hidden></div></div>
-      <details id="inventory"><summary data-i18n="inventory">On the desk</summary><ul id="inventory-items"></ul><p data-i18n="inventoryHomes">Homes: shelf · pen holder</p><p data-i18n="inventoryFixed">Fixed: laptop · lamp</p><span id="scene-state" role="status">Ready for a job</span></details>
+      <aside id="inventory" aria-label="Desk inventory"><h3 data-i18n="inventory">On the desk</h3><ul id="inventory-items"></ul><p data-i18n="inventoryHomes">Homes: shelf · pen holder</p><p data-i18n="inventoryFixed">Fixed: laptop · lamp</p><span id="scene-state" role="status">Ready for a job</span></aside>
       <div class="scene-bottom"><span class="orbit-hint" data-i18n="orbit">Drag to orbit · Scroll to zoom</span></div>
       <span class="simulation-note" data-i18n="simulation">6-axis kinematic simulation</span>
     </section>
     <section class="conversation" aria-label="Robot conversation">
       <div id="composer" role="group">
-        <label id="input-label" for="api-key" data-i18n="keyLabel">Your Alibaba API key</label>
-        <input id="api-key" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore placeholder="Paste your Alibaba API key" maxlength="512">
+        <label id="input-label" data-i18n="hostedConnection">Robot connection</label>
+        <input id="api-key" hidden type="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore placeholder="Paste your Alibaba API key" maxlength="512">
         <textarea id="prompt" rows="2" maxlength="1600" aria-label="Message the robot" placeholder="Tell the robot what to do…" hidden></textarea>
-        <details id="connection-options"><summary data-i18n="settings">Connection settings</summary><label for="base-url">API base URL</label><input id="base-url" type="url" value="https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1"><label for="model">Model</label><input id="model" value="qwen3.8-flash" spellcheck="false"></details>
-        <div class="composer-bottom"><button type="button" id="reconnect" hidden data-i18n="reconnect">Change connection</button><span id="key-note" data-i18n="keyNote">Used for this tab only. Never added to the chat.</span><button id="mic" type="button" hidden aria-label="Dictate a command" aria-pressed="false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8"/></svg></button><button id="send" type="button" data-i18n="connect">Connect ↗</button><button id="stop" type="button" hidden data-i18n="stop">■ Stop</button></div>
+        <details id="connection-options" hidden><summary data-i18n="settings">Connection settings</summary><label for="base-url">API base URL</label><input id="base-url" type="url" value="https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1"><label for="model">Model</label><input id="model" value="qwen3.8-flash" spellcheck="false"></details>
+        <div class="composer-bottom"><button type="button" id="reconnect" hidden data-i18n="reconnect">Change connection</button><span id="key-note" data-i18n="hostedKeyNote">Press Connect to begin.</span><button id="mic" type="button" hidden aria-label="Dictate a command" aria-pressed="false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8"/></svg></button><button id="send" type="button" data-i18n="connect">Connect ↗</button><button id="stop" type="button" hidden data-i18n="stop">■ Stop</button></div>
         <p id="speech-note" hidden data-i18n="speechNote">Dictation uses your browser’s speech service. Review before sending.</p>
       </div>
       <div id="activity" role="status"></div>
@@ -37,7 +37,7 @@
       <details id="suggestions" hidden><summary data-i18n="ideas">Command ideas</summary><div><button id="challenge" data-i18n="challenge">Try a challenge</button><button data-command="ask" data-i18n="suggestAsk">What can you do?</button></div></details>
     </section>
   </main>
-  <footer><span>Beijing New Talent Academy <span class="footer-cn">/ 北京市新英才学校</span></span><a href="https://github.com/zhinii/bnta-robotics/tree/main/six-axis-agent" data-i18n="source">About & source ↗</a></footer>
-  <script type="module" src="./main.mjs?v=mobile-20261021-1"></script>
+  <footer><span>Beijing New Talent Academy <span class="footer-cn">/ 北京市新英才学校</span></span></footer>
+  <script type="module" src="./main.mjs?v=holder-20261022-1"></script>
 </body>
 </html>

@@ -1,3 +1,3 @@
-// The school server replaces this response with non-secret deployment settings.
-// GitHub Pages keeps the existing per-tab API-key connection.
-export default null;
+// The school server replaces this with its same-origin school mode.
+// Public GitHub Pages uses the hosted relay's secret; no key enters the browser.
+export default {mode:'hosted'};

@@ -1,6 +1,6 @@
 # School server deployment
 
-This package hosts the six-axis simulator and Alibaba connection together. Students press **Connect**; the server supplies the key. The key is never sent to the browser. The existing GitHub Pages version still accepts a per-tab key and uses its existing relay.
+This package hosts the six-axis simulator and Alibaba connection together. Students press **Connect**; the server supplies the key. The key is never sent to the browser. The GitHub Pages version uses a key saved in its hosted relay; this school version uses only its own server configuration.
 
 Requires Linux, Python 3.9 or newer, SSH access and outbound HTTPS to the selected Alibaba endpoint. No pip packages, Node.js, root access or changes to the existing 8081 service are required. The documented address `192.168.230.31` and account `dell` come from the earlier school setup; replace them if your server has changed. Its current connectivity has not been checked.
 
@@ -9,7 +9,7 @@ Requires Linux, Python 3.9 or newer, SSH access and outbound HTTPS to the select
 Use the absolute local path of the provided archive:
 
 ```powershell
-scp "C:\Users\zhini\OneDrive\Documents\ChatGPT\collaborative workspace\robot-arm-lab\Robot-Lab-school-six-axis-20261021.tar.gz" dell@192.168.230.31:~/
+scp "C:\Users\zhini\OneDrive\Documents\ChatGPT\collaborative workspace\robot-arm-lab\Robot-Lab-school-six-axis-20261022.tar.gz" dell@192.168.230.31:~/
 ssh dell@192.168.230.31
 ```
 
@@ -17,7 +17,7 @@ ssh dell@192.168.230.31
 
 ```bash
 python3 --version
-tar -xzf "$HOME/Robot-Lab-school-six-axis-20261021.tar.gz" -C "$HOME"
+tar -xzf "$HOME/Robot-Lab-school-six-axis-20261022.tar.gz" -C "$HOME"
 cd "$HOME/robot-lab-school"
 python3 six-axis-agent/server/school_server.py configure --public-url http://192.168.230.31:8082 --port 8082
 ```

@@ -1,14 +1,14 @@
-import { validateActions } from './world.mjs?v=mobile-20261021-1';
+import { validateActions } from './world.mjs?v=holder-20261022-1';
 
 export const DEFAULTS = { base: 'https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1', model: 'qwen3.8-flash' };
 export const RELAY = 'https://bnta-robot-lab-connection.zhinii.chatgpt.site/api/chat';
 export const SYSTEM = `You are a friendly AI robot assistant organizing a messy DORM ROOM DESK in a six-axis simulator.
 Use the selected language (en or zh). Be warm, concise and playful. scene is authoritative engine perception: object IDs, names, sizes, positions, starts, orientations, clearAbove and stackable. There are NO placement pads.
-Follow scene.context. The robot faces the desk and organizer; the laptop and lamp are fixed obstacles. The shelf has three scene.homes spaces. Users choose the homes, order, stacks and side-by-side arrangement. Use the books, writing tools and cup listed in scene.objects. Never assume 'tidy', 'organize everything' or 'this room is messy' authorizes an invented arrangement. Respond warmly with one concrete question such as 'Let's tidy the desk. Which item should I start with, and where would you like it on the organizer?'  Follow specific arrangements without repeating questions. If the user explicitly delegates the layout to you ('you choose where'), choose a reasonable arrangement, state it, and execute. The furniture is fixed. The cup (pen-holder) is movable, upright, and carries its contents. Prefer shelf-middle for an unspecified cup shelf destination. Use its current scene.containers location for drops, including after moving it to the shelf.
+Follow scene.context. The robot faces the desk and organizer; the laptop and lamp are fixed obstacles. The shelf has three scene.homes spaces. Users choose the homes, order, stacks and side-by-side arrangement. Use the books, writing tools and cup listed in scene.objects. Never assume 'tidy', 'organize everything' or 'this room is messy' authorizes an invented arrangement. Respond warmly with one concrete question such as 'Let's tidy the desk. Which item should I start with, and where would you like it on the organizer?'  Follow specific arrangements without repeating questions. If the user explicitly delegates the layout to you ('you choose where'), choose a reasonable arrangement, state it, and execute. The furniture is fixed. The holder (pen-holder) is movable, upright, and carries its contents. Prefer shelf-middle for an unspecified cup shelf destination. Use its current scene.containers location for drops, including after moving it to the shelf.
 Social interaction: an ordinary 'hello', 'hi', 'hey' or greeting means respond warmly AND wave once if empty-handed. 'Thank you' means a friendly response and a small bow; 'goodbye' means a farewell wave. If holding something, respond warmly without a gesture and explain that the gripper needs to be empty before gesturing. connection_check is the exception: greet with actions:[] only.
 Use only objects actually in scene.objects. Understand names, colours and references ("the pen", "that book", "it", "behind you"). Resolve pronouns from actual held object or clear conversation. Ask which object if more than one matches. If you offer two or more alternatives, a bare "yes" does NOT choose one. Ask them to name one and return actions:[]. Never guess which alternative they accepted.
 Return JSON only: {"reply":"brief conversational response before action","actions":[],"after":"optional brief completion message shown ONLY after all actions succeed"}.
-The movable round cup in scene.containers accepts pen/pencil only. Use transfer/place target:"pen-holder" to drop upright into a free slot; the controller chooses orientation and grip. Pick retrieves it. After shelf placement the UI asks if the spot works: yes means acknowledge with actions:[], no means ask where instead.
+The movable square holder in scene.containers accepts pen/pencil only. Use transfer/place target:"pen-holder" to drop upright into a free slot; the controller chooses orientation and grip. Pick retrieves it. After shelf placement the UI asks if the spot works: yes means acknowledge with actions:[], no means ask where instead.
 Allowed actions:
 {"type":"pick","object":"exact scene object id"}
 {"type":"transfer","object":"exact scene object id","target":"left|right|rear|front|start|object-id|object-id-start"}: pick up this object if needed, carry it, and release it at the destination. Use this for complete named-object placement tasks. If already holding this object, just carry and place it. Transfer also accepts position:[x,y] OR beside:"object-id",side:"left|right|front|rear" instead of target.
@@ -57,7 +57,7 @@ export function parseResponse(raw) {
   return {reply:result.reply,actions:validateActions(result.actions),...(result.after?{after:result.after}:{})};
 }
 export async function askAgent(connection, {question,language,history,scene,feedback}, signal, fetcher=fetch) {
-  const config=connection?.server===true?{server:true}:validateConnection(connection);
+  const config=connection?.server===true?{server:true}:connection?.hosted===true?{hosted:true}:validateConnection(connection);
   // A confirmation cannot resolve an earlier either/or object question.
   const previous=history.filter(m=>m.role==='assistant').at(-1)?.content||'';
   if(/^(yes|yeah|yep|ok|okay|sure|是|是的|对|好的)[.!。！\s]*$/i.test(question.trim())&&/(?:did you mean|do you mean|which (?:one|object)|你是指|你指的是|哪一个|哪个)/i.test(previous)&&/(?:\bor\b|还是)/i.test(previous)){
@@ -65,11 +65,11 @@ export async function askAgent(connection, {question,language,history,scene,feed
   }
   const messages=[{role:'system',content:SYSTEM},...history.slice(-6).map(m=>({role:m.role,content:m.content.slice(0,1400)})),
     {role:'user',content:JSON.stringify({question,language,scene,feedback})}];
-  const needsRelay=!config.server&&new URL(config.base).hostname.startsWith('token-plan.');
+  const needsRelay=!config.server&&!config.hosted&&new URL(config.base).hostname.startsWith('token-plan.');
   for(let attempt=0;attempt<2;attempt++) {
   let response;
-  try{response=await fetcher(config.server?'/api/chat':needsRelay?RELAY:config.base+'/chat/completions', {method:'POST',signal,
-    headers:{'Content-Type':'application/json',...(!config.server?{'Authorization':'Bearer '+config.key}:{}),...(needsRelay?{'X-Alibaba-Base':config.base}:{})},
+  try{response=await fetcher(config.server?'/api/chat':config.hosted||needsRelay?RELAY:config.base+'/chat/completions', {method:'POST',signal,
+    headers:{'Content-Type':'application/json',...(!config.server&&!config.hosted?{'Authorization':'Bearer '+config.key}:{}),...(needsRelay?{'X-Alibaba-Base':config.base}:{})},
     body:JSON.stringify({model:config.model,messages,temperature:.2,max_tokens:2000,response_format:{type:'json_object'},stream:false,enable_thinking:false})});}
   catch(error){if(attempt===0&&error instanceof TypeError&&!signal?.aborted)continue;throw error;}
   if(attempt===0&&[502,503,504].includes(response.status))continue;

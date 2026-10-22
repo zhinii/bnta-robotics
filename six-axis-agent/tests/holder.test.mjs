@@ -3,24 +3,25 @@ import assert from 'node:assert/strict';
 import {initialState,planActions,reverseSteps,applyStep,previewSteps,snapshot,inHolder,footprint,clearPose} from '../world.mjs';
 import {distance} from '../kinematics.mjs';
 
-test('desk inventory has five movable items including an open round cup',()=>{
+test('desk inventory has five movable items including an open square holder',()=>{
  const s=initialState(0,'desk');
  assert.deepEqual(s.objects.map(o=>o.id),['book','notebook','pen','pencil','pen-holder']);
  const h=snapshot(s).containers[0];
  assert.equal(h.fixed,false);assert.deepEqual(h.accepts,['pen','pencil']);assert.deepEqual(h.contents,[]);
- assert.equal(h.radius,h.size[1]/2);
- assert.equal(h.radius*2,68*.75,'cup diameter is 25 percent smaller');
- assert.ok(Math.abs(h.size[2]-28*1.15)<1e-10,'cup is 15 percent taller');
- assert.equal(h.position[2],h.size[2]/2,'cup rests on the desk');
- for(const [x,y] of h.slots)assert.ok(Math.hypot(Math.abs(x)+7,Math.abs(y)+8)<h.radius-h.wall,'both tool envelopes fit inside the round opening');
+ assert.equal(h.size[2],s.objects.find(o=>o.id==='pencil').size[1]/2);
+ assert.deepEqual(h.innerSize,[35,35]);assert.equal(h.innerSize[0],2.5*s.objects.find(o=>o.id==='pencil').diameter);
+ assert.equal(h.size[0]-h.innerSize[0],2*h.wall);assert.equal(h.position[2],h.size[2]/2);
+ assert.ok(h.slots[0][0]*h.slots[1][0]<0&&h.slots[0][1]*h.slots[1][1]<0,'slots are diagonally opposite');
+ for(const [x,y] of h.slots)assert.ok(Math.abs(x)+8<h.innerSize[0]/2&&Math.abs(y)+8<h.innerSize[1]/2);
+
 });
 
-test('cup contents must fit the circular opening, not just its bounding square',()=>{
+test('holder contents must fit inside both inner walls',()=>{
  const s=initialState(0,'desk'),h=s.objects.find(o=>o.container),pen=s.objects.find(o=>o.id==='pen');
  pen.rpy=[-90,0,0];pen.position=[h.position[0],h.position[1],h.floor+44];
  assert.ok(inHolder(s,pen));
  pen.position[0]+=27;pen.position[1]+=27;
- assert.ok(!inHolder(s,pen),'a tool outside the circular rim is not inside the cup');
+ assert.ok(!inHolder(s,pen),'a tool outside the inner walls is not inside the holder');
 });
 
 test('both insertion orders drop into separate slots, preview settled poses, and physically undo or restore',()=>{
