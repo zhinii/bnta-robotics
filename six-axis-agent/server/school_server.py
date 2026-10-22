@@ -137,7 +137,7 @@ class App:
             return 429, {'error':'busy'}
         try:
             status, data = self.transport(self.config, {'model':self.config['model'], 'messages':clean,
-                'temperature':.2, 'max_tokens':2000, 'response_format':{'type':'json_object'},
+                'temperature':.6 if body.get('temperature') == .6 else .2, 'max_tokens':2000, 'response_format':{'type':'json_object'},
                 'stream':False, 'enable_thinking':False})
             # Do not return a credential even if an upstream diagnostic echoes it.
             if self.config['key'] in json.dumps(data):

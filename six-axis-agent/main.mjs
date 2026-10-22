@@ -1,9 +1,9 @@
-import { initialState, snapshot, applyStep, CATALOG, objectPosture, previewSteps, inHolder, footprint, graspWidth } from './world.mjs?v=collision-20261022-1';
-import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=collision-20261022-1';
-import { createScene } from './scene.mjs?v=collision-20261022-1';
-import { createSpeech } from './speech.mjs?v=collision-20261022-1';
-import { words, challenges } from './i18n.mjs?v=collision-20261022-1';
-import deployment from './deployment.mjs?v=collision-20261022-1';
+import { initialState, snapshot, applyStep, CATALOG, objectPosture, previewSteps, inHolder, footprint, graspWidth } from './world.mjs?v=shelf-20261022-1';
+import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=shelf-20261022-1';
+import { createScene } from './scene.mjs?v=shelf-20261022-1';
+import { createSpeech } from './speech.mjs?v=shelf-20261022-1';
+import { words, challenges } from './i18n.mjs?v=shelf-20261022-1';
+import deployment from './deployment.mjs?v=shelf-20261022-1';
 const serverMode=deployment?.mode==='school',hostedMode=deployment?.mode==='hosted',managedConnection=serverMode||hostedMode;
 
 const $=id=>document.getElementById(id);
@@ -103,7 +103,7 @@ function prepare(actions){
     return Promise.resolve({plan:{steps:undo.at(-1)},undoing:true});
   }
   return new Promise((resolve,reject)=>{
-    const planner=new Worker(new URL('./planner-worker.mjs?v=collision-20261022-1',import.meta.url),{type:'module'});worker=planner;
+    const planner=new Worker(new URL('./planner-worker.mjs?v=shelf-20261022-1',import.meta.url),{type:'module'});worker=planner;
     const finish=()=>{clearTimeout(timer);planner.terminate();if(worker===planner){worker=null;workerReject=null;}};
     const timer=setTimeout(()=>{finish();reject(Error('planningTimeout'));},45000);
     workerReject=error=>{finish();reject(error);};
@@ -154,6 +154,7 @@ function reportError(error){
   if(error.detail?.constraint==='deskEdge'){say('deskEdge',{},'assistant',true);return t('deskEdge');}
   const key=error.message==='empty'?'emptyError':error.message==='holding'?'holdingError':words[language][error.message]?error.message:error instanceof TypeError?'network':'provider';
   if(key==='occupied'&&error.detail?.blocker){const vars={object:name(error.detail.blocker),objectId:error.detail.blocker};say('occupiedBy',vars,'assistant',true);return t('occupiedBy',vars);}
+  if(key==='reach'&&error.detail?.approach&&error.detail.approach!=='auto'){const vars={side:t('approach'+error.detail.approach)};say('pickupSideReach',vars,'assistant',true);return t('pickupSideReach',vars);}
   if(key==='posture'&&error.detail?.blocker){const vars={object:name(error.detail.object),blocker:name(error.detail.blocker)};say('postureBlocked',vars,'assistant',true);return t('postureBlocked',vars);}
   if(key==='posture'&&error.detail?.reason==='reach'){const vars={object:name(error.detail.object)};say('postureReach',vars,'assistant',true);return t('postureReach',vars);}
   if(key==='blocked'&&error.detail?.blocker){const vars={object:name(error.detail.blocker),objectId:error.detail.blocker};say('blockedBy',vars,'assistant',true);return t('blockedBy',vars);}
@@ -201,12 +202,14 @@ async function send(question){
     let completion=response.after||t(key,vars);
     if(rotated){
       const items=state.objects.filter(o=>o.id===state.held||touched.has(o.id));
-      completion=last.type==='restore'?t('restoreDone'):items.length?items.map(o=>t(o.id===state.held?'postureHeld':'posturePlaced',{object:name(o.id),posture:t('posture_'+objectPosture(o)),angles:o.rpy.map(v=>Math.round(v)).join('°, ')+'°'})).join('\n'):t(key,vars);
+      const technical=response.actions.some(a=>a.type==='rotate'||a.orientation)||/\b(?:axis|degrees?)\b|轴|度/u.test(question);
+      completion=last.type==='restore'?t('restoreDone'):items.length?items.map(o=>t(o.id===state.held?(technical?'postureHeld':'postureHeldSimple'):(technical?'posturePlaced':'posturePlacedSimple'),{object:name(o.id),posture:t('posture_'+objectPosture(o)),angles:o.rpy.map(v=>Math.round(v)).join('°, ')+'°'})).join('\n'):t(key,vars);
     }
+    if(!rotated&&response.actions.some(a=>a.target==='shelf'))completion=state.objects.filter(o=>touched.has(o.id)&&onShelf(o)&&!inHolder(state,o)).map(o=>t('placedOnShelf',{object:name(o.id)})).join('\n')||completion;
     if(last.type!=='restore'&&last.type!=='undo'&&state.objects.some(o=>touched.has(o.id)&&onShelf(o))&&!/[?？]/u.test(completion))completion+='\n'+t('shelfFollowup');
     intention?.remove();add('assistant',completion);
     remember('assistant',completion+'\nExecuted actions: '+JSON.stringify(response.actions)+'\nActual scene: '+JSON.stringify(perception()));
-  }catch(error){if(id===epoch){remember('user',question);remember('assistant','Execution did not complete: '+reportError(error)+' '+JSON.stringify(perception()));}}
+  }catch(error){if(id===epoch){remember('user',question);remember('assistant','Execution did not complete: '+reportError(error)+'\nUnexecuted request: '+JSON.stringify(response?.actions||[])+'\nActual scene: '+JSON.stringify(perception()));}}
   finally{if(id===epoch){busy=false;activity='';refresh();focusInput($('prompt'));}}
 }
 function submitMessage(){if(!busy&&!speech.active){if(connection)void send($('prompt').value.trim());else void connect();}}

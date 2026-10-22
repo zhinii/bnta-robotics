@@ -49,7 +49,7 @@ export async function POST(request:Request) {
     entry.count++;clients.set(ip,entry);windowCount++;inFlight++;admitted=true;
     const messages=[{role:'system',content:ROBOT_SYSTEM},...body.messages.filter((m:any)=>m.role!=='system').slice(-13)];
     stage='provider';
-    const upstream=await fetch(config.base+'/chat/completions',{method:'POST',redirect:'manual',signal:AbortSignal.timeout(25000),headers:{'Content-Type':'application/json',Authorization:'Bearer '+config.key},body:JSON.stringify({model:config.model,messages,max_tokens:2000,response_format:{type:'json_object'},temperature:.2,stream:false,enable_thinking:false})});
+    const upstream=await fetch(config.base+'/chat/completions',{method:'POST',redirect:'manual',signal:AbortSignal.timeout(25000),headers:{'Content-Type':'application/json',Authorization:'Bearer '+config.key},body:JSON.stringify({model:config.model,messages,max_tokens:2000,response_format:{type:'json_object'},temperature:body.temperature===.6?.6:.2,stream:false,enable_thinking:false})});
     if(!upstream.ok)return reply({error:'provider'},[400,401,403,404,429].includes(upstream.status)?upstream.status:502);
     stage='parse';
     const data:any=await upstream.json(),content=data?.choices?.[0]?.message?.content;

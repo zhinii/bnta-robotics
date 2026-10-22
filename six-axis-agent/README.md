@@ -22,6 +22,12 @@ Every checked task first shows green destination outlines and a dashed gripper p
 
 “Put the pencil beside the pen” and “put the pen next to the pencil” can omit a side: the planner checks available sides without moving the anchor. Explicit sides and orientations are preserved. A bare “yes” after an either/or object question asks for the object name again. One transient connection failure is retried; rejected credentials are reported without retrying.
 
+An unspecified “on the shelf” searches clear supported gaps across the shelf, instead of repeatedly selecting the middle. Relative placements reserve space for the object and the actual gripper. Clear endpoint checks, cached pickups and short routes precede longer detours; a held item tries its current grip before being set down to regrasp. Planning has bounded candidate and request time. An exhausted search means no checked route was found, not proof that no route exists. “How do you plan?” answers without resuming a failed task. Language guidance accommodates younger children, typos and ordinary item names, with one short clarification when needed.
+
+“Pick up the book from the top/front/back/left/right” sets a pickup approach independently of its final orientation. Directions refer to the student at the chair. Auto mode can try other grips; an explicitly requested side never silently becomes a top pickup. “From this side” without a named reference asks for clarification. Some sides are unreachable at the object's current position; the robot explains and asks before changing side.
+
+The personality is playful, helpful and efficient. Empty-handed requests may combine short gestures or use a model-composed `gesture` with two to eight bounded position/orientation points and a slow, normal or quick tempo. Every movement is still checked and returns home. This freedom does not change object handling, move unrelated items or override collision checks. Try “a curious wiggle” or “do a little victory dance”.
+
 Try these requests:
 
 - “This room is messy.” The robot asks which item to start with and where it belongs, rather than inventing the user's arrangement.
