@@ -1,4 +1,6 @@
-import { homeFor, ikTool, toolPose, valid, distance, transform, rotationFromEuler, multiply, JOINTS } from './kinematics.mjs?v=holder-20261022-1';
+import { homeFor, ikTool, toolPose, valid, distance, transform, rotationFromEuler, multiply, JOINTS, orientationError } from './kinematics.mjs?v=collision-20261022-1';
+import {at,shape,cylinder,bounds,overlaps,broadOverlap,xyz} from './collision.mjs?v=collision-20261022-1';
+import {objectGeometry,objectShapes,objectBounds,gripperGeometry,armGeometry,projectedWidth,GRIPPER,GRIPPER_CONTACT} from './shapes.mjs?v=collision-20261022-1';
 
 export const AREAS={left:[170,-230],right:[170,230],rear:[-280,0],front:[280,0]};
 export const HOME=[210,0,150];
@@ -9,15 +11,6 @@ export const ORGANIZER={id:'organizer',name:'low organizer shelf',zh:'矮整理�
 export const WRITING_TOOL={diameter:14,length:88};
 const holderInside=WRITING_TOOL.diameter*2.5,holderWall=3,holderHeight=WRITING_TOOL.length/2;
 export const PEN_HOLDER={id:'pen-holder',name:'square pen holder',zh:'方形笔筒',position:[140,65,holderHeight/2],size:[holderInside+2*holderWall,holderInside+2*holderWall,holderHeight],innerSize:[holderInside,holderInside],wall:holderWall,fixed:false,container:true,accepts:['pen','pencil'],slots:[[-8,-8],[8,8]],floor:4};
-const holderPartCache=new Map();
-export function holderParts(holder){
-  const key=JSON.stringify([holder.position,holder.size,holder.wall,holder.floor,holder.rpy]);
-  if(holderPartCache.has(key))return holderPartCache.get(key);
-  const [w,l,h]=holder.size,t=holder.wall,rotation=rotationFromEuler(holder.rpy||[0,0,0]);
-  // Four solid walls and a floor share their exact dimensions with the mesh.
-  const parts=[...[-1,1].map(side=>({offset:[side*(w-t)/2,0,0],size:[t,l,h]})),...[-1,1].map(side=>({offset:[0,side*(l-t)/2,0],size:[w-2*t,t,h]})),{offset:[0,0,-h/2+holder.floor/2],size:[w-2*t,l-2*t,holder.floor],surface:true}].map(({offset,size,surface})=>({position:transform(rotation,offset).map((v,i)=>v+holder.position[i]),size:[0,1,2].map(i=>size.reduce((sum,v,j)=>sum+Math.abs(rotation[i*3+j])*v,0)),...(surface?{surface:true}:{})}));
-  holderPartCache.set(key,parts);return parts;
-}
 export const holderFor=s=>s.objects.find(o=>o.container)||s.obstacles.find(o=>o.container);
 const holderFloor=h=>h.position[2]-h.size[2]/2+h.floor;
 export function inHolder(s,o){
@@ -25,17 +18,6 @@ export function inHolder(s,o){
   const inverse=transpose(rotationFromEuler(h.rpy||[0,0,0])),local=transform(inverse,o.position.map((v,i)=>v-h.position[i])),rotation=multiply(inverse,rotationFromEuler(o.rpy||[0,0,0]));
   const size=[0,1,2].map(i=>o.size.reduce((sum,v,j)=>sum+Math.abs(rotation[i*3+j])*v,0));
   return [0,1].every(i=>Math.abs(local[i])+size[i]/2<=h.innerSize[i]/2+.05)&&Math.abs(local[2]-size[2]/2+h.size[2]/2-h.floor)<.5;
-}
-export function obstacleParts(object){
-  if(object.container)return holderParts(object).map(part=>({...part,id:object.id}));
-  if(object.id==='laptop'){
-    const [x,y,z]=object.position,bottom=z-object.size[2]/2;
-    // Keyboard base and a conservative envelope of the rendered tilted lid.
-    // The air above the keyboard is not a solid obstacle.
-    return [{id:object.id,position:[x,y-7,bottom+3.5],size:[125,110,7]},
-      {id:object.id,position:[x,y+45,bottom+49],size:[127,24,90]}];
-  }
-  return [object];
 }
 export const HOMES={
   'shelf-left':{name:'left shelf space',zh:'整理架左侧',position:[145,160,28]},
@@ -50,8 +32,8 @@ export const CATALOG={
   pencilcase:{name:'green pencil case',zh:'绿色笔袋',size:[34,60,30],color:'#71917a',stackable:true},
   ruler:{name:'wooden ruler',zh:'木尺',size:[18,90,16],color:'#c8a475',stackable:false},
   notebook:{name:'blue notebook',zh:'蓝色笔记本',size:[38,60,20],color:'#5c84a0',stackable:true},
-  pen:{name:'blue pen',zh:'蓝色钢笔',size:[WRITING_TOOL.diameter,WRITING_TOOL.length,16],diameter:WRITING_TOOL.diameter,color:'#386a96',stackable:false},
-  pencil:{name:'yellow pencil',zh:'黄色铅笔',size:[WRITING_TOOL.diameter,WRITING_TOOL.length,16],diameter:WRITING_TOOL.diameter,color:'#d6a547',stackable:false},
+  pen:{name:'blue pen',zh:'蓝色钢笔',size:[WRITING_TOOL.diameter,WRITING_TOOL.length,WRITING_TOOL.diameter],diameter:WRITING_TOOL.diameter,color:'#386a96',stackable:false},
+  pencil:{name:'yellow pencil',zh:'黄色铅笔',size:[WRITING_TOOL.diameter,WRITING_TOOL.length,WRITING_TOOL.diameter],diameter:WRITING_TOOL.diameter,color:'#d6a547',stackable:false},
   clock:{name:'alarm clock',zh:'闹钟',size:[34,30,46],color:'#ce7e67',stackable:false},
   red:{name:'red block',zh:'红色方块',size:[36,36,36],color:'#ce6450',stackable:true},
   blue:{name:'blue block',zh:'蓝色方块',size:[36,36,36],color:'#628ca9',stackable:true},
@@ -65,8 +47,10 @@ function carriedPose(state,pose){
   const grip=state.grasp||{offset:[0,0,0],rotation:identity};
   return {position:transform(pose.rotation,grip.offset).map((v,i)=>v+pose.tip[i]),rotation:multiply(pose.rotation,grip.rotation)};
 }
-export function graspWidth(state){const o=state.objects.find(o=>o.id===state.held);return o?.container?o.size[0]:o?o.size.reduce((sum,v,i)=>sum+Math.abs((state.grasp?.rotation||identity)[i])*v,0):(state.approachWidth??51);}
-export const footprint=(object,rpy=object.rpy||[0,0,object.yaw])=>{const r=rotationFromEuler(Array.isArray(rpy)?rpy:[0,0,rpy]);return [0,1,2].map(i=>object.size.reduce((sum,v,j)=>sum+Math.abs(r[i*3+j])*v,0));};
+export function graspWidth(state){const o=state.objects.find(o=>o.id===state.held);return state.jawWidth??(o?projectedWidth(o,state.grasp?.rotation||identity):(state.approachWidth??GRIPPER.travelOpening));}
+export const relativeBounds=(object,rpy=object.rpy||[0,0,object.yaw||0])=>bounds(at(objectGeometry(object),[0,0,0],rotationFromEuler(Array.isArray(rpy)?rpy:[0,0,rpy])));
+export const footprint=(object,rpy)=>{const b=relativeBounds(object,rpy);return b.high.map((v,i)=>v-b.low[i]);};
+
 export function objectPosture(object){
   const r=rotationFromEuler(object.rpy),axis=[0,1,2].find(i=>Math.abs(r[6+i])>.9999);
   if(axis===undefined)return 'tilted';
@@ -93,95 +77,69 @@ export function initialState(seed=0,kit='school') {
     placed[3][0]=Math.min(60,placed[3][0]);
     placed.forEach((p,index)=>p.forEach((v,axis)=>{const half=CATALOG[ids[index]].size[axis]/2;p[axis]=Math.max(DESK.min[axis]+half+2,Math.min(DESK.max[axis]-half-2,v));}));
   }
-  return {q:solved.q,held:null,yaw:0,rpy:[0,0,0],seed,kit,objects:[...ids.map((id,i)=>({id,...structuredClone(CATALOG[id]),position:[...placed[i],CATALOG[id].size[2]/2],origin:[...placed[i],CATALOG[id].size[2]/2],yaw:0,rpy:[0,0,0]})),...(kit==='desk'?[{...structuredClone(CATALOG['pen-holder']),origin:[...PEN_HOLDER.position],rpy:[0,0,0],yaw:0}]:[])],
+  return {q:solved.q,held:null,yaw:0,rpy:[0,0,0],seed,kit,objects:[...ids.map((id,i)=>({id,...structuredClone(CATALOG[id]),position:[...placed[i],-relativeBounds({...CATALOG[id],id},[0,0,0]).low[2]],origin:[...placed[i],-relativeBounds({...CATALOG[id],id},[0,0,0]).low[2]],yaw:0,rpy:[0,0,0]})),...(kit==='desk'?[{...structuredClone(CATALOG['pen-holder']),origin:[...PEN_HOLDER.position],rpy:[0,0,0],yaw:0}]:[])],
     homes:kit==='desk'?structuredClone(HOMES):{},
     obstacles:kit==='desk'?[structuredClone(ORGANIZER),{id:'laptop',name:'laptop',zh:'笔记本电脑',position:[250,-35,50],size:[125,125,100],fixed:true},{id:'lamp',name:'desk lamp',zh:'台灯',position:[480,150,90],size:[60,60,180],fixed:true},{id:'wall',name:'dorm room wall',zh:'宿舍墙壁',position:[250,225,-10],size:[1200,20,760],fixed:true}]:[{id:'tall divider',position:[70+(seed?Math.round(random()*20):0),135,55],size:[48,48,110]},{id:'low divider',position:[-60,-160,35],size:[65,40,70]}]};
 }
 export function blocksAbove(state,id) {
-  const support=state.objects.find(o=>o.id===id);
-  return state.objects.filter(o=>!(support.container&&inHolder(state,o))&&o.id!==id&&o.id!==state.held&&[0,1].every(i=>Math.abs(o.position[i]-support.position[i])<(footprint(o)[i]+footprint(support)[i])/2-1)&&o.position[2]>support.position[2]+1);
+  const support=state.objects.find(o=>o.id===id),base=objectShapes(support),top=bounds(base).high[2];
+  return state.objects.filter(o=>{
+    if(o.id===id||o.id===state.held||support.container&&inHolder(state,o))return false;
+    const b=objectBounds(o);if(b.low[2]<top-.25||b.low[2]>top+.5)return false;
+    const lowered=at(objectGeometry(o),o.position.map((v,i)=>v-(i===2?.5:0)),rotationFromEuler(o.rpy));
+    return lowered.some(a=>base.some(part=>overlaps(a,part)));
+  });
 }
+
 export function snapshot(s) {
-  return {joints:s.q.map(n=>+n.toFixed(2)),tool:toolPose(s.q).tip.map(n=>+n.toFixed(1)),orientation:[...(s.rpy||[0,0,s.yaw])],held:s.held,yaw:s.yaw,pickup:s.pickup?structuredClone(s.pickup):null,
+  return {joints:s.q.map(n=>+n.toFixed(2)),tool:toolPose(s.q).tip.map(n=>+n.toFixed(1)),orientation:[...(s.rpy||[0,0,s.yaw])],held:s.held,yaw:s.yaw,gripper:{opening:graspWidth(s),maxOpening:GRIPPER.maxOpening,clearancePerSide:GRIPPER.clearance},pickup:s.pickup?structuredClone(s.pickup):null,
     containers:[...s.objects,...s.obstacles].filter(o=>o.container).map(h=>({...structuredClone(h),contents:s.objects.filter(o=>inHolder(s,o)).map(o=>o.id)})),
-    objects:s.objects.map(({retrievalPath,lastGraspQ,...o})=>({...structuredClone(o),posture:objectPosture(o),worldSize:footprint(o),stackable:stackSupport(o),clearAbove:blocksAbove(s,o.id).length===0})),obstacles:structuredClone(s.obstacles||[]),homes:structuredClone(s.homes||{}),tableAreas:s.kit==='desk'?Object.fromEntries(Object.entries(AREAS).filter(([,p])=>p.every((v,i)=>v>=DESK.min[i]&&v<=DESK.max[i]))):AREAS,
+    objects:s.objects.map(({retrievalPath,lastGraspQ,motionHints,targetRpy,...o})=>({...structuredClone(o),posture:objectPosture(o),worldSize:footprint(o),stackable:stackSupport(o),clearAbove:blocksAbove(s,o.id).length===0})),obstacles:structuredClone(s.obstacles||[]),homes:structuredClone(s.homes||{}),tableAreas:s.kit==='desk'?Object.fromEntries(Object.entries(AREAS).filter(([,p])=>p.every((v,i)=>v>=DESK.min[i]&&v<=DESK.max[i]))):AREAS,
     context:s.kit==='desk'?'A messy desk in an ordinary student dorm room. The robot is clamped to one short side of the desk, facing across it, not mounted in its centre. The movable items and organizer are in front of the mount within its working area. The user decides where items belong and their order, including stacks or side-by-side arrangements on the low organizer. Shelf spaces are optional homes, not assigned categories. The bed, room, laptop, lamp and organizer are fixed.':'A tabletop practice scene.',
     ...(s.kit==='desk'?{deskBounds:DESK,robotMount:[0,0,0],viewerDirections:{left:'rear',right:'front',towardChair:'left',towardWall:'right'},layout:'The robot is on the short edge. The laptop is centred facing the chair. The low shelf runs along the wall-side long edge; shelf left-to-right follows increasing robot-local X.'}:{}),
     capabilities:['pick uncovered school objects','place on clear desk or organizer space, beside objects, at starts, or stack on flat objects','rotate held objects around X, Y or Z, preserving orientation when placed','restore starting positions and orientations','undo completed tasks','move and orient the tool','dance, wave, bow, circle or move up and down','home'],
     coordinates:'Robot-local mm and degrees; +X front of robot, -X behind robot, -Y robot left, +Y robot right, +Z up; position is gripper grasp centre. The whole dorm workstation is turned 90 degrees in the room and the +Y desk edge meets the wall.',limits:{position:[[-340,340],[-340,340],[8,330]],jointDegrees:JOINTS.map(j=>j.limits)},units:'mm/degrees'};
 }
-function segmentBox(a,b,box,padding=0) {
-  let lo=0,hi=1;
-  for(let i=0;i<3;i++){const min=box.position[i]-box.size[i]/2-padding,max=box.position[i]+box.size[i]/2+padding,d=b[i]-a[i];if(Math.abs(d)<1e-8){if(a[i]<min||a[i]>max)return false;}else{let x=(min-a[i])/d,y=(max-a[i])/d;if(x>y)[x,y]=[y,x];lo=Math.max(lo,x);hi=Math.min(hi,y);if(lo>hi)return false;}}
-  return true;
-}
-function corners(tip,rotation,held,carried,width=51) {
-  const points=[];
-  const halfWidth=Math.max(35,width/2+9.5);
-  for(const x of [-halfWidth,halfWidth])for(const y of [-18.5,18.5])for(const z of [-7,41])points.push(transform(rotation,[x,y,z]).map((v,i)=>v+tip[i]));
-  if(held)for(const x of [-held.size[0]/2,held.size[0]/2])for(const y of [-held.size[1]/2,held.size[1]/2])for(const z of [-held.size[2]/2,held.size[2]/2])points.push(transform(carried.rotation,[x,y,z]).map((v,i)=>v+carried.position[i]));
-  return points;
-}
-// Match the visible housing, rails and jaws instead of filling all the air
-// between them. This matters when gripping two tools inside a narrow cup.
-function gripperEnvelopes(tip,rotation,width){
-  const parts=[[[0,0,36],[24,24,10]],[[0,0,29],[70,32,12]],...[-16.5,16.5].map(y=>[[0,y,27],[62,3.6,3.6]])];
-  for(const side of [-1,1]){
-    const x=side*(width/2+3.5);
-    parts.push([[x,0,22],[12,28,8]],[[x+side*.5,0,6],[6,24,26]],[[x-side*3,0,2],[1,22,18]]);
-  }
-  return parts.map(([centre,size])=>{
-    const position=transform(rotation,centre).map((v,i)=>v+tip[i]);
-    const extent=[0,1,2].map(i=>size.reduce((sum,v,j)=>sum+Math.abs(rotation[i*3+j])*v/2,0));
-    return {low:position.map((v,i)=>v-extent[i]),high:position.map((v,i)=>v+extent[i])};
-  });
+const COLLISION_GAP=.5,CONTACT_TOLERANCE=.2;
+const baseParts=[cylinder(46,46,12,[0,0,6],null,{rotation:xyz([90,0,0])}),cylinder(26,26,54,[0,0,38],null,{rotation:xyz([90,0,0])}),cylinder(30,30,6,[0,0,18],null,{rotation:xyz([90,0,0])})].map(p=>shape(p));
+function carriedShapes(state,pose){
+  const held=state.objects.find(o=>o.id===state.held);if(!held)return [];
+  const carried=carriedPose(state,pose),parts=at(objectGeometry(held),carried.position,carried.rotation).map(p=>({...p,owner:held.id,body:'load'}));
+  for(const item of state.cargo||[]){const object=state.objects.find(o=>o.id===item.id),position=transform(carried.rotation,item.offset).map((v,i)=>v+carried.position[i]),rotation=multiply(carried.rotation,item.rotation);parts.push(...at(objectGeometry(object),position,rotation).map(p=>({...p,owner:object.id,body:'load'})));}
+  return parts;
 }
 export function clearPose(q,state,contact=null,detail={}) {
-  const blocked=(reason,blocker)=>{Object.assign(detail,{reason,blocker});return false;};
+  const blocked=(reason,blocker,body)=>{Object.assign(detail,{reason,blocker,...(body?{part:body.part.role||body.part.part||body.body}:{})});return false;};
   if(!valid(q))return blocked('joint or table clearance limit');
-  const pose=toolPose(q),tip=pose.tip,held=state.objects.find(o=>o.id===state.held),carried=carriedPose(state,pose),vertices=corners(tip,pose.rotation,held,carried,graspWidth(state));
-  if(held?.container){if(Math.abs(carried.rotation[8]-1)>.0001)return blocked('keep the cup upright so its contents stay inside',held.id);for(const item of state.cargo||[]){const load=state.objects.find(o=>o.id===item.id),centre=transform(carried.rotation,item.offset).map((v,i)=>v+carried.position[i]),rot=multiply(carried.rotation,item.rotation);for(const x of [-load.size[0]/2,load.size[0]/2])for(const y of [-load.size[1]/2,load.size[1]/2])for(const z of [-load.size[2]/2,load.size[2]/2])vertices.push(transform(rot,[x,y,z]).map((v,i)=>v+centre[i]));}}
-  if(vertices.some(p=>p[2]<-.3||Math.hypot(p[0],p[1])>400))return blocked('the gripper or held object would cross the tabletop or working envelope','table');
-  if(Math.hypot(tip[0],tip[1])<85&&tip[2]<145)return blocked('the tool would enter the robot base','robot base');
-  const bounds={position:[0,1,2].map(i=>(Math.min(...vertices.map(p=>p[i]))+Math.max(...vertices.map(p=>p[i])))/2),size:[0,1,2].map(i=>Math.max(...vertices.map(p=>p[i]))-Math.min(...vertices.map(p=>p[i])))};
-  const gripperBounds=gripperEnvelopes(tip,pose.rotation,graspWidth(state)),envelopes=[...gripperBounds,...[vertices.slice(8)].filter(p=>p.length).map(points=>({low:[0,1,2].map(i=>Math.min(...points.map(p=>p[i]))),high:[0,1,2].map(i=>Math.max(...points.map(p=>p[i])))}))];
-  for(const obstacle of [...(state.obstacles||[]),...state.objects.filter(o=>o.container&&o.id!==state.held)]){
-    if(obstacle.container){
-      const broad={position:obstacle.position,size:footprint(obstacle)};
-      const nearTool=[0,1,2].every(i=>Math.abs(bounds.position[i]-broad.position[i])<(bounds.size[i]+broad.size[i])/2+3);
-      if(!nearTool&&!pose.points.slice(1).some((p,i)=>segmentBox(pose.points[i],p,broad,23)))continue;
-      // Test the cup's real walls and floor, not a solid box across its opening.
-      // Keep tool and load separate: the tool can stay above the rim while a
-      // long pencil extends down inside the cup.
-      for(const part of holderParts(obstacle)){
-        for(let i=1;i<pose.points.length;i++)if(segmentBox(pose.points[i-1],pose.points[i],part,[20,17,13,11,10][i-1]+3))return blocked('an arm link would hit the pen holder',obstacle.id);
-        if(obstacle.id===contact)continue;
-        for(const {low,high} of envelopes){
-          if(part.surface&&low[2]>=part.position[2]+part.size[2]/2-.3)continue;
-          if([0,1,2].every(i=>low[i]<part.position[i]+part.size[i]/2+1&&high[i]>part.position[i]-part.size[i]/2-1))return blocked('the tool or object would hit the pen holder rim or floor',obstacle.id);
-        }
-      }
-      continue;
-    }
-    for(const part of obstacleParts(obstacle)){
-      for(let i=1;i<pose.points.length;i++)if(segmentBox(pose.points[i-1],pose.points[i],part,[20,17,13,11,10][i-1]+3))return blocked('an arm link would hit this obstacle',obstacle.id);
-      const restingAboveSurface=part.surface&&bounds.position[2]-bounds.size[2]/2>=part.position[2]+part.size[2]/2-.3;
-      if(!restingAboveSurface&&[0,1,2].every(i=>Math.abs(bounds.position[i]-part.position[i])<(bounds.size[i]+part.size[i])/2+3))return blocked('the gripper or held object would hit this obstacle',obstacle.id);
-    }
+  const pose=toolPose(q),held=state.objects.find(o=>o.id===state.held),carried=carriedPose(state,pose);
+  if(held?.container&&Math.abs(carried.rotation[8]-1)>.0001)return blocked('keep the holder upright so its contents stay inside',held.id);
+  const tool=at(gripperGeometry(graspWidth(state)),pose.tip,pose.rotation).map(p=>({...p,body:'gripper'})),load=carriedShapes(state,pose),arm=armGeometry(pose).map(p=>({...shape(p),body:'arm'})),moving=[...tool,...load,...arm];
+  for(const body of moving)if(body.low[2]<-CONTACT_TOLERANCE)return blocked('this physical part would cross the tabletop','table',body);
+  for(const body of [...tool,...load]){
+    if(Math.max(...[body.low[0],body.high[0]].flatMap(x=>[body.low[1],body.high[1]].map(y=>Math.hypot(x,y))))>400)return blocked('the tool or carried object would leave the working envelope','table',body);
+    if(baseParts.some(part=>overlaps(body,part,COLLISION_GAP)))return blocked('this physical part would touch the robot base','robot base',body);
   }
-  for(const block of state.objects){
-    if(block.container||block.id===state.held||state.cargo?.some(o=>o.id===block.id))continue;
-    const envelope={position:block.position,size:footprint(block)};
-    for(let i=1;i<pose.points.length;i++)if(segmentBox(pose.points[i-1],pose.points[i],envelope,[20,17,13,11,10][i-1]+2))return blocked('an arm link would hit this object',block.id);
-    const aboveTop=bounds.position[2]-bounds.size[2]/2>=block.position[2]+footprint(block)[2]/2-.3;
-    if(block.id!==contact&&!aboveTop&&envelopes.some(({low,high},index)=>{
-      // Writing tools are round. Rectangular envelopes falsely close the
-      // diagonal gap between tools in the narrow box.
-      if(index<gripperBounds.length&&block.diameter&&envelope.size[2]>block.size[1]-.1){
-        const radius=block.id==='pen'?Math.hypot(1,block.size[2]/2):block.diameter/2,margin=inHolder(state,block)?.5:3;
-        return low[2]<envelope.position[2]+envelope.size[2]/2+margin&&high[2]>envelope.position[2]-envelope.size[2]/2-margin&&Math.hypot(...[0,1].map(i=>Math.max(low[i]-envelope.position[i],envelope.position[i]-high[i],0)))<radius+margin;
+  // Actual grasp contacts may touch, but the palm and wrist may not pass
+  // through a held object. Contents keep their own separate physical shapes.
+  for(const body of tool)for(const item of load){
+    const margin=['finger','pad'].includes(body.part.role)?-CONTACT_TOLERANCE:COLLISION_GAP;
+    if(overlaps(body,item,margin))return blocked('the gripper body would intersect the carried object',item.owner,body);
+  }
+  for(const body of arm)for(const item of load)if(overlaps(body,item,COLLISION_GAP))return blocked('an arm part would intersect the carried object',item.owner,body);
+  const fixed=[...(state.obstacles||[]),...state.objects.filter(o=>o.id!==state.held&&!state.cargo?.some(item=>item.id===o.id))];
+  const movingBounds=bounds(moving);
+  for(const object of fixed){
+    const parts=objectShapes(object),objectBox=bounds(parts);if(!broadOverlap(movingBounds,objectBox,COLLISION_GAP))continue;
+    for(const body of moving){
+      if(!broadOverlap(body,objectBox,COLLISION_GAP))continue;
+      for(const part of parts){
+        let margin=COLLISION_GAP;
+        const graspContact=object.id===contact&&body.body==='gripper'&&['finger','pad'].includes(body.part.role);
+        const supported=body.body==='load'&&body.low[2]>=part.high[2]-CONTACT_TOLERANCE;
+        if(graspContact||supported)margin=-CONTACT_TOLERANCE;
+        if(overlaps(body,part,margin))return blocked(body.body==='arm'?'an arm part would touch this object':'this gripper or carried-object part would touch this object',object.id,body);
       }
-      if(index===envelopes.length-1&&held?.diameter&&block.diameter&&Math.abs(carried.rotation[7])>.999&&envelope.size[2]>block.size[1]-.1){const radius=o=>o.id==='pen'?Math.hypot(1,o.size[2]/2):o.diameter/2;return low[2]<envelope.position[2]+envelope.size[2]/2+3&&high[2]>envelope.position[2]-envelope.size[2]/2-3&&Math.hypot(carried.position[0]-block.position[0],carried.position[1]-block.position[1])<radius(held)+radius(block)+3;}return [0,1,2].every(i=>low[i]<envelope.position[i]+envelope.size[i]/2+3&&high[i]>envelope.position[i]-envelope.size[i]/2-3);}))return blocked('the tool or carried object would collide with this object',block.id);
+    }
   }
   return true;
 }
@@ -212,7 +170,7 @@ export function validateActions(actions) {
 }
 export function planActions(state,actions) {
   validateActions(actions);
-  const s=structuredClone(state),steps=[];let destination=null;
+  const s=structuredClone(state),steps=[];let destination=null,simpleSearch=false;
   function diagnostic(kind,detail={},q=null){
     const ghost=structuredClone(s);
     if(q)applyStep(ghost,{type:'move',q,rpy:toolPose(q).rpy});
@@ -224,6 +182,29 @@ export function planActions(state,actions) {
     const step={type:'move',q:[...q],rpy:[...rpy],yaw:rpy[2],seconds};applyStep(s,step);steps.push(step);
     if(steps.length>4000)throw Error('invalid');
   }
+  function opening(width,contact=null){
+    if(width<0||width>GRIPPER.maxOpening+.001)throw Error('grasp');
+    const from=graspWidth(s),count=Math.max(1,Math.ceil(Math.abs(width-from)/.5));
+    const previous=s.jawWidth;
+    for(let i=1;i<=count;i++){
+      s.jawWidth=from+(width-from)*i/count;const detail={contact};
+      if(!clearPose(s.q,s,contact,detail)){s.jawWidth=previous;throw Object.assign(Error('blocked'),{detail,preview:diagnostic('collision',detail,s.q)});}
+    }
+    const step={type:'preshape',width,seconds:Math.max(.06,Math.abs(width-from)/GRIPPER.jawSpeed)};applyStep(s,step);steps.push(step);
+  }
+  function closeForTravel(){
+    if(graspWidth(s)===GRIPPER.travelOpening)return;
+    const saved=structuredClone(s),length=steps.length;
+    try{opening(GRIPPER.travelOpening);return;}catch(error){
+      Object.assign(s,structuredClone(saved));steps.length=length;
+      // Stop can leave empty jaws resting around an item before attachment.
+      // Withdraw before closing, rather than squeezing through that item.
+      const pose=toolPose(s.q),back=transform(pose.rotation,[0,0,32]);
+      const contact=s.objects.find(o=>distance(o.position,pose.tip)<Math.max(...o.size)/2+12)?.id;
+      try{move(pose.tip.map((v,i)=>v+back[i]),s.rpy,contact);opening(GRIPPER.travelOpening);return;}
+      catch{Object.assign(s,saved);steps.length=length;throw error;}
+    }
+  }
   function move(point,rpy=s.rpy||[0,0,s.yaw],contact=null){
     const start=toolPose(s.q).tip,orientation=s.rpy||[0,0,s.yaw];
     const holder=holderFor(s),precise=holder&&[start,point].every(p=>Math.hypot(p[0]-holder.position[0],p[1]-holder.position[1])<80&&p[2]<holder.position[2]+holder.size[2]/2+100);
@@ -231,11 +212,24 @@ export function planActions(state,actions) {
     for(let i=1;i<=count;i++){
       const target=start.map((v,j)=>v+(point[j]-v)*i/count),next=orientation.map((v,j)=>v+(rpy[j]-v)*i/count),result=ikTool(target,s.q,'nearest',next);
       if(!result.q){const detail={target,orientation:next,requestedPosition:point,requestedOrientation:rpy,solver:result.error};throw Object.assign(Error('reach'),{detail,preview:diagnostic('reach',detail)});}
-      const seconds=Math.max(.035,distance(toolPose(s.q).tip,toolPose(result.q).tip)/160,Math.max(...result.q.map((v,j)=>Math.abs(v-s.q[j])))/90);
+      const seconds=Math.max(.008,distance(toolPose(s.q).tip,toolPose(result.q).tip)/160,Math.max(...result.q.map((v,j)=>Math.abs(v-s.q[j])))/90);
       joints(result.q,next,seconds,contact);
     }
   }
-  function cruiseTo(point,orientation=0,contact=null){
+  function remembered(object,point,rpy){
+    for(const hint of object.motionHints||[]){const pose=toolPose(hint.q);if(distance(pose.tip,point)<.2&&Math.hypot(...orientationError(rotationFromEuler(rpy),pose.rotation))<.005)return hint.q;}
+    return null;
+  }
+  function finishMove(point,rpy,contact=null,goal=null){
+    const saved=structuredClone(s),length=steps.length;
+    try{move(point,rpy,contact);return;}catch(error){
+      if(!goal)throw error;
+      Object.assign(s,saved);steps.length=length;
+      // A known endpoint is only a seed, never permission to skip a swept check.
+      joints(goal,rpy,Math.max(.1,Math.max(...goal.map((v,i)=>Math.abs(v-s.q[i])))/90),contact);
+    }
+  }
+  function cruiseTo(point,orientation=0,contact=null,goal=null){
     const desired=Array.isArray(orientation)?orientation:[0,0,orientation];
     const saved=structuredClone(s),length=steps.length,current=toolPose(s.q).tip;
     const load=s.objects.find(o=>o.id===s.held),underAt=rpy=>{const r=rotationFromEuler(rpy),pose=carriedPose(s,{tip:[0,0,0],rotation:r});return load?footprint(load,euler(pose.rotation))[2]/2-pose.position[2]:8;},under=Math.max(underAt(s.rpy),underAt(desired));
@@ -245,7 +239,7 @@ export function planActions(state,actions) {
     // Try a direct elevated transfer, then routes around the base in both directions.
     const changing=desired.some((v,i)=>Math.abs(v-saved.rpy[i])>.1);
     const levels=[...new Set([...(changing&&!load&&contact==='pen-holder'?[190]:[]),clearance,Math.max(clearance,160),...(changing||load&&s.grasp?.offset.some(v=>Math.abs(v)>20)?[180,160,145,120]:[])])];
-    for(const turnAt of (changing?['destination','central','home','raised','source']:['raised']))for(const route of ['direct','home','short','long'])for(const level of levels){
+    for(const turnAt of (changing?(simpleSearch?['source','destination','central','raised']:['source','destination','central','home','raised']):['raised']))for(const route of (simpleSearch?['direct']:['direct','home','short','long']))for(const level of levels){
       Object.assign(s,structuredClone(saved));steps.length=length;
       try{
         if(turnAt==='source')move(current,desired,startingContact||contact);
@@ -265,7 +259,7 @@ export function planActions(state,actions) {
           move([point[0],point[1],level],travel);
         }
         if(turnAt==='destination')turn(desired);
-        move(point,desired,contact);return;
+        finishMove(point,desired,contact,goal);return;
       }catch(error){failure=error;attempts.push({route,level,error:error.message,detail:error.detail});}
     }
     Object.assign(s,saved);steps.length=length;failure.attempts=attempts;throw failure;
@@ -286,33 +280,54 @@ export function planActions(state,actions) {
     if(s.held)throw Error('holding');const block=s.objects.find(o=>o.id===id);if(!block)throw Object.assign(Error('unknown'),{detail:{object:id}});if(blocksAbove(s,id).length)throw Object.assign(Error('covered'),{detail:{object:id,blocker:blocksAbove(s,id).at(-1).id}});
     const saved=structuredClone(s),length=steps.length;let failure;
     const tilted=block.rpy.slice(0,2).some(v=>Math.abs(v)>.1);
-    for(const candidate of (block.container?[{cup:true,rpy:[0,0,0],height:0},...[[90,0,0],[-90,0,180],[90,0,-90],[-90,0,90],[90,0,90],[-90,0,-90],[-90,0,0],[90,0,180]].map(rpy=>({cup:true,rpy,height:22}))]:choice?[choice]:[...(inHolder(s,block)&&holderFloor(holderFor(s))>4.5?[{yaw:((holderFor(s).rpy[2]-45+540)%360)-180}]:[]),...(inHolder(s,block)?[block.rpy,euler(multiply(rotationFromEuler(block.rpy),rotationFromEuler([0,0,180]))),[90,0,0],[-90,0,0],[90,0,180],[-90,0,180]].map(rpy=>({grasp:{rotation:multiply(transpose(rotationFromEuler(rpy)),rotationFromEuler(block.rpy)),offset:transform(transpose(rotationFromEuler(rpy)),[0,0,-22])}})):[]),...(block.retrievalPath?[{grasp:block.lastGrasp,path:block.retrievalPath}]:[]),...(block.lastGraspQ?[{grasp:block.lastGrasp,q:block.lastGraspQ}]:[]),...(block.lastGrasp?[{grasp:block.lastGrasp}]:[]),...(tilted?[null,{yaw:0},{yaw:90},{yaw:-90},{yaw:180}]:[null])])){
+    for(const candidate of (block.container?[{cup:true,rpy:[0,0,0],height:6},...[[90,0,0],[-90,0,180],[90,0,-90],[-90,0,90],[90,0,90],[-90,0,-90],[-90,0,0],[90,0,180]].map(rpy=>({cup:true,rpy,height:22,back:6}))]:choice?[choice]:[...(inHolder(s,block)&&holderFloor(holderFor(s))>4.5?[{yaw:((holderFor(s).rpy[2]-45+540)%360)-180}]:[]),...(inHolder(s,block)?[block.rpy,euler(multiply(rotationFromEuler(block.rpy),rotationFromEuler([0,0,180]))),[90,0,0],[-90,0,0],[90,0,180],[-90,0,180]].map(rpy=>({grasp:{rotation:multiply(transpose(rotationFromEuler(rpy)),rotationFromEuler(block.rpy)),offset:transform(transpose(rotationFromEuler(rpy)),[0,0,-22])}})):[]),...(block.lastGrasp?[{grasp:block.lastGrasp}]:[]),...(tilted?[null,{yaw:0},{yaw:90},{yaw:-90},{yaw:180}]:[null])])){
       Object.assign(s,structuredClone(saved));steps.length=length;
       try{
         const object=s.objects.find(o=>o.id===id),rpy=candidate?.grasp?euler(multiply(rotationFromEuler(object.rpy),transpose(candidate.grasp.rotation))):candidate?.cup?euler(multiply(rotationFromEuler(object.rpy),rotationFromEuler(candidate.rpy))):candidate?[0,0,candidate.yaw]:object.rpy,point=[...object.position];
         if(candidate?.grasp){const offset=transform(rotationFromEuler(rpy),candidate.grasp.offset);for(let i=0;i<3;i++)point[i]-=offset[i];}
-        else if(candidate?.cup){point[2]+=candidate.height;/* Side approach pinches the outside walls below the rim. */}
-        else if(candidate){point[2]+=Math.max(0,footprint(object)[2]/2-9);if(candidate.edge){const axis=candidate.edgeAxis??1,local=[0,0,0];local[axis]=candidate.edge*(candidate.edgeDistance??Math.max(0,object.size[axis]/2-10));const shift=transform(rotationFromEuler(object.rpy),local);for(let i=0;i<3;i++)point[i]+=shift[i];}}
+        else if(candidate?.cup){point[2]+=candidate.height;if(candidate.back){const back=transform(rotationFromEuler(rpy),[0,0,candidate.back]);for(let i=0;i<3;i++)point[i]+=back[i];}}
+        else if(!candidate){const local=relativeBounds(object,[0,0,0]),lift=Math.max(0,local.high[2]-GRIPPER_CONTACT.bodyBottom+GRIPPER.clearance,local.low[2]-GRIPPER_CONTACT.fingerBottom+GRIPPER.clearance),shift=transform(rotationFromEuler(rpy),[0,0,lift]);for(let i=0;i<3;i++)point[i]+=shift[i];}
+        else if(candidate){point[2]+=Math.max(0,footprint(object)[2]/2-9,objectBounds(object).low[2]-GRIPPER_CONTACT.fingerBottom+GRIPPER.clearance-point[2]);if(candidate.edge){const axis=candidate.edgeAxis??1,local=[0,0,0];local[axis]=candidate.edge*(candidate.edgeDistance??Math.max(0,object.size[axis]/2-10));const shift=transform(rotationFromEuler(object.rpy),local);for(let i=0;i<3;i++)point[i]+=shift[i];}}
         const inverse=transpose(rotationFromEuler(rpy)),grasp={rotation:multiply(inverse,rotationFromEuler(object.rpy)),offset:transform(inverse,object.position.map((v,i)=>v-point[i]))};
-        if(!object.container&&object.size.reduce((sum,v,i)=>sum+Math.abs(grasp.rotation[i])*v,0)>62)throw Error('grasp');
-        const preshape={type:'preshape',width:Math.min(62,object.size.reduce((sum,v,i)=>sum+Math.abs(grasp.rotation[i])*v,0)+4)};applyStep(s,preshape);steps.push(preshape);
-        if(candidate?.path){
-          for(const pose of candidate.path)joints(pose.q,pose.rpy,pose.seconds,id);
-          move(point,rpy,id);
-        }else if(candidate?.q){
-          joints(candidate.q,rpy,Math.max(.4,Math.max(...candidate.q.map((v,i)=>Math.abs(v-s.q[i])))/65),id);
-          move(point,rpy,id);
-        }else cruiseTo(point,rpy,id);
-        const step={type:'grip',object:id,grasp,pickup:{position:[...object.position],rpy:[...object.rpy]}};applyStep(s,step);steps.push(step);
-        move([point[0],point[1],Math.max(140,point[2]+45)]);return;
+        const width=projectedWidth(object,grasp.rotation);
+        if(width+2*GRIPPER.clearance>GRIPPER.maxOpening+.001)throw Error('grasp');
+        const known=remembered(object,point,rpy),endpoint=known?{q:known}:ikTool(point,s.q,'nearest',rpy);
+        if(endpoint.q){const detail={};if(!clearPose(endpoint.q,{...s,jawWidth:width+2*GRIPPER.clearance},id,detail)&&(simpleSearch||!['arm link','joint','joint cap'].includes(detail.part)))throw Object.assign(Error('blocked'),{detail,preview:diagnostic('collision',detail,endpoint.q)});}
+        // Closed fingers travel to a clear pre-grasp. For an upright item,
+        // descending from above avoids pushing the wrist into a shelf leg.
+        const back=transform(rotationFromEuler(rpy),[0,0,32]),backPoint=point.map((v,i)=>v+back[i]);
+        const closed=bounds(at(gripperGeometry(0),point,rotationFromEuler(rpy)));
+        const top=Math.max(...[...s.objects,...s.obstacles].filter(o=>{const b=objectBounds(o);return [0,1].every(i=>closed.low[i]<b.high[i]+1&&closed.high[i]>b.low[i]-1);}).map(o=>objectBounds(o).high[2]));
+        const above=[point[0],point[1],Math.max(point[2]+32,top-(closed.low[2]-point[2])+GRIPPER.clearance)];
+        const approaches=tilted||object.container?[above,backPoint]:[backPoint,above],resting=structuredClone(s),restLength=steps.length;
+        for(const [index,pregrasp] of approaches.entries()){
+          if(index&&distance(pregrasp,approaches[0])<.2)continue;
+          Object.assign(s,structuredClone(resting));steps.length=restLength;
+          try{
+            closeForTravel();
+            if(distance(toolPose(s.q).tip,pregrasp)>.2||rpy.some((v,i)=>Math.abs(v-s.rpy[i])>.1)){const approach=known?ikTool(pregrasp,known,'nearest',rpy):null;cruiseTo(pregrasp,rpy,null,approach?.q||null);}
+            opening(width+2*GRIPPER.clearance);finishMove(point,rpy,id,known);opening(width,id);
+            const step={type:'grip',object:id,grasp,pickup:{position:[...object.position],rpy:[...object.rpy]}};applyStep(s,step);steps.push(step);
+            move([point[0],point[1],point[2]+32]);return;
+          }catch(error){failure=error;}
+        }
+        throw failure;
       }catch(error){failure=error;}
     }
     Object.assign(s,saved);steps.length=length;throw failure;
   }
   function place(action){
+    if(action.beside&&action.spacing===undefined){
+      const saved=structuredClone(s),length=steps.length;let failure;
+      for(const spacing of [1,2,4,6,8,10,12,18,24,35]){
+        Object.assign(s,structuredClone(saved));steps.length=length;
+        try{place({...action,spacing});return;}catch(error){failure=error;}
+      }
+      Object.assign(s,saved);steps.length=length;throw failure;
+    }
     if(!s.held)throw Error('empty');if(action.target===s.held)throw Error('selfStack');
     const support=s.objects.find(o=>o.id===action.target&&!o.container),held=s.objects.find(o=>o.id===s.held);
-    const rpy=action.orientation||held.rpy,heldSize=footprint(held,rpy);
+    const rpy=action.orientation||held.rpy,heldSize=footprint(held,rpy),heldBounds=relativeBounds(held,rpy),bottom=-heldBounds.low[2];
     const holder=action.target==='pen-holder'?holderFor(s):null;
     if(action.target==='pen-holder'&&!holder)throw Error('destination');
     if(holder&&(!holder.accepts.includes(held.id)||objectPosture({...held,rpy})!=='short-edge'))throw Error('holderFit');
@@ -326,52 +341,79 @@ export function planActions(state,actions) {
     const anchor=s.objects.find(o=>o.id===action.beside);
     const home=s.homes?.[action.target];
     let xy=action.position||home?.position.slice(0,2)||AREAS[action.target];
-    if(action.beside){if(!anchor||anchor.id===s.held)throw Error('destination');const axis=['left','right'].includes(action.side)?1:0,sign=['left','rear'].includes(action.side)?-1:1;xy=anchor.position.slice(0,2);xy[axis]+=sign*((heldSize[axis]+footprint(anchor)[axis])/2+35);}
+    if(action.beside){if(!anchor||anchor.id===s.held)throw Error('destination');const axis=['left','right'].includes(action.side)?1:0,sign=['left','rear'].includes(action.side)?-1:1;xy=anchor.position.slice(0,2);xy[axis]+=sign*((heldSize[axis]+footprint(anchor)[axis])/2+action.spacing);}
     const surface=xy&&(s.obstacles||[]).find(o=>o.surface&&[0,1].every(i=>Math.abs(xy[i]-o.position[i])<(o.size[i]+heldSize[i])/2));
-    const point=holder?[...slot,holderFloor(holder)+heldSize[2]/2]:start?[...start.origin.slice(0,2),heldSize[2]/2]:(support?[support.position[0],support.position[1],support.position[2]+(footprint(support)[2]+heldSize[2])/2]:xy?[...xy,(surface?surface.position[2]+surface.size[2]/2:0)+heldSize[2]/2]:null);
+    const point=holder?[...slot,holderFloor(holder)+bottom]:start?[...start.origin.slice(0,2),bottom]:(support?[support.position[0],support.position[1],objectBounds(support).high[2]+bottom]:xy?[...xy,(surface?surface.position[2]+surface.size[2]/2:0)+bottom]:null);
     if(!point)throw Error('destination');
     destination={...structuredClone(held),position:[...point],rpy:[...rpy]};
     if(surface&&![0,1].every(i=>Math.abs(xy[i]-surface.position[i])+heldSize[i]/2<=surface.size[i]/2-2))throw Object.assign(Error('shelfEdge'),{preview:diagnostic('placement')});
     if(anchor&&anchor.position[2]-footprint(anchor)[2]/2>1&&!surface)throw Object.assign(Error('shelfEdge'),{preview:diagnostic('placement')});
     if(s.kit==='desk'&&[0,1].some(i=>point[i]-heldSize[i]/2<DESK.min[i]+2||point[i]+heldSize[i]/2>DESK.max[i]-2))throw Object.assign(Error('destination'),{preview:diagnostic('placement'),detail:{constraint:'deskEdge',reason:'the item would extend beyond the desk edge; choose a position on the desk or organizer'}});
-    const occupant=s.objects.find(o=>o.id!==s.held&&o.id!==holder?.id&&!s.cargo?.some(c=>c.id===o.id)&&o.id!==support?.id&&(o.container?obstacleParts(o):[{position:o.position,size:footprint(o)}]).some(part=>[0,1,2].every(i=>Math.abs(part.position[i]-point[i])<(part.size[i]+heldSize[i])/2+(i===2?-.3:holder?2:8))));
+    const placedShapes=at(objectGeometry(held),point,rotationFromEuler(rpy));
+    const occupant=s.objects.find(o=>o.id!==s.held&&!s.cargo?.some(c=>c.id===o.id)&&placedShapes.some(a=>objectShapes(o).some(b=>overlaps(a,b,a.low[2]>=b.high[2]-.2?-.2:COLLISION_GAP))));
     if(occupant){const detail={blocker:occupant.id};throw Object.assign(Error('occupied'),{detail,preview:diagnostic('collision',detail)});}
     // Release 30 mm above the rim: the higher approach clears the laptop
     // when the cup is on the shelf and keeps the preferred grip retrievable.
     const releasePoint=holder?[point[0],point[1],point[2]+holder.size[2]+30-holder.floor]:point;
     if(holder){
-      // Check the entire vertical drop, not just the final resting position.
-      const centre=point.map((v,i)=>(v+releasePoint[i])/2),size=[heldSize[0],heldSize[1],heldSize[2]+releasePoint[2]-point[2]];
-      const boxes=[...s.objects.filter(o=>o.id!==s.held).flatMap(o=>o.container?obstacleParts(o):[{...o,size:footprint(o)}]),...s.obstacles.flatMap(obstacleParts)];
-      const blocker=boxes.find(o=>[0,1,2].every(i=>Math.abs(o.position[i]-centre[i])<(o.size[i]+size[i])/2-.3));
-      if(blocker){const detail={blocker:blocker.id,reason:'the object would hit this obstacle while dropping into the holder'};throw Object.assign(Error('blocked'),{detail,preview:diagnostic('collision',detail)});}
+      // Check each actual writing-tool part throughout the fall, including
+      // the tapered tip. The holder opening is empty space, not a solid box.
+      const others=[...s.objects.filter(o=>o.id!==s.held),...s.obstacles].map(o=>({object:o,parts:objectShapes(o)}));
+      const count=Math.ceil(releasePoint[2]-point[2]);
+      for(let i=0;i<=count;i++){
+        const position=[point[0],point[1],point[2]+(releasePoint[2]-point[2])*i/count],parts=at(objectGeometry(held),position,rotationFromEuler(rpy));
+        const blocker=others.find(o=>parts.some(a=>o.parts.some(b=>overlaps(a,b,a.low[2]>=b.high[2]-.2?-.2:COLLISION_GAP))));
+        if(blocker){const detail={blocker:blocker.object.id,reason:'this physical part would touch the object during the drop'};throw Object.assign(Error('blocked'),{detail,preview:diagnostic('collision',detail)});}
+      }
     }
     const toolR=multiply(rotationFromEuler(rpy),transpose(s.grasp?.rotation||identity)),toolRpy=euler(toolR),offset=transform(toolR,s.grasp?.offset||[0,0,0]),graspPoint=releasePoint.map((v,i)=>v-offset[i]);
-    const endpoint=ikTool(graspPoint,s.q,'nearest',toolRpy);
+    const known=remembered(held,graspPoint,toolRpy),endpoint=known?{q:known}:ikTool(graspPoint,s.q,'nearest',toolRpy);
     if(endpoint.error==='solve'){const detail={requestedPosition:graspPoint,requestedOrientation:rpy,reason:'the requested object pose cannot be reached with this grip'};throw Object.assign(Error('reach'),{detail,preview:diagnostic('reach',detail)});}
+    if(endpoint.q){
+      const probe={...s,jawWidth:Math.min(GRIPPER.maxOpening,graspWidth(s)+2*GRIPPER.clearance)},detail={};
+      if(!clearPose(endpoint.q,probe,null,detail)&&(simpleSearch||!['arm link','joint','joint cap'].includes(detail.part)))throw Object.assign(Error('blocked'),{detail,preview:diagnostic('collision',detail,endpoint.q)});
+    }
     const approachStart=steps.length,approachPose={q:[...s.q],rpy:[...s.rpy],seconds:.1};
-    cruiseTo(graspPoint,toolRpy);
+    cruiseTo(graspPoint,toolRpy,null,known);
     // Include the turning approach too, so withdrawal ends clear of the cup
     // instead of stopping beside the newly upright item.
     const approach=holder?[...steps.slice(Math.max(0,steps.findLastIndex(step=>step.type==='grip')+1),approachStart).filter(step=>step.type==='move'),approachPose,...steps.slice(approachStart).filter(step=>step.type==='move')]:null;
-    const released=s.held,step={type:'release',position:[...releasePoint],rpy:[...rpy]};applyStep(s,step);steps.push(step);
+    const released=s.held;opening(Math.min(GRIPPER.maxOpening,graspWidth(s)+2*GRIPPER.clearance));
     if(holder){
-      // Keep the release pose as a checked approach hint for later retrieval.
-      const retrievalGrasp=structuredClone(s.objects.find(o=>o.id===released).lastGrasp);
-      const fall={type:'fall',object:released,position:[...point],seconds:.3,retrievalGrasp,retrievalQ:[...s.q]};applyStep(s,fall);steps.push(fall);
+      const pose=toolPose(s.q),robot=[...at(gripperGeometry(graspWidth(s)),pose.tip,pose.rotation),...armGeometry(pose).map(p=>shape(p))],count=Math.ceil(releasePoint[2]-point[2]);
+      for(let i=0;i<=count;i++){
+        const position=[point[0],point[1],releasePoint[2]-(releasePoint[2]-point[2])*i/count],parts=at(objectGeometry(held),position,rotationFromEuler(rpy));
+        if(parts.some(a=>robot.some(b=>overlaps(a,b,COLLISION_GAP)))){
+          const detail={blocker:'robot arm',reason:'the released object would touch the gripper or arm during the fall'},preview=diagnostic('collision',detail,s.q);
+          preview.state.held=null;preview.state.grasp=null;preview.state.cargo=[];
+          const sample=preview.state.objects.find(o=>o.id===released);sample.position=position;sample.rpy=[...rpy];preview.destinations=[structuredClone(sample)];
+          throw Object.assign(Error('blocked'),{detail,preview});
+        }
+      }
     }
+    const step={type:'release',position:[...releasePoint],rpy:[...rpy]};applyStep(s,step);steps.push(step);
     if(holder){
-      // Withdraw through the checked approach, keeping the new upright item
-      // in the collision scene. This avoids trapping the wrist near the cup.
-      const withdrawalStart=steps.length,releasePose={q:[...s.q],rpy:[...s.rpy],seconds:.1};
-      for(const pose of approach.slice(0,-1).reverse())joints(pose.q,pose.rpy,pose.seconds,distance(toolPose(s.q).tip,graspPoint)<50?released:null);
-      cruiseTo(HOME,0);
-      const retrievalPath=[releasePose,...steps.slice(withdrawalStart).filter(step=>step.type==='move')].reverse().map(({q,rpy,seconds})=>({q:[...q],rpy:[...rpy],seconds}));
-      steps[withdrawalStart-1].retrievalPath=retrievalPath;
-      s.objects.find(o=>o.id===released).retrievalPath=structuredClone(retrievalPath);
-    }else move([graspPoint[0],graspPoint[1],Math.max(140,graspPoint[2]+45)],toolRpy,released);
+      const fall={type:'fall',object:released,position:[...point],seconds:.3};applyStep(s,fall);steps.push(fall);
+    }
+    const saved=structuredClone(s),length=steps.length;
+    let withdrawn=false,failure;
+    const tip=toolPose(s.q).tip,back=transform(rotationFromEuler(s.rpy),[0,0,32]);
+    for(const point of [tip.map((v,i)=>v+back[i]),[tip[0],tip[1],tip[2]+32],[tip[0],tip[1],Math.max(140,tip[2]+50)]]){
+      Object.assign(s,structuredClone(saved));steps.length=length;
+      try{move(point,s.rpy,released);opening(GRIPPER.travelOpening);withdrawn=true;break;}catch(error){failure=error;}
+    }
+    if(!withdrawn){
+      Object.assign(s,structuredClone(saved));steps.length=length;
+      if(holder){for(const pose of approach.slice(0,-1).reverse())joints(pose.q,pose.rpy,pose.seconds,distance(toolPose(s.q).tip,graspPoint)<50?released:null);opening(GRIPPER.travelOpening);}
+      else throw failure;
+    }
   }
+
   function arrange(action){
+    const previous=simpleSearch;
+    try{return arrangeWithSearch(action);}finally{simpleSearch=previous;}
+  }
+  function arrangeWithSearch(action){
     if(action.target==='pen-holder'&&!action.orientation&&!action.posture)action={...action,posture:'short-edge'};
     const saved=structuredClone(s),length=steps.length,id=action.object||s.held;
     if(action.beside&&(!action.side||action.side==='auto')){
@@ -386,7 +428,7 @@ export function planActions(state,actions) {
     const object=s.objects.find(o=>o.id===id);if(!object)throw Error('unknown');
     if(action.target==='pen-holder'&&!['pen','pencil'].includes(id))throw Error('holderFit');
     if(action.target==='pen-holder'&&['flat','long-edge'].includes(action.posture))throw Error('holderFit');
-    const orientations=action.posture?postureOrientations(object,action.posture):object.container&&!action.orientation?[0,90,-90,180].map(delta=>[0,0,((object.rpy[2]+delta+540)%360)-180]):[action.orientation||object.rpy];
+    const orientations=action.posture?postureOrientations(object,action.posture):object.container&&!action.orientation?[0,90,-90,180].map(delta=>[0,0,((object.rpy[2]+delta+540)%360)-180]):[action.orientation||object.targetRpy||object.rpy];
     if(action.target==='pen-holder'&&!action.orientation)orientations.unshift([90,0,0]);
     if(object.container&&(action.posture&&action.posture!=='flat'||action.orientation?.slice(0,2).some(v=>Math.abs(v)>.1)))throw Error('cupUpright');
     const wasStored=inHolder(saved,object)||(saved.held===id&&saved.pickup&&inHolder({...saved,held:null},{...object,...saved.pickup}));
@@ -418,17 +460,20 @@ export function planActions(state,actions) {
     // previous support and visibly regrasp it; attachment never changes in air.
     const edgeDistance=Math.max(0,20-object.size[0]/2);
     const reverseGrip={grasp:{rotation:rotationFromEuler([0,0,180]),offset:[0,0,0]}};
-    const choices=action.posture==='long-edge'?[{yaw:90,edgeAxis:0,edge:1,edgeDistance},{yaw:90,edgeAxis:0,edge:-1,edgeDistance},{yaw:90},{yaw:-90},null,{yaw:0,edge:1},{yaw:0,edge:-1},{yaw:180}]:[...(action.target==='pen-holder'&&!s.held&&s.objects.some(o=>inHolder(s,o))?[{yaw:0,edge:1}]:[]),null,reverseGrip,{yaw:0,edge:1},{yaw:0,edge:-1},{yaw:90},{yaw:-90},{yaw:180}];
-    for(const choice of choices){
+    const choices=action.posture==='long-edge'?[{yaw:90,edgeAxis:0,edge:1,edgeDistance},{yaw:90,edgeAxis:0,edge:-1,edgeDistance},{yaw:90},{yaw:-90},null,{yaw:0,edge:1},{yaw:0,edge:-1},{yaw:180}]:[...(['book','notebook'].includes(id)&&['short-edge','upright'].includes(action.posture)&&(!saved.held||action.target==='start')?[{yaw:0,edge:1},{yaw:0,edge:-1}]:[]),null,reverseGrip,{yaw:0,edge:1},{yaw:0,edge:-1},{yaw:90},{yaw:-90},{yaw:180}];
+    // Try clear endpoints and short transfers for every grip before spending
+    // time on long detours for one grip. The full route family remains a fallback.
+    for(const fast of [true,false])for(const choice of choices){
+      simpleSearch=fast;
       Object.assign(s,structuredClone(saved));steps.length=length;
       try{
         if(choice&&s.held){const rest=s.pickup;if(!rest)continue;place({position:rest.position.slice(0,2),orientation:rest.rpy});}
         if(!s.held)pick(id,choice);
         const grasped=structuredClone(s),graspLength=steps.length;
-        for(const orientation of orientations){
+        for(const orientation of orientations)for(const stagedTurn of (holderTask&&!object.container?[false,true]:[false])){
           Object.assign(s,structuredClone(grasped));steps.length=graspLength;
           try{
-            if(holderTask&&!object.container)for(const axis of [2,1,0]){const delta=orientation[axis]-s.objects.find(o=>o.id===id).rpy[axis];if(Math.abs(delta)>.1)rotate({axis:['x','y','z'][axis],angle:delta});}
+            if(stagedTurn)for(const axis of [2,1,0]){const delta=orientation[axis]-s.objects.find(o=>o.id===id).rpy[axis];if(Math.abs(delta)>.1)rotate({axis:['x','y','z'][axis],angle:delta});}
             place({...action,orientation});return;
           }catch(error){failure=error;}
         }
@@ -443,7 +488,7 @@ export function planActions(state,actions) {
   function restore(){
     // The taller box leaves a clear upper grip on its tools. Unpack it at
     // its current location before returning the empty box to its exact start.
-    const free=(p,b=s.objects.find(o=>o.id===s.held))=>!s.objects.some(o=>o.id!==b.id&&[0,1,2].every(i=>Math.abs(o.position[i]-p[i])<(footprint(o)[i]+b.size[i])/2+(i===2?-.3:8)));
+    const free=(p,b=s.objects.find(o=>o.id===s.held))=>{const parts=at(objectGeometry(b),p,identity);return !s.objects.some(o=>o.id!==b.id&&parts.some(a=>objectShapes(o).some(part=>overlaps(a,part,a.low[2]>=part.high[2]-.2?-.2:COLLISION_GAP))));};
     const buffer=()=>{
       const held=s.objects.find(o=>o.id===s.held),saved=structuredClone(s),length=steps.length;
       for(const target of [...Object.keys(s.homes||{}),...Object.keys(AREAS)]){
@@ -466,14 +511,17 @@ export function planActions(state,actions) {
   function rotate(action){
     if(!s.held)throw Error('empty');
     const saved=structuredClone(s),length=steps.length,p=toolPose(s.q).tip;
-    const axis=action.axis||'z',object=s.objects.find(o=>o.id===s.held),rpy=[...object.rpy];rpy[{x:0,y:1,z:2}[axis]]+=action.angle;
+    const axis=action.axis||'z',object=s.objects.find(o=>o.id===s.held),rpy=[...(object.targetRpy||object.rpy)];rpy[{x:0,y:1,z:2}[axis]]+=action.angle;
     if(object.container&&rpy.slice(0,2).some(v=>Math.abs(v)>.1))throw Error('cupUpright');
     if(Math.abs(rpy[{x:0,y:1,z:2}[axis]])>180)throw Error('angle');
     let failure;
+    // First use the clearance already created by pickup. Do not force every
+    // horizontal wrist pose to climb to 140 mm before it is allowed to turn.
+    try{turn(euler(multiply(rotationFromEuler(rpy),transpose(s.grasp?.rotation||identity))));s.objects.find(o=>o.id===s.held).targetRpy=[...rpy];return;}catch(error){failure=error;Object.assign(s,structuredClone(saved));steps.length=length;}
     // Turning is allowed to reposition the held item, but never changes the requested angle.
     for(const point of [[p[0],p[1],Math.max(p[2],140)],[150,0,120],[120,0,90],[190,0,90],[-210,0,150],[210,0,160],[160,-125,155],[130,-160,155]]){
       Object.assign(s,structuredClone(saved));steps.length=length;
-      try{cruiseTo(point,s.rpy);turn(euler(multiply(rotationFromEuler(rpy),transpose(s.grasp?.rotation||identity))));s.objects.find(o=>o.id===s.held).rpy=[...rpy];return;}catch(error){failure=error;}
+      try{cruiseTo(point,s.rpy);turn(euler(multiply(rotationFromEuler(rpy),transpose(s.grasp?.rotation||identity))));s.objects.find(o=>o.id===s.held).targetRpy=[...rpy];return;}catch(error){failure=error;}
     }
     Object.assign(s,saved);steps.length=length;
     throw Object.assign(Error('rotation'),{preview:failure?.preview,detail:{axis,angle:action.angle,requestedOrientation:rpy,reason:failure.message,blocker:failure.detail?.blocker,attemptedTurningPositions:8}});
@@ -514,14 +562,20 @@ export function previewSteps(state,steps){
   if(s.held)destinations.push(...[s.held,...(s.cargo||[]).map(o=>o.id)].map(id=>structuredClone(s.objects.find(o=>o.id===id))));
   return {kind:'ready',state:s,showArm:true,destinations,path};
 }
+function rememberConfiguration(object,q){
+  object.motionHints||=[];
+  if(object.motionHints.some(hint=>distance(hint.q,q)<.05))return;
+  if(object.motionHints.length>=4)object.motionHints.splice(1,1);
+  object.motionHints.push({q:[...q]});
+}
 export function applyStep(state,step){
-  if(step.type==='preshape'){state.approachWidth=step.width;}
-  else if(step.type==='fall'){const object=state.objects.find(o=>o.id===step.object);object.position=[...step.position];if(step.retrievalGrasp)object.lastGrasp=structuredClone(step.retrievalGrasp);if(step.retrievalQ)object.lastGraspQ=[...step.retrievalQ];if(step.retrievalPath)object.retrievalPath=structuredClone(step.retrievalPath);}
+  if(step.type==='preshape'){state.jawWidth=step.width;state.approachWidth=step.width;}
+  else if(step.type==='fall'){const object=state.objects.find(o=>o.id===step.object);object.position=[...step.position];}
   else if(step.type==='move'){
     state.q=[...step.q];state.rpy=[...(step.rpy||[0,0,step.yaw])];state.yaw=state.rpy[2];
-    if(state.held){const block=state.objects.find(o=>o.id===state.held),pose=carriedPose(state,{tip:toolPose(state.q).tip,rotation:rotationFromEuler(state.rpy)});block.position=pose.position;block.rpy=euler(pose.rotation);block.yaw=block.rpy[2];for(const item of state.cargo||[]){const load=state.objects.find(o=>o.id===item.id);load.position=transform(pose.rotation,item.offset).map((v,i)=>v+block.position[i]);load.rpy=euler(multiply(pose.rotation,item.rotation));load.yaw=load.rpy[2];delete load.retrievalPath;delete load.lastGraspQ;}}
-  }else if(step.type==='grip'){state.held=step.object;state.grasp=structuredClone(step.grasp||{offset:[0,0,0],rotation:identity});state.pickup=structuredClone(step.pickup||null);const cup=state.objects.find(o=>o.id===step.object);state.cargo=cup.container?state.objects.filter(o=>inHolder(state,o)).map(o=>({id:o.id,offset:transform(transpose(rotationFromEuler(cup.rpy)),o.position.map((v,i)=>v-cup.position[i])),rotation:multiply(transpose(rotationFromEuler(cup.rpy)),rotationFromEuler(o.rpy))})):[];}
-  else if(step.type==='release'){state.approachWidth=Math.min(62,graspWidth(state)+4);const block=state.objects.find(o=>o.id===state.held);block.lastGrasp=structuredClone(state.grasp);delete block.lastGraspQ;delete block.retrievalPath;block.position=[...step.position];if(step.rpy){block.rpy=[...step.rpy];block.yaw=step.rpy[2];}for(const item of state.cargo||[]){const load=state.objects.find(o=>o.id===item.id),r=rotationFromEuler(block.rpy);load.position=transform(r,item.offset).map((v,i)=>v+block.position[i]);load.rpy=euler(multiply(r,item.rotation));load.yaw=load.rpy[2];}state.held=null;state.grasp=null;state.cargo=[];}
+    if(state.held){const block=state.objects.find(o=>o.id===state.held),pose=carriedPose(state,toolPose(state.q));block.position=pose.position;block.rpy=euler(pose.rotation);block.targetRpy=euler(multiply(rotationFromEuler(state.rpy),state.grasp?.rotation||identity));block.yaw=block.rpy[2];for(const item of state.cargo||[]){const load=state.objects.find(o=>o.id===item.id);load.position=transform(pose.rotation,item.offset).map((v,i)=>v+block.position[i]);load.rpy=euler(multiply(pose.rotation,item.rotation));load.yaw=load.rpy[2];delete load.retrievalPath;delete load.lastGraspQ;}}
+  }else if(step.type==='grip'){rememberConfiguration(state.objects.find(o=>o.id===step.object),state.q);state.held=step.object;state.grasp=structuredClone(step.grasp||{offset:[0,0,0],rotation:identity});state.pickup=structuredClone(step.pickup||null);state.jawWidth=projectedWidth(state.objects.find(o=>o.id===step.object),state.grasp.rotation);const cup=state.objects.find(o=>o.id===step.object);state.cargo=cup.container?state.objects.filter(o=>inHolder(state,o)).map(o=>({id:o.id,offset:transform(transpose(rotationFromEuler(cup.rpy)),o.position.map((v,i)=>v-cup.position[i])),rotation:multiply(transpose(rotationFromEuler(cup.rpy)),rotationFromEuler(o.rpy))})):[];}
+  else if(step.type==='release'){state.approachWidth=state.jawWidth??Math.min(GRIPPER.maxOpening,graspWidth(state)+2*GRIPPER.clearance);state.jawWidth=state.approachWidth;const block=state.objects.find(o=>o.id===state.held);rememberConfiguration(block,state.q);delete block.targetRpy;block.lastGrasp=structuredClone(state.grasp);delete block.lastGraspQ;delete block.retrievalPath;block.position=[...step.position];if(step.rpy){block.rpy=[...step.rpy];block.yaw=step.rpy[2];}for(const item of state.cargo||[]){const load=state.objects.find(o=>o.id===item.id),r=rotationFromEuler(block.rpy);load.position=transform(r,item.offset).map((v,i)=>v+block.position[i]);load.rpy=euler(multiply(r,item.rotation));load.yaw=load.rpy[2];}state.held=null;state.grasp=null;state.cargo=[];}
 }
 // Reverse the actual validated trajectory, including grasp/release events.
 // The UI invalidates this history if a task is interrupted or the scene changes.
@@ -541,7 +595,7 @@ export function reverseSteps(state,steps){
   }
   const s=structuredClone(state),inverse=[];
   for(const step of steps){
-    if(step.type==='preshape')inverse.push({type:'preshape',width:s.approachWidth??51});
+    if(step.type==='preshape')inverse.push({type:'preshape',width:graspWidth(s),seconds:step.seconds});
     else if(step.type==='move')inverse.push({type:'move',q:[...s.q],rpy:[...s.rpy],yaw:s.yaw,seconds:step.seconds});
     else if(step.type==='grip'){const b=s.objects.find(o=>o.id===step.object);inverse.push({type:'release',position:[...b.position],rpy:[...b.rpy]});}
     else if(step.type==='release')inverse.push({type:'grip',object:s.held,grasp:structuredClone(s.grasp),pickup:structuredClone(s.pickup)});

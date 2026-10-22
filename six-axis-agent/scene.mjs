@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from '../beginner-3axis/vendor/three/examples/jsm/controls/OrbitControls.js';
-import { fk, toolPose } from './kinematics.mjs?v=holder-20261022-1';
-import { CATALOG, DESK, graspWidth, footprint } from './world.mjs?v=holder-20261022-1';
+import { fk, toolPose } from './kinematics.mjs?v=collision-20261022-1';
+import { CATALOG, DESK, graspWidth } from './world.mjs?v=collision-20261022-1';
+import {objectGeometry,gripperGeometry,armGeometry,LINK_RADII,JOINT_RADII,JOINT_LENGTHS,CAP_RADII,CAP_OFFSETS} from './shapes.mjs?v=collision-20261022-1';
 
 export function createScene(container) {
   const scene=new THREE.Scene(); scene.background=new THREE.Color('#eeeee7');
@@ -31,25 +32,28 @@ export function createScene(container) {
   const pedestal=cylinder(26,54,materials.shell);pedestal.rotation.x=Math.PI/2;pedestal.position.z=38;
   const ring=cylinder(30,6,materials.accent);ring.rotation.x=Math.PI/2;ring.position.z=18;
   for(let i=0;i<4;i++){const a=Math.PI/4+i*Math.PI/2;const bolt=cylinder(3,3,materials.metal);bolt.rotation.x=Math.PI/2;bolt.position.set(Math.cos(a)*36,Math.sin(a)*36,13);}
-  const links=Array.from({length:5},(_,i)=>cylinder([20,17,13,11,10][i],1,materials.shell));
-  const joints=Array.from({length:6},(_,i)=>cylinder([28,24,22,17,15,12][i],[38,44,39,30,27,24][i],i===3||i===5?materials.accent:materials.dark));
-  const caps=Array.from({length:6},(_,i)=>cylinder([20,18,16,12,10,8][i],2,materials.shell));
-  const gripper=new THREE.Group();station.add(gripper);
-  // The flange sits 40 mm above the grasp centre. Keep the mount and sliding
-  // carriers connected throughout the jaw travel, including the open pose.
-  const mount=cylinder(12,10,materials.metal,gripper);mount.rotation.x=Math.PI/2;mount.position.z=36;
-  const housing=mesh(new THREE.BoxGeometry(70,32,12),materials.dark,gripper);housing.position.z=29;
-  for(const y of [-16.5,16.5]) {
-    const rail=cylinder(1.8,62,materials.metal,gripper);rail.rotation.z=Math.PI/2;rail.position.set(0,y,27);
+  const links=Array.from({length:5},(_,i)=>cylinder(LINK_RADII[i],1,materials.shell));
+  const joints=Array.from({length:6},(_,i)=>cylinder(JOINT_RADII[i],JOINT_LENGTHS[i],i===3||i===5?materials.accent:materials.dark));
+  const caps=Array.from({length:6},(_,i)=>cylinder(CAP_RADII[i],2,materials.shell));
+  function partMesh(part,parent,appearance=null){
+    let geometry;
+    if(part.kind==='box')geometry=new THREE.BoxGeometry(...part.size);
+    else if(part.kind==='cylinder')geometry=new THREE.CylinderGeometry(part.top,part.bottom,part.height,part.segments||40);
+    else{
+      const positions=[];
+      for(const face of part.faces)for(let k=1;k<face.length-1;k++)for(const i of [face[0],face[k],face[k+1]])positions.push(...part.vertices[i]);
+      geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.computeVertexNormals();
+    }
+    const object=mesh(geometry,appearance||materials[part.color]||mat(part.color,0),parent);object.position.set(...(part.center||[0,0,0]));
+    if(part.rotation){const r=part.rotation;object.quaternion.setFromRotationMatrix(new THREE.Matrix4().set(r[0],r[1],r[2],0,r[3],r[4],r[5],0,r[6],r[7],r[8],0,0,0,0,1));}
+    return object;
   }
-  const pads=mat('#28302b',0);
-  const fingers=[-1,1].map(side=>{
-    const jaw=new THREE.Group();gripper.add(jaw);
-    const carrier=mesh(new THREE.BoxGeometry(12,28,8),materials.shell,jaw);carrier.position.z=22;
-    const finger=mesh(new THREE.BoxGeometry(6,24,26),materials.metal,jaw);finger.position.set(side*.5,0,6);
-    const pad=mesh(new THREE.BoxGeometry(1,22,18),pads,jaw);pad.position.set(-side*3,0,2);
-    return jaw;
-  });
+  const gripper=new THREE.Group();station.add(gripper);
+  const fingers=[-1,1].map(()=>{const group=new THREE.Group();gripper.add(group);return group;});
+  for(const part of gripperGeometry(0)){
+    if(part.side){const i=part.side===-1?0:1;partMesh({...part,center:part.center.map((v,j)=>j===0?v-part.side*3.5:v)},fingers[i]);}
+    else partMesh(part,gripper);
+  }
   const objects=new Map(),obstacles=new Map();
   function box(parent,size,color,position=[0,0,0]){const b=mesh(new THREE.BoxGeometry(...size),mat(color,0),parent);b.position.set(...position);return b;}
   const room=new THREE.Group();scene.add(room);
@@ -95,71 +99,19 @@ export function createScene(container) {
   function schoolObject(id){
     if(CATALOG[id].container)return furniture(CATALOG[id]);
     const group=new THREE.Group(),item=CATALOG[id],c=item.color;station.add(group);
+    for(const part of objectGeometry({...item,id}))partMesh(part,group);
     if(id==='book'||id==='notebook'){
-      const [w,l,h]=item.size;box(group,[w-2,l-3,h-4],'#f7eed9');box(group,[w,l,2],c,[0,0,h/2-1]);box(group,[w,l,2],c,[0,0,-h/2+1]);box(group,[4,l,h],c,[-w/2+2,0,0]);
+      const [w,l,h]=item.size;
       decal(group,w-6,l-8,h/2+.1,ctx=>{ctx.fillStyle='#fff1d3';ctx.textAlign='center';ctx.font='bold 34px sans-serif';ctx.fillText(id==='book'?'SCIENCE':'MY NOTES',128,130);ctx.lineWidth=5;ctx.strokeStyle='#fff1d3';ctx.beginPath();ctx.arc(128,285,65,0,Math.PI*2);ctx.stroke();ctx.font='18px sans-serif';ctx.fillText(id==='book'?'EXPLORE':'IDEAS',128,450);});
-    }else if(id==='pen'||id==='pencil'){
-      const body=mesh(new THREE.CylinderGeometry(item.diameter/2,item.diameter/2,64,id==='pencil'?6:24),mat(c,0),group);body.position.y=-3;
-      const tip=mesh(new THREE.ConeGeometry(item.diameter/2,14,12),mat(id==='pencil'?'#d7bc8f':'#aeb6b8',.2),group);tip.position.y=36;
-      const point=mesh(new THREE.ConeGeometry(2.2,5,12),mat('#343d3b',0),group);point.position.y=42;
-      const end=cylinder(item.diameter/2,10,mat(id==='pencil'?'#ce8c85':'#294d70',0),group);end.position.y=-35;
-      if(id==='pen')box(group,[2,24,2],'#c6cccc',[0,-22,6]);
-    }else if(id==='clock'){
-      const body=cylinder(17,18,mat(c,0),group);body.rotation.z=Math.PI/2;body.position.z=2;
-      for(const y of [-10,10])box(group,[24,5,8],'#956652',[0,y,-19]);
-      const face=cylinder(14.5,1,mat('#fff7df',0),group);face.rotation.z=Math.PI/2;face.position.set(9.5,0,2);
-      for(let i=0;i<12;i++){const a=i*Math.PI/6;box(group,[1.5,2,2],'#455c56',[10.3,Math.sin(a)*11,2+Math.cos(a)*11]);}
-      const minute=box(group,[2,1.2,10],'#455c56',[10.8,0,7]);minute.rotation.x=.2;
-      const hour=box(group,[2,8,1.2],'#455c56',[10.8,3,2]);
-      const button=cylinder(3,4,mat('#956652',0),group);button.rotation.x=Math.PI/2;button.position.z=21;
-    }else if(id==='eraser'){
-      box(group,item.size,c);box(group,[30.4,24,20.4],'#f4efdf',[0,3,0]);
-      decal(group,27,22,10.3,ctx=>{ctx.fillStyle='#34586e';ctx.textAlign='center';ctx.font='bold 36px sans-serif';ctx.fillText('ERASER',128,230);ctx.fillRect(28,285,200,12);});
-    }else if(id==='glue'){
-      const body=cylinder(12,34,mat(c,0),group);body.rotation.x=Math.PI/2;body.position.z=-6;
-      const cap=cylinder(12,12,mat('#4c7899',0),group);cap.rotation.x=Math.PI/2;cap.position.z=17;
-      const band=cylinder(12.1,16,mat('#fff2c9',0),group);band.rotation.x=Math.PI/2;band.position.z=-3;
-      for(let i=0;i<12;i++){const a=i*Math.PI/6;box(group,[1.3,1.3,9],'#6d98b4',[Math.cos(a)*11.8,Math.sin(a)*11.8,17]);}
-    }else if(id==='pencilcase'){
-      const shape=new THREE.Shape(),w=14,h=27,r=5;shape.moveTo(-w+r,-h);shape.lineTo(w-r,-h);shape.quadraticCurveTo(w,-h,w,-h+r);shape.lineTo(w,h-r);shape.quadraticCurveTo(w,h,w-r,h);shape.lineTo(-w+r,h);shape.quadraticCurveTo(-w,h,-w,h-r);shape.lineTo(-w,-h+r);shape.quadraticCurveTo(-w,-h,-w+r,-h);
-      const shell=mesh(new THREE.ExtrudeGeometry(shape,{depth:24,bevelEnabled:true,bevelSize:3,bevelThickness:3,bevelSegments:3,steps:1}),mat(c,0),group);shell.position.z=-12;
-      box(group,[2,49,1],'#dbcdb0',[0,0,15]);for(let i=-22;i<=22;i+=4)box(group,[3,1,1.1],'#5e7564',[0,i,15]);box(group,[5,8,1.5],'#d5cdbd',[0,-19,16]);
-    }else if(id==='ruler'){
-      box(group,item.size,c);
-      decal(group,16,88,8.1,ctx=>{ctx.fillStyle='#574c39';ctx.font='20px sans-serif';for(let i=0;i<=40;i++){const y=15+i*12;ctx.fillRect(8,y,i%5===0?75:38,3);if(i%5===0)ctx.fillText(String(i/5),110,y+8);}});
-    }else box(group,item.size,c);
+    }else if(id==='eraser')decal(group,27,22,10.3,ctx=>{ctx.fillStyle='#34586e';ctx.textAlign='center';ctx.font='bold 36px sans-serif';ctx.fillText('ERASER',128,230);ctx.fillRect(28,285,200,12);});
+    else if(id==='ruler')decal(group,16,88,8.1,ctx=>{ctx.fillStyle='#574c39';ctx.font='20px sans-serif';for(let i=0;i<=40;i++){const y=15+i*12;ctx.fillRect(8,y,i%5===0?75:38,3);if(i%5===0)ctx.fillText(String(i/5),110,y+8);}});
     return group;
   }
   function furniture(object){
     const g=new THREE.Group();station.add(g);const [w,l,h]=object.size;
     if(object.id==='wall')return g; // The room wall is already rendered in room coordinates.
-    if(object.container){
-      const t=object.wall;
-      // A square extrusion with an open top, four thick walls and a solid floor.
-      for(const side of [-1,1]){
-        box(g,[t,l,h],object.color,[side*(w-t)/2,0,0]);
-        box(g,[w-2*t,t,h],object.color,[0,side*(l-t)/2,0]);
-      }
-      box(g,[w-2*t,l-2*t,object.floor],object.color,[0,0,-h/2+object.floor/2]);
-    }else if(object.id==='organizer'){
-      box(g,[w,l,8],'#c19e73',[0,0,h/2-4]);
-      for(const x of [-w/2+12,w/2-12])box(g,[16,l-12,h-8],'#a7835d',[x,0,-4]);
-      // Subtle engraved names mark spaces; there are no physical dividers or assigned categories.
-      for(const x of [170,220])box(g,[1,l-16,.3],'#ac8b65',[x-object.position[0],0,h/2+.2]);
-    }else if(object.id==='laptop'){
-      box(g,[125,110,5],'#9aa4a6',[0,-7,-h/2+2.5]);
-      box(g,[107,57,1],'#485359',[0,3,-h/2+5.1]);
-      for(let x=-46;x<=46;x+=10)for(let y=-18;y<=24;y+=9)box(g,[7,6,.8],'#c3cacc',[x,y,-h/2+6]);
-      box(g,[38,23,.7],'#bcc3c4',[0,-43,-h/2+5.2]);
-      const lid=new THREE.Group();g.add(lid);lid.position.set(0,38,-h/2+5);lid.rotation.x=-.16;
-      box(lid,[125,6,88],'#445057',[0,0,44]);box(lid,[115,1,76],'#7f9ea9',[0,-3.6,44]);
-      box(lid,[102,1,6],'#d8e2de',[0,-4.2,72]);box(lid,[38,1,43],'#e1e7dc',[-29,-4.2,42]);box(lid,[48,1,25],'#adc6c0',[21,-4.2,50]);
-    }else if(object.id==='lamp'){
-      const base=cylinder(25,8,mat('#b39c61',.3),g);base.rotation.x=Math.PI/2;base.position.z=-h/2+4;
-      const stem=cylinder(4,h-34,mat('#687b6e',.4),g);stem.rotation.x=Math.PI/2;stem.position.z=-5;
-      const shade=mesh(new THREE.CylinderGeometry(14,29,31,32),mat('#d3b76f',.1),g);shade.rotation.x=Math.PI/2;shade.position.z=h/2-17;
-      const bulb=cylinder(19,1,new THREE.MeshStandardMaterial({color:'#fff4c9',emissive:'#f1d59b',emissiveIntensity:.5}),g);bulb.rotation.x=Math.PI/2;bulb.position.z=h/2-33;
-    }else box(g,object.size,'#aab3a4');
+    for(const part of objectGeometry(object))partMesh(part,g);
+    if(object.id==='organizer')for(const x of [170,220])box(g,[1,l-16,.3],'#ac8b65',[x-object.position[0],0,h/2+.2]);
     return g;
   }
   const ghosts=new THREE.Group();station.add(ghosts);
@@ -171,17 +123,17 @@ export function createScene(container) {
     clearPreview();if(!data)return;
     const color=data.kind==='ready'?'#159a76':data.kind==='collision'?'#e63843':'#d48215';
     const material=()=>new THREE.MeshBasicMaterial({color,transparent:true,opacity:.24,depthWrite:false,depthTest:false});
-    function ghostObject(object){
-      const source=objects.get(object.id);if(!source)return;
-      const clone=source.clone(true);clone.traverse(o=>{if(o.isMesh){o.geometry=o.geometry.clone();o.material=material();o.castShadow=false;o.receiveShadow=false;o.renderOrder=9;}});
-      clone.position.copy(v(object.position));clone.rotation.set(...object.rpy.map(n=>n*Math.PI/180),'ZYX');ghosts.add(clone);
-      const shape=new THREE.BoxGeometry(...object.size),outline=new THREE.LineSegments(new THREE.EdgesGeometry(shape),new THREE.LineBasicMaterial({color,transparent:true,opacity:.9,depthTest:false}));shape.dispose();
-      outline.position.copy(clone.position);outline.quaternion.copy(clone.quaternion);outline.renderOrder=10;ghosts.add(outline);
+    function ghostObject(object,tint=color){
+      const group=new THREE.Group();ghosts.add(group);group.position.copy(v(object.position));group.rotation.set(...(object.rpy||[0,0,0]).map(n=>n*Math.PI/180),'ZYX');
+      for(const part of objectGeometry(object)){
+        const body=partMesh(part,group,new THREE.MeshBasicMaterial({color:tint,transparent:true,opacity:.18,depthWrite:false,depthTest:false}));body.renderOrder=9;body.castShadow=false;body.receiveShadow=false;
+        const outline=new THREE.LineSegments(new THREE.EdgesGeometry(body.geometry),new THREE.LineBasicMaterial({color:tint,transparent:true,opacity:.85,depthTest:false}));outline.renderOrder=10;body.add(outline);
+      }
     }
     for(const object of data.destinations||[])ghostObject(object);
     if(data.showArm){
       const pose=fk(data.state.q),tool=toolPose(data.state.q);
-      pose.points.slice(1).forEach((b,i)=>{const a=pose.points[i],link=cylinder([20,17,13,11,10][i],v(a).distanceTo(v(b)),material(),ghosts);orient(link,a,b);link.renderOrder=8;link.castShadow=false;});
+      for(const part of armGeometry(pose)){const link=partMesh(part,ghosts,material());link.renderOrder=8;link.castShadow=false;link.receiveShadow=false;}
       const grip=gripper.clone(true);grip.traverse(o=>{if(o.isMesh){o.geometry=o.geometry.clone();o.material=material();o.castShadow=false;o.receiveShadow=false;o.renderOrder=9;}});
       const r=tool.rotation;grip.position.copy(v(tool.tip));grip.quaternion.setFromRotationMatrix(new THREE.Matrix4().set(r[0],r[1],r[2],0,r[3],r[4],r[5],0,r[6],r[7],r[8],0,0,0,0,1));
       // Finger spacing follows the simulated load, not the live robot's grip.
@@ -190,7 +142,7 @@ export function createScene(container) {
     }
     if(data.path?.length>1){const path=new THREE.Line(new THREE.BufferGeometry().setFromPoints(data.path.map(v)),new THREE.LineDashedMaterial({color,dashSize:7,gapSize:5,transparent:true,opacity:.65,depthTest:false}));path.computeLineDistances();path.renderOrder=7;ghosts.add(path);}
     const blocker=[...data.state.objects,...data.state.obstacles].find(o=>o.id===data.blocker);
-    if(blocker){const shape=new THREE.BoxGeometry(...(blocker.rpy?footprint(blocker):blocker.size));const outline=new THREE.LineSegments(new THREE.EdgesGeometry(shape),new THREE.LineBasicMaterial({color:'#e63843',depthTest:false}));shape.dispose();outline.position.copy(v(blocker.position));outline.renderOrder=10;ghosts.add(outline);}
+    if(blocker)ghostObject(blocker,'#e63843');
     if(data.kind==='reach'&&data.target){const marker=mesh(new THREE.SphereGeometry(8,16,12),material(),ghosts);marker.position.copy(v(data.target));marker.renderOrder=10;}
   }
   function orient(m,a,b) { const A=v(a),B=v(b),d=B.clone().sub(A); m.position.copy(A.add(B).multiplyScalar(.5));m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize()); }
@@ -204,10 +156,9 @@ export function createScene(container) {
     renderer.domElement.setAttribute('aria-label',s.kit==='desk'?'Robot clamped to one side of a dorm room desk, with reachable red book, blue notebook, pen, pencil, pen holder, organizer shelf, fixed laptop and lamp; a single bed, wardrobe, chair and pinboard in the room.':s.kit==='blocks'?'Six-axis robot with red, blue and yellow blocks on a table.':'Six-axis robot with school objects on a table.');
     const pose=fk(s.q),tool=toolPose(s.q);
     links.forEach((link,i)=>{const a=pose.points[i],b=pose.points[i+1];orient(link,a,b);link.scale.y=v(a).distanceTo(v(b));});
-    joints.forEach((joint,i)=>{joint.position.copy(v(pose.origins[i]));joint.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),v(pose.axes[i]));caps[i].position.copy(joint.position).addScaledVector(v(pose.axes[i]),[20,23,20.5,16,14.5,13][i]);caps[i].quaternion.copy(joint.quaternion);});
+    joints.forEach((joint,i)=>{joint.position.copy(v(pose.origins[i]));joint.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),v(pose.axes[i]));caps[i].position.copy(joint.position).addScaledVector(v(pose.axes[i]),CAP_OFFSETS[i]);caps[i].quaternion.copy(joint.quaternion);});
     const r=tool.rotation;
     gripper.position.copy(v(tool.tip));gripper.quaternion.setFromRotationMatrix(new THREE.Matrix4().set(r[0],r[1],r[2],0,r[3],r[4],r[5],0,r[6],r[7],r[8],0,0,0,0,1));
-    const held=s.objects.find(o=>o.id===s.held);
     fingers.forEach((finger,i)=>finger.position.set((i?1:-1)*(graspWidth(s)/2+3.5),0,0));
     for(const [id,m] of objects){m.visible=s.objects.some(o=>o.id===id);}
     for(const object of s.objects){

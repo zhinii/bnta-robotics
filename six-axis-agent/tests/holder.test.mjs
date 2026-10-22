@@ -32,6 +32,7 @@ test('both insertion orders drop into separate slots, preview settled poses, and
  assert.equal(p.steps.filter(x=>x.type==='fall').length,2);
  assert.deepEqual(snapshot(p.result).containers[0].contents,['pen','pencil']);
  assert.ok(!JSON.stringify(snapshot(p.result)).includes('retrievalPath'),'internal joint routes must not bloat AI scene context');
+ assert.ok(!JSON.stringify(snapshot(p.result)).includes('motionHints'),'remembered robot configurations remain internal to the controller');
  assert.ok(clearPose(p.result.q,p.result),'the final empty gripper must clear both stored tools without contact exemptions');
  assert.ok(planActions(p.result,[{type:'transfer',object:'book',target:'shelf-left'}]).steps.length,'a shelf task must work immediately after the drops');
  const preview=previewSteps(s,p.steps);

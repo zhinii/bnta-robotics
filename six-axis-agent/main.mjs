@@ -1,9 +1,9 @@
-import { initialState, snapshot, applyStep, CATALOG, objectPosture, previewSteps, inHolder, footprint } from './world.mjs?v=holder-20261022-1';
-import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=holder-20261022-1';
-import { createScene } from './scene.mjs?v=holder-20261022-1';
-import { createSpeech } from './speech.mjs?v=holder-20261022-1';
-import { words, challenges } from './i18n.mjs?v=holder-20261022-1';
-import deployment from './deployment.mjs?v=holder-20261022-1';
+import { initialState, snapshot, applyStep, CATALOG, objectPosture, previewSteps, inHolder, footprint, graspWidth } from './world.mjs?v=collision-20261022-1';
+import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=collision-20261022-1';
+import { createScene } from './scene.mjs?v=collision-20261022-1';
+import { createSpeech } from './speech.mjs?v=collision-20261022-1';
+import { words, challenges } from './i18n.mjs?v=collision-20261022-1';
+import deployment from './deployment.mjs?v=collision-20261022-1';
 const serverMode=deployment?.mode==='school',hostedMode=deployment?.mode==='hosted',managedConnection=serverMode||hostedMode;
 
 const $=id=>document.getElementById(id);
@@ -15,7 +15,7 @@ let connectionFailed=false;
 let state=initialState(0,'desk'),connection=null,busy=false,epoch=0,abort=null,history=[],activity='',view=null,undo=[],worker=null,workerReject=null,challengeIndex=0;
 let previewData=null,previewResolve=null,settling=null;
 const t=(key,vars={})=>Object.entries(vars).reduce((s,[k,v])=>s.replaceAll('{'+k+'}',v),words[language][key]||key);
-const name=id=>CATALOG[id]?.[language==='zh'?'zh':'name']||state.obstacles.find(o=>o.id===id)?.[language==='zh'?'zh':'name']||({table:'桌面','robot base':'机械臂底座','tall divider':'高挡板','low divider':'矮挡板'}[id]&&language==='zh'?{table:'桌面','robot base':'机械臂底座','tall divider':'高挡板','low divider':'矮挡板'}[id]:id);
+const name=id=>CATALOG[id]?.[language==='zh'?'zh':'name']||state.obstacles.find(o=>o.id===id)?.[language==='zh'?'zh':'name']||({table:'桌面','robot arm':'机械臂','robot base':'机械臂底座','tall divider':'高挡板','low divider':'矮挡板'}[id]&&language==='zh'?{table:'桌面','robot arm':'机械臂','robot base':'机械臂底座','tall divider':'高挡板','low divider':'矮挡板'}[id]:id);
 const perception=()=>({...snapshot(state),canUndo:undo.length>0});
 const compactLayout=matchMedia('(max-width:900px)');
 compactLayout.addEventListener('change',event=>{
@@ -103,7 +103,7 @@ function prepare(actions){
     return Promise.resolve({plan:{steps:undo.at(-1)},undoing:true});
   }
   return new Promise((resolve,reject)=>{
-    const planner=new Worker(new URL('./planner-worker.mjs?v=holder-20261022-1',import.meta.url),{type:'module'});worker=planner;
+    const planner=new Worker(new URL('./planner-worker.mjs?v=collision-20261022-1',import.meta.url),{type:'module'});worker=planner;
     const finish=()=>{clearTimeout(timer);planner.terminate();if(worker===planner){worker=null;workerReject=null;}};
     const timer=setTimeout(()=>{finish();reject(Error('planningTimeout'));},45000);
     workerReject=error=>{finish();reject(error);};
@@ -113,7 +113,8 @@ function prepare(actions){
   });
 }
 async function animate(steps,id){
-  for(const step of steps){
+  for(let index=0;index<steps.length;index++){
+    const step=steps[index];
     if(id!==epoch)throw Error('cancelled');
     if(step.type==='fall'){
       const object=state.objects.find(o=>o.id===step.object),from=[...object.position];settling=step;
@@ -121,15 +122,27 @@ async function animate(steps,id){
         function frame(now){if(id!==epoch)return reject(Error('cancelled'));start??=now;const u=Math.min(1,(now-start)/(step.seconds*1000));object.position=from.map((v,i)=>v+(step.position[i]-v)*u*u);render();if(u===1){applyStep(state,step);settling=null;resolve();}else requestAnimationFrame(frame);}requestAnimationFrame(frame);
       });continue;
     }
+    if(step.type==='preshape'){
+      const from=graspWidth(state);
+      await new Promise((resolve,reject)=>{let previous=null,elapsed=0;function frame(now){
+        if(id!==epoch)return reject(Error('cancelled'));
+        if(previous!==null)elapsed+=Math.min(50,now-previous);previous=now;
+        const u=Math.min(1,elapsed/((step.seconds||.08)*1000));applyStep(state,{...step,width:from+(step.width-from)*u});render();
+        if(u===1)resolve();else requestAnimationFrame(frame);
+      }requestAnimationFrame(frame);});continue;
+    }
     if(step.type!=='move'){applyStep(state,step);render();continue;}
-    const from=[...state.q],fromRpy=[...state.rpy];
-    await new Promise((resolve,reject)=>{let elapsed=0,previous=null;
+    const moves=[step];while(steps[index+1]?.type==='move')moves.push(steps[++index]);
+    await new Promise((resolve,reject)=>{let segment=0,elapsed=0,previous=null,from=[...state.q],fromRpy=[...state.rpy];
       function frame(now){
         if(id!==epoch)return reject(Error('cancelled'));
         if(previous!==null)elapsed+=Math.min(50,now-previous);previous=now;
-        const u=Math.min(1,elapsed/(step.seconds*1000));
-        applyStep(state,{type:'move',q:from.map((v,i)=>v+(step.q[i]-v)*u),rpy:fromRpy.map((v,i)=>v+(step.rpy[i]-v)*u)});render();
-        if(u===1)resolve();else requestAnimationFrame(frame);
+        while(segment<moves.length&&elapsed>=moves[segment].seconds*1000){
+          const end=moves[segment];elapsed-=end.seconds*1000;applyStep(state,end);segment++;from=[...state.q];fromRpy=[...state.rpy];
+        }
+        if(segment===moves.length){render();resolve();return;}
+        const target=moves[segment],u=Math.min(1,elapsed/(target.seconds*1000));
+        applyStep(state,{type:'move',q:from.map((v,i)=>v+(target.q[i]-v)*u),rpy:fromRpy.map((v,i)=>v+(target.rpy[i]-v)*u)});render();requestAnimationFrame(frame);
       }requestAnimationFrame(frame);
     });
   }
@@ -190,7 +203,7 @@ async function send(question){
       const items=state.objects.filter(o=>o.id===state.held||touched.has(o.id));
       completion=last.type==='restore'?t('restoreDone'):items.length?items.map(o=>t(o.id===state.held?'postureHeld':'posturePlaced',{object:name(o.id),posture:t('posture_'+objectPosture(o)),angles:o.rpy.map(v=>Math.round(v)).join('°, ')+'°'})).join('\n'):t(key,vars);
     }
-    if(last.type!=='restore'&&last.type!=='undo'&&state.objects.some(o=>touched.has(o.id)&&onShelf(o)))completion+='\n'+t('shelfFollowup');
+    if(last.type!=='restore'&&last.type!=='undo'&&state.objects.some(o=>touched.has(o.id)&&onShelf(o))&&!/[?？]/u.test(completion))completion+='\n'+t('shelfFollowup');
     intention?.remove();add('assistant',completion);
     remember('assistant',completion+'\nExecuted actions: '+JSON.stringify(response.actions)+'\nActual scene: '+JSON.stringify(perception()));
   }catch(error){if(id===epoch){remember('user',question);remember('assistant','Execution did not complete: '+reportError(error)+' '+JSON.stringify(perception()));}}

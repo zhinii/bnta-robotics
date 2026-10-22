@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {initialState,planActions,applyStep,validateActions,AREAS,HOME,HOMES,DESK,clearPose,reverseSteps,snapshot,objectPosture,postureOrientations} from '../world.mjs';
-import {toolPose,distance} from '../kinematics.mjs';
+import {toolPose,distance,rotationFromEuler,orientationError} from '../kinematics.mjs';
 import {parseResponse,askAgent,DEFAULTS,RELAY,SYSTEM} from '../agent.mjs';
 import {createSpeech} from '../speech.mjs';
+import {objectBounds} from '../shapes.mjs';
 const run=(s,actions)=>{const plan=planActions(s,actions);for(const step of plan.steps)applyStep(s,step);return plan;};
 const sameObjects=(a,b)=>{for(const object of a.objects){const other=b.objects.find(o=>o.id===object.id);assert.ok(distance(object.position,other.position)<.15,object.id);assert.ok(distance(object.rpy,other.rpy)<.02,object.id);}};
 test('all desk objects stand upright on the shelf with geometric support, undo and restore',()=>{
@@ -45,8 +46,8 @@ test('90 degree X, Y and Z turns preserve the requested axis and can restore or 
   const plan=planActions(s,actions),inverse=reverseSteps(s,plan.steps);
   for(const step of plan.steps)applyStep(s,step);
   const expected=[0,0,0];expected[index]=90;
-  assert.deepEqual(s.objects[0].rpy,expected);assert.equal(s.held,'book');
-  assert.ok(distance(toolPose(s.q).rpy,expected)<.3);
+  assert.ok(Math.hypot(...orientationError(rotationFromEuler(expected),rotationFromEuler(s.objects[0].rpy)))<.004);assert.equal(s.held,'book');
+  assert.ok(Math.hypot(...orientationError(rotationFromEuler(expected),toolPose(s.q).rotation))<.004);
   const restored=planActions(s,[{type:'restore'}]).result;sameObjects(restored,before);assert.equal(restored.held,null);
   for(const step of inverse)applyStep(s,step);sameObjects(s,before);assert.deepEqual(s.q,before.q);
  }
@@ -77,8 +78,10 @@ test('user-selected stacks and side-by-side orders preserve shelf height and can
   for(const step of inverse)applyStep(s,step);sameObjects(s,before);
  }
  const s=initialState(0,'desk');run(s,[{type:'transfer',object:'pen',target:'shelf-middle'},{type:'transfer',object:'pencil',beside:'pen',side:'rear'}]);
- assert.equal(s.objects.find(o=>o.id==='pencil').position[2],36);assert.ok(s.objects.find(o=>o.id==='pencil').position[0]<s.objects.find(o=>o.id==='pen').position[0]);
- assert.throws(()=>planActions(s,[{type:'transfer',object:'book',beside:'pencil',side:'rear'}]),e=>e.message==='shelfEdge'&&e.preview.kind==='placement');
+ assert.equal(s.objects.find(o=>o.id==='pencil').position[2],35);assert.ok(s.objects.find(o=>o.id==='pencil').position[0]<s.objects.find(o=>o.id==='pen').position[0]);
+ run(s,[{type:'transfer',object:'book',beside:'pencil',side:'rear'}]);
+ assert.ok(s.objects.find(o=>o.id==='book').position[0]<s.objects.find(o=>o.id==='pencil').position[0],'the book fits beside the pencil with physical finger clearance');
+ assert.throws(()=>planActions(s,[{type:'transfer',object:'notebook',beside:'book',side:'rear'}]),e=>e.message==='shelfEdge'&&e.preview.kind==='placement');
  run(s,[{type:'restore'}]);sameObjects(s,initialState(0,'desk'));
  assert.throws(()=>planActions(s,[{type:'move',position:[150,210,120]}]),/blocked/);
  assert.throws(()=>validateActions([{type:'pick',object:'laptop'}]),/unknown/);
@@ -109,14 +112,14 @@ test('all five school objects can go to every table side and return to their own
  for(const id of initialState().objects.map(o=>o.id))for(const target of Object.keys(AREAS)){
   const s=initialState(),before=structuredClone(s),plan=planActions(s,[{type:'pick',object:id},{type:'place',target}]);assert.deepEqual(s,before);
   for(const step of plan.steps)applyStep(s,step);
-  const object=s.objects.find(o=>o.id===id);assert.deepEqual(object.position,[...AREAS[target],object.size[2]/2]);assert.equal(s.held,null);
+  const object=s.objects.find(o=>o.id===id);assert.deepEqual(object.position.slice(0,2),AREAS[target]);assert.ok(Math.abs(objectBounds(object).low[2])<1e-7,'the visible solid rests on the table');assert.equal(s.held,null);
   run(s,[{type:'restore'}]);sameObjects(s,before);assert.ok(distance(toolPose(s.q).tip,HOME)<.2);
  }
 });
 test('school tower stacks on flat supports, refuses a covered object, and fully restores',()=>{
  const s=initialState(),before=structuredClone(s);
  run(s,[{type:'pick',object:'pencilcase'},{type:'place',target:'book'},{type:'pick',object:'eraser'},{type:'place',target:'pencilcase'}]);
- assert.equal(s.objects.find(o=>o.id==='eraser').position[2],58);assert.throws(()=>planActions(s,[{type:'pick',object:'book'}]),/covered/);
+ assert.ok(Math.abs(s.objects.find(o=>o.id==='eraser').position[2]-59.95)<1e-7,'stack includes the case zipper and eraser sleeve');assert.throws(()=>planActions(s,[{type:'pick',object:'book'}]),/covered/);
  run(s,[{type:'restore'}]);sameObjects(s,before);
 });
 test('named transfers pick up, place and re-pick for a round trip, including an already-held object',()=>{
@@ -180,7 +183,7 @@ test('gestures, free tool orientation and explicit joint poses obey limits',()=>
 test('arbitrary table placement and relative placement use each object size',()=>{
  const s=initialState();run(s,[{type:'pick',object:'book'},{type:'place',beside:'eraser',side:'front'}]);
  assert.ok(s.objects[0].position[0]>s.objects[1].position[0]);run(s,[{type:'restore'},{type:'pick',object:'eraser'},{type:'place',position:[250,25]}]);
- assert.deepEqual(s.objects[1].position,[250,25,10]);
+ assert.deepEqual(s.objects[1].position,[250,25,10.2]);
 });
 test('rejected actions are atomic and report actionable collision or support details',()=>{
  const s=initialState(),before=structuredClone(s);
