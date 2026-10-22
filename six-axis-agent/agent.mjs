@@ -1,4 +1,4 @@
-import { validateActions } from './world.mjs?v=shelf-20261022-1';
+import { validateActions } from './world.mjs?v=shelf-20261022-2';
 
 export const DEFAULTS = { base: 'https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1', model: 'qwen3.8-flash' };
 export const RELAY = 'https://bnta-robot-lab-connection.zhinii.chatgpt.site/api/chat';
@@ -77,7 +77,7 @@ export async function askAgent(connection, {question,language,history,scene,feed
   if(!response.ok) throw Error(({401:'auth',403:'auth',429:'quota',400:'model',404:'model'})[response.status]||'provider');
   const data=await response.json();
   const raw=data?.choices?.[0]?.message?.content;
-  try { if(data?.choices?.[0]?.finish_reason==='length')throw Error('truncated');return pickupIntent(placementIntent(parseResponse(raw),question),question); } catch(error) {
+  try { if(data?.choices?.[0]?.finish_reason==='length')throw Error('truncated');const parsed=pickupIntent(placementIntent(parseResponse(raw),question),question);return question==='connection_check'?{...parsed,actions:[]}:parsed; } catch(error) {
     if(attempt===0) {
       messages.push({role:'assistant',content:typeof raw==='string'?raw.slice(0,2500):'Invalid response'},
         {role:'user',content:`Your response ${error.message==='truncated'?'was cut off before completion':'did not match the allowed action schema'}. Return a complete compact JSON object for the original request using exactly the system-defined action types and parameters. Prefer transfer for named-object placement; each transfer picks up and releases the object. If unsupported, explain why and return actions:[], without claiming execution. Keep reply and after brief.`});

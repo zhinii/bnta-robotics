@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from '../beginner-3axis/vendor/three/examples/jsm/controls/OrbitControls.js';
-import { fk, toolPose } from './kinematics.mjs?v=shelf-20261022-1';
-import { CATALOG, DESK, graspWidth } from './world.mjs?v=shelf-20261022-1';
-import {objectGeometry,gripperGeometry,armGeometry,LINK_RADII,JOINT_RADII,JOINT_LENGTHS,CAP_RADII,CAP_OFFSETS} from './shapes.mjs?v=shelf-20261022-1';
+import { fk, toolPose } from './kinematics.mjs?v=shelf-20261022-2';
+import { CATALOG, DESK, graspWidth } from './world.mjs?v=shelf-20261022-2';
+import {objectGeometry,gripperGeometry,armGeometry,LINK_RADII,JOINT_RADII,JOINT_LENGTHS,CAP_RADII,CAP_OFFSETS} from './shapes.mjs?v=shelf-20261022-2';
 
 export function createScene(container) {
   const scene=new THREE.Scene(); scene.background=new THREE.Color('#eeeee7');

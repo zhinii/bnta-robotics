@@ -1,9 +1,9 @@
-import { initialState, snapshot, applyStep, CATALOG, objectPosture, previewSteps, inHolder, footprint, graspWidth } from './world.mjs?v=shelf-20261022-1';
-import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=shelf-20261022-1';
-import { createScene } from './scene.mjs?v=shelf-20261022-1';
-import { createSpeech } from './speech.mjs?v=shelf-20261022-1';
-import { words, challenges } from './i18n.mjs?v=shelf-20261022-1';
-import deployment from './deployment.mjs?v=shelf-20261022-1';
+import { initialState, snapshot, applyStep, CATALOG, objectPosture, previewSteps, inHolder, footprint, graspWidth } from './world.mjs?v=shelf-20261022-2';
+import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=shelf-20261022-2';
+import { createScene } from './scene.mjs?v=shelf-20261022-2';
+import { createSpeech } from './speech.mjs?v=shelf-20261022-2';
+import { words, challenges } from './i18n.mjs?v=shelf-20261022-2';
+import deployment from './deployment.mjs?v=shelf-20261022-2';
 const serverMode=deployment?.mode==='school',hostedMode=deployment?.mode==='hosted',managedConnection=serverMode||hostedMode;
 
 const $=id=>document.getElementById(id);
@@ -103,7 +103,7 @@ function prepare(actions){
     return Promise.resolve({plan:{steps:undo.at(-1)},undoing:true});
   }
   return new Promise((resolve,reject)=>{
-    const planner=new Worker(new URL('./planner-worker.mjs?v=shelf-20261022-1',import.meta.url),{type:'module'});worker=planner;
+    const planner=new Worker(new URL('./planner-worker.mjs?v=shelf-20261022-2',import.meta.url),{type:'module'});worker=planner;
     const finish=()=>{clearTimeout(timer);planner.terminate();if(worker===planner){worker=null;workerReject=null;}};
     const timer=setTimeout(()=>{finish();reject(Error('planningTimeout'));},45000);
     workerReject=error=>{finish();reject(error);};

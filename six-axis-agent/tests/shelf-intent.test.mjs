@@ -81,3 +81,8 @@ test('questions and unreferenced pointing never replay a failed job, while creat
  });
  assert.ok(SYSTEM.length<12000);
 });
+
+test('a valid greeting gesture during connection check never moves or rejects a working connection',async()=>{
+ const reply=await askAgent({hosted:true},{question:'connection_check',language:'en',history:[],scene:{objects:[]}},undefined,async()=>Response.json({choices:[{message:{content:'{"reply":"Hello!","actions":[{"type":"wave"}]}'}}]}));
+ assert.deepEqual(reply.actions,[]);
+});

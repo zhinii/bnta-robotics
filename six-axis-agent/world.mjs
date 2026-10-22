@@ -1,6 +1,6 @@
-import { homeFor, ikTool, toolPose, valid, distance, transform, rotationFromEuler, multiply, JOINTS, orientationError } from './kinematics.mjs?v=shelf-20261022-1';
-import {at,shape,cylinder,bounds,overlaps,broadOverlap,xyz} from './collision.mjs?v=shelf-20261022-1';
-import {objectGeometry,objectShapes,objectBounds,gripperGeometry,armGeometry,projectedWidth,GRIPPER,GRIPPER_CONTACT} from './shapes.mjs?v=shelf-20261022-1';
+import { homeFor, ikTool, toolPose, valid, distance, transform, rotationFromEuler, multiply, JOINTS, orientationError } from './kinematics.mjs?v=shelf-20261022-2';
+import {at,shape,cylinder,bounds,overlaps,broadOverlap,xyz} from './collision.mjs?v=shelf-20261022-2';
+import {objectGeometry,objectShapes,objectBounds,gripperGeometry,armGeometry,projectedWidth,GRIPPER,GRIPPER_CONTACT} from './shapes.mjs?v=shelf-20261022-2';
 
 export const AREAS={left:[170,-230],right:[170,230],rear:[-280,0],front:[280,0]};
 export const HOME=[210,0,150];
