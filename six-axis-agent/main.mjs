@@ -1,9 +1,9 @@
-import { initialState, snapshot, applyStep, CATALOG, objectPosture, objectLocation, previewSteps, inHolder, footprint, graspWidth } from './world.mjs?v=spatial-20261022-1';
-import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=spatial-20261022-1';
-import { createScene } from './scene.mjs?v=spatial-20261022-1';
-import { createSpeech } from './speech.mjs?v=spatial-20261022-1';
-import { words, challenges } from './i18n.mjs?v=spatial-20261022-1';
-import deployment from './deployment.mjs?v=spatial-20261022-1';
+import { initialState, snapshot, applyStep, CATALOG, objectPosture, restingFace, objectLocation, previewSteps, inHolder, footprint, graspWidth } from './world.mjs?v=vision-20261022-1';
+import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=vision-20261022-1';
+import { createScene } from './scene.mjs?v=vision-20261022-1';
+import { createSpeech } from './speech.mjs?v=vision-20261022-1';
+import { words, challenges } from './i18n.mjs?v=vision-20261022-1';
+import deployment from './deployment.mjs?v=vision-20261022-1';
 const serverMode=deployment?.mode==='school',hostedMode=deployment?.mode==='hosted',managedConnection=serverMode||hostedMode;
 
 const $=id=>document.getElementById(id);
@@ -29,10 +29,10 @@ function archiveExchange(){
   while(archive.children.length>76)archive.firstElementChild.remove();
   $('earlier-messages').hidden=!archive.children.length;
 }
-function add(role,content,{key,vars,error=false}={}){
+function add(role,content,{key,vars,error=false,image=false}={}){
   if(role==='user'||['connected','resetDone','change','schoolKeyNote','hostedKeyNote'].includes(key))archiveExchange();
   const el=document.createElement('div');el.className='message '+role+(error?' error':'');
-  const who=document.createElement('div');who.className='who';who.textContent=t(role==='user'?'you':role==='system'?'system':'robot');
+  const who=document.createElement('div');who.className='who';who.textContent=t(role==='user'?'you':role==='system'?'system':'robot')+(image?' · '+t('sceneImageUsed'):'');if(image)el.dataset.image='true';
   const body=document.createElement('div');body.className='body';body.textContent=content;el.append(who,body);
   if(key){el.dataset.key=key;el.dataset.vars=JSON.stringify(vars||{});}
   $('messages').append(el);
@@ -75,7 +75,7 @@ function refresh(){
   $('preview-panel').hidden=!previewData;
   if(previewData){$('preview-panel').dataset.kind=previewData.kind;$('preview-run').hidden=previewData.kind!=='ready';$('preview-dismiss').textContent=t(previewData.kind==='ready'?'previewCancel':'previewDismiss');$('preview-description').textContent=t(previewData.kind==='ready'?'previewReady':previewData.kind==='collision'?'previewCollision':previewData.kind==='reach'?'previewReach':'previewPlacement',{object:previewData.blocker?name(previewData.blocker):t('collisionSurface')});}
   document.querySelectorAll('.message[data-key]').forEach(el=>{const vars=JSON.parse(el.dataset.vars);if(vars.objectId)vars.object=name(vars.objectId);el.querySelector('.body').textContent=t(el.dataset.key,vars);});
-  document.querySelectorAll('.message').forEach(el=>el.querySelector('.who').textContent=t(el.classList.contains('user')?'you':el.classList.contains('system')?'system':'robot'));
+  document.querySelectorAll('.message').forEach(el=>el.querySelector('.who').textContent=t(el.classList.contains('user')?'you':el.classList.contains('system')?'system':'robot')+(el.dataset.image?' · '+t('sceneImageUsed'):''));
   view?.language(language);render();
 }
 function status(key){activity=key;refresh();}
@@ -93,7 +93,7 @@ function cancel(announce=true){
 async function request(question,id,feedback){
   abort=new AbortController();const controller=abort;let timedOut=false;
   const timer=setTimeout(()=>{timedOut=true;controller.abort();},30000);
-  try{return await askAgent(connection,{question,language,history,scene:perception(),feedback},controller.signal);}
+    try{return await askAgent(connection,{question,language,history,scene:perception(),feedback,captureScene:()=>{status('looking');return view?.capture();}},controller.signal);}
   catch(error){if(id===epoch&&timedOut)throw Error('timeout');throw error;}
   finally{clearTimeout(timer);if(abort===controller)abort=null;}
 }
@@ -103,7 +103,7 @@ function prepare(actions){
     return Promise.resolve({plan:{steps:undo.at(-1)},undoing:true});
   }
   return new Promise((resolve,reject)=>{
-    const planner=new Worker(new URL('./planner-worker.mjs?v=spatial-20261022-1',import.meta.url),{type:'module'});worker=planner;
+    const planner=new Worker(new URL('./planner-worker.mjs?v=vision-20261022-1',import.meta.url),{type:'module'});worker=planner;
     const finish=()=>{clearTimeout(timer);planner.terminate();if(worker===planner){worker=null;workerReject=null;}};
     const timer=setTimeout(()=>{finish();reject(Error('planningTimeout'));},45000);
     workerReject=error=>{finish();reject(error);};
@@ -185,6 +185,7 @@ async function send(question){
   try{
     for(let attempt=0;attempt<2;attempt++){
       response=await request(question,id,feedback);if(id!==epoch)return;
+      if(response.imageStatus==='unavailable')say('visionUnavailable');
       if(!response.actions.length)break;
       status('planning');
       try{prepared=await prepare(response.actions);break;}
@@ -192,8 +193,9 @@ async function send(question){
     }
     if(id!==epoch)return;
     remember('user',question);
-    if(!response.actions.length){add('assistant',response.reply);remember('assistant',response.reply);return;}
-    intention=add('assistant',response.reply);remember('assistant',response.reply);
+    const usedImage=response.imageStatus==='seen';
+    if(!response.actions.length){add('assistant',response.reply,{image:usedImage});remember('assistant',response.reply);return;}
+    intention=add('assistant',response.reply,{image:usedImage});remember('assistant',response.reply);
     if(!await review(prepared.plan.steps)){if(id===epoch){say('previewCancelled');remember('assistant',t('previewCancelled'));}return;}if(id!==epoch)return;status('moving');
     const touched=new Set([state.held,...prepared.plan.steps.filter(step=>step.type==='grip').map(step=>step.object)]);
     await animate(prepared.plan.steps,id);if(id!==epoch)return;
@@ -205,11 +207,11 @@ async function send(question){
     if(rotated){
       const items=state.objects.filter(o=>o.id===state.held||touched.has(o.id));
       const technical=response.actions.some(a=>a.type==='rotate'||a.orientation)||/\b(?:axis|degrees?)\b|轴|度/u.test(question);
-      completion=last.type==='restore'?t('restoreDone'):items.length?items.map(o=>t(o.id===state.held?(technical?'postureHeld':'postureHeldSimple'):(technical?'posturePlaced':'posturePlacedSimple'),{object:name(o.id),posture:t('posture_'+(objectPosture(o)==='flat'&&Math.cos(o.rpy[0]*Math.PI/180)*Math.cos(o.rpy[1]*Math.PI/180)<-.999?'face-down':objectPosture(o))),angles:o.rpy.map(v=>Math.round(v)).join('°, ')+'°'})).join('\n'):t(key,vars);
+      completion=last.type==='restore'?t('restoreDone'):items.length?items.map(o=>t(o.id===state.held?(technical?'postureHeld':'postureHeldSimple'):(technical?'posturePlaced':'posturePlacedSimple'),{object:name(o.id),posture:t('posture_'+restingFace(o)),angles:o.rpy.map(v=>Math.round(v)).join('°, ')+'°'})).join('\n'):t(key,vars);
     }
     if(!rotated&&response.actions.some(a=>a.target==='shelf'))completion=state.objects.filter(o=>touched.has(o.id)&&onShelf(o)&&!inHolder(state,o)).map(o=>t('placedOnShelf',{object:name(o.id)})).join('\n')||completion;
     if(last.type!=='restore'&&last.type!=='undo'&&state.objects.some(o=>touched.has(o.id)&&onShelf(o))&&!/[?？]/u.test(completion))completion+='\n'+t('shelfFollowup');
-    intention?.remove();add('assistant',completion);
+    intention?.remove();add('assistant',completion,{image:usedImage});
     remember('assistant',completion+'\nExecuted actions: '+JSON.stringify(response.actions)+'\nActual scene: '+JSON.stringify(perception()));
   }catch(error){if(id===epoch){remember('user',question);remember('assistant','Execution did not complete: '+reportError(error)+'\nUnexecuted request: '+JSON.stringify(response?.actions||[])+'\nActual scene: '+JSON.stringify(perception()));}}
   finally{if(id===epoch){busy=false;activity='';refresh();focusInput($('prompt'));}}

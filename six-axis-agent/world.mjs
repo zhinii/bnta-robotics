@@ -1,6 +1,6 @@
-import { homeFor, ikTool, toolPose, valid, distance, transform, rotationFromEuler, multiply, JOINTS, orientationError } from './kinematics.mjs?v=spatial-20261022-1';
-import {at,shape,cylinder,bounds,overlaps,broadOverlap,xyz} from './collision.mjs?v=spatial-20261022-1';
-import {objectGeometry,objectShapes,objectBounds,gripperGeometry,armGeometry,projectedWidth,GRIPPER,GRIPPER_CONTACT} from './shapes.mjs?v=spatial-20261022-1';
+import { homeFor, ikTool, toolPose, valid, distance, transform, rotationFromEuler, multiply, JOINTS, orientationError } from './kinematics.mjs?v=vision-20261022-1';
+import {at,shape,cylinder,bounds,overlaps,broadOverlap,xyz} from './collision.mjs?v=vision-20261022-1';
+import {objectGeometry,objectShapes,objectBounds,gripperGeometry,armGeometry,projectedWidth,GRIPPER,GRIPPER_CONTACT} from './shapes.mjs?v=vision-20261022-1';
 
 export const AREAS={left:[170,-230],right:[170,230],rear:[-280,0],front:[280,0]};
 export const HOME=[210,0,150];
@@ -57,8 +57,10 @@ export function objectPosture(object){
   const height=object.size[axis],dimensions=[...object.size].sort((a,b)=>a-b);
   return height===dimensions[0]?'flat':height===dimensions[2]?'short-edge':'long-edge';
 }
+export function restingFace(object){const r=rotationFromEuler(object.rpy);return ['book','notebook'].includes(object.id)&&r[6]>.999?'spine':objectPosture(object)==='flat'&&r[8]<-.999?'face-down':objectPosture(object);}
 const stackSupport=o=>o.stackable&&objectPosture(o)==='flat';
 export function postureOrientations(object,posture){
+  if(posture==='spine')return [0,90,-90,180].map(yaw=>[0,-90,yaw]);
   if(posture==='face-down')return [0,90,-90,180].map(yaw=>[180,0,yaw]);
   const rank=posture==='flat'?0:posture==='long-edge'?1:2,axis=[0,1,2].sort((a,b)=>object.size[a]-object.size[b]||a-b)[rank];
   const options=axis===1?[[-90,0,90],[90,0,-90],[90,0,0],[-90,0,0],[-90,0,-90],[90,0,90],[-90,0,180],[90,0,180]]:axis===0?[[0,-90,0],[0,90,0],[0,-90,90],[0,90,-90],[0,-90,-90],[0,90,90],[0,-90,180],[0,90,180]]:[[0,0,0],[0,0,90],[0,0,-90],[0,0,180],[180,0,0],[180,0,90],[180,0,-90],[180,0,180]];
@@ -147,7 +149,7 @@ export function shelfCandidates(s,object,orientation){
 export function snapshot(s) {
   return {joints:s.q.map(n=>+n.toFixed(2)),tool:toolPose(s.q).tip.map(n=>+n.toFixed(1)),orientation:[...(s.rpy||[0,0,s.yaw])],held:s.held,yaw:s.yaw,gripper:{opening:graspWidth(s),maxOpening:GRIPPER.maxOpening,clearancePerSide:GRIPPER.clearance},pickup:s.pickup?structuredClone(s.pickup):null,
     containers:[...s.objects,...s.obstacles].filter(o=>o.container).map(h=>({...structuredClone(h),contents:s.objects.filter(o=>inHolder(s,o)).map(o=>o.id)})),
-    objects:s.objects.map(({retrievalPath,lastGraspQ,motionHints,targetRpy,...o})=>({...structuredClone(o),...objectLocation(s,o),bounds:objectBounds(o),shelfClearance:shelfSpace(s,o),posture:objectPosture(o),worldSize:footprint(o),stackable:stackSupport(o),clearAbove:blocksAbove(s,o.id).length===0})),obstacles:structuredClone(s.obstacles||[]),homes:structuredClone(s.homes||{}),tableAreas:s.kit==='desk'?Object.fromEntries(Object.entries(AREAS).filter(([,p])=>p.every((v,i)=>v>=DESK.min[i]&&v<=DESK.max[i]))):AREAS,
+    objects:s.objects.map(({retrievalPath,lastGraspQ,motionHints,targetRpy,...o})=>({...structuredClone(o),...objectLocation(s,o),bounds:objectBounds(o),shelfClearance:shelfSpace(s,o),posture:objectPosture(o),restingOn:restingFace(o),worldSize:footprint(o),stackable:stackSupport(o),clearAbove:blocksAbove(s,o.id).length===0})),obstacles:structuredClone(s.obstacles||[]),homes:structuredClone(s.homes||{}),tableAreas:s.kit==='desk'?Object.fromEntries(Object.entries(AREAS).filter(([,p])=>p.every((v,i)=>v>=DESK.min[i]&&v<=DESK.max[i]))):AREAS,
     context:s.kit==='desk'?'A messy desk in an ordinary student dorm room. The robot is clamped to one short side of the desk, facing across it, not mounted in its centre. The movable items and organizer are in front of the mount within its working area. The user decides where items belong and their order, including stacks or side-by-side arrangements on the low organizer. Shelf spaces are optional homes, not assigned categories. The bed, room, laptop, lamp and organizer are fixed.':'A tabletop practice scene.',
     ...(s.kit==='desk'?{deskBounds:DESK,robotMount:[0,0,0],viewerDirections:{left:'rear',right:'front',towardChair:'left',towardWall:'right'},layout:'The robot is on the short edge. The laptop is centred facing the chair. The low shelf runs along the wall-side long edge; shelf left-to-right follows increasing robot-local X.'}:{}),
     capabilities:['pick uncovered school objects','place on clear desk or organizer space, beside objects, at starts, or stack on flat objects','rotate held objects around X, Y or Z, preserving orientation when placed','restore starting positions and orientations','undo completed tasks','move and orient the tool','dance, wave, bow, circle or move up and down','home'],
@@ -216,7 +218,7 @@ export function validateActions(actions) {
     if('axis'in a&&!['x','y','z'].includes(a.axis))throw Error('angle');
     if(a.type==='move'&&(!vector(a.position)||Math.hypot(...a.position.slice(0,2))>340||a.position[2]<8||a.position[2]>330))throw Error('reach');
     if('orientation'in a&&(!vector(a.orientation)||a.orientation.some(v=>Math.abs(v)>180)))throw Error('angle');
-    if('posture'in a&&(!['flat','short-edge','long-edge','upright','face-down'].includes(a.posture)||'orientation'in a))throw Error('angle');
+    if('posture'in a&&(!['flat','short-edge','long-edge','upright','face-down','spine'].includes(a.posture)||'orientation'in a||a.posture==='spine'&&!['book','notebook',undefined].includes(a.object)))throw Error('angle');
     if(a.type==='pose'&&(!Array.isArray(a.joints)||a.joints.length!==6||!valid(a.joints)))throw Error('reach');
     if('repeat'in a&&(!Number.isInteger(a.repeat)||a.repeat<1||a.repeat>3))throw Error('invalid');
     if('style'in a&&!['gentle','lively'].includes(a.style))throw Error('invalid');
@@ -374,9 +376,10 @@ export function planActions(state,actions,options={}) {
       try{if(!order)move(toolPose(s.q).tip,desired);else for(const axis of order){const rpy=[...s.rpy];rpy[axis]=desired[axis];move(toolPose(s.q).tip,rpy);}return;}catch(error){failure=error;}
     }
     Object.assign(s,saved);steps.length=length;
-    // An empty wrist may turn through a checked joint path when keeping the
-    // tool fixed throughout a Cartesian turn would cross an unreachable pose.
-    if(!s.held){const solved=ikTool(toolPose(s.q).tip,s.q,'nearest',desired);if(solved.q){try{joints(solved.q,desired,.6);return;}catch(error){failure=error;Object.assign(s,saved);steps.length=length;}}}
+    // A checked joint route can turn a held load too, when a Cartesian turn
+    // at a fixed grasp centre crosses an unreachable intermediate pose.
+    const solved=ikTool(toolPose(s.q).tip,s.q,'nearest',desired,q=>clearPose(q,s),false);
+    if(solved.q){try{joints(solved.q,desired,.6);return;}catch(error){failure=error;Object.assign(s,structuredClone(saved));steps.length=length;}if(jointDetour(solved.q,null))return;}
     throw failure;
   }
   function approachChoices(approach){
@@ -402,7 +405,7 @@ export function planActions(state,actions,options={}) {
           for(let i=0;i<2;i++)point[i]+=direction[i]*Math.max(0,extent-8);
           const tool=bounds(at(gripperGeometry(0),[0,0,0],rotationFromEuler(rpy)));
           point[2]=Math.max(point[2],box.low[2]-tool.low[2]+GRIPPER.clearance);
-          if(candidate.upperGrip)point[2]=Math.max(point[2],box.high[2]-10);
+          if(candidate.upperGrip)point[2]=Math.max(point[2],box.high[2]-(candidate.upperInset??10));
         }
         else if(!candidate){const local=relativeBounds(object,[0,0,0]),lift=Math.max(0,local.high[2]-GRIPPER_CONTACT.bodyBottom+GRIPPER.clearance,local.low[2]-GRIPPER_CONTACT.fingerBottom+GRIPPER.clearance),shift=transform(rotationFromEuler(rpy),[0,0,lift]);for(let i=0;i<3;i++)point[i]+=shift[i];}
         else if(candidate){point[2]+=Math.max(0,footprint(object)[2]/2-9,objectBounds(object).low[2]-GRIPPER_CONTACT.fingerBottom+GRIPPER.clearance-point[2]);if(candidate.edge){const axis=candidate.edgeAxis??1,local=[0,0,0];local[axis]=candidate.edge*(candidate.edgeDistance??Math.max(0,object.size[axis]/2-10));const shift=transform(rotationFromEuler(object.rpy),local);for(let i=0;i<3;i++)point[i]+=shift[i];}}
@@ -545,6 +548,7 @@ export function planActions(state,actions,options={}) {
     const saved=structuredClone(s),length=steps.length,id=action.object||s.held;
     if(!id)throw Error('empty');if(s.held&&s.held!==id)throw Error('holding');
     const object=s.objects.find(o=>o.id===id);if(!object)throw Error('unknown');
+    if(action.posture==='spine'&&!['book','notebook'].includes(id))throw Error('angle');
     if(action.target==='pen-holder'&&!['pen','pencil'].includes(id))throw Error('holderFit');
     if(action.target==='pen-holder'&&['flat','long-edge'].includes(action.posture))throw Error('holderFit');
     const orientations=action.posture?postureOrientations(object,action.posture):object.container&&!action.orientation?[0,90,-90,180].map(delta=>[0,0,((object.rpy[2]+delta+540)%360)-180]):[action.orientation||object.targetRpy||object.rpy];
@@ -598,23 +602,27 @@ export function planActions(state,actions,options={}) {
     // previous support and visibly regrasp it; attachment never changes in air.
     const edgeDistance=Math.max(0,20-object.size[0]/2);
     const reverseGrip={grasp:{rotation:rotationFromEuler([0,0,180]),offset:[0,0,0]}};
-    const flipped=action.posture==='face-down'||action.orientation&&rotationFromEuler(action.orientation)[8]<-.99;
-    if(flipped&&['book','notebook'].includes(id)&&objectPosture(object)==='flat'&&!action.staged&&(!action.approach||action.approach==='auto')){
+    const flipped=action.posture==='face-down'||action.orientation&&rotationFromEuler(action.orientation)[8]<-.99,spine=action.posture==='spine';
+    if((flipped||spine)&&['book','notebook'].includes(id)&&objectPosture(object)==='flat'&&!action.staged&&(!action.approach||action.approach==='auto')){
       // A top grip cannot release an inverted book: its wrist would be under
       // the support. Stand this same item in a checked clear staging spot,
       // release it, then grip its opposite face. Choose a facing that exposes
       // that face to the arm; the first reachable upright pose is not enough.
-      for(const [position,orientation] of [[[160,-110],[90,0,90]],[[120,-110],[90,0,0]],[[195,160],[90,0,90]]]){
+      const staging=[...(spine||id==='notebook'?[{target:'shelf-left',posture:'short-edge'},{position:object.position.slice(0,2),posture:'short-edge'}]:[]),...[[[160,-110],[90,0,90]],[[120,-110],[90,0,0]],[[195,160],[90,0,90]]].map(([position,orientation])=>({position,orientation}))];
+      for(const stage of staging){
         Object.assign(s,structuredClone(saved));steps.length=length;
         const previousDeadline=deadline;deadline=Math.min(deadline,performance.now()+7000);
-        try{arrange({type:'transfer',object:id,position,orientation,staged:true});arrange({...action,staged:true});return;}
+        try{arrange({type:'transfer',object:id,...stage,staged:true});arrange({...action,staged:true});return;}
         catch(error){if(error.message==='planningTimeout'&&performance.now()>previousDeadline)throw error;failure=error;}
         finally{deadline=previousDeadline;}
       }
       Object.assign(s,structuredClone(saved));steps.length=length;
     }
     const sideChoices=['back','left','right','front'].flatMap(approachChoices);
-    const choices=approachChoices(action.approach)|| (object.container?cupGrips:flipped?[...(objectPosture(object)!=='flat'?[0,-20,-30,-45,20,30].map(delta=>({rpy:euler(multiply(rotationFromEuler(object.rpy),rotationFromEuler([180+delta,0,0]))),sideGrip:true,upperGrip:true})):[]),...sideChoices]:action.posture==='long-edge'?[{yaw:90,edgeAxis:0,edge:1,edgeDistance},{yaw:90,edgeAxis:0,edge:-1,edgeDistance},{yaw:90},{yaw:-90},null,{yaw:0,edge:1},{yaw:0,edge:-1},{yaw:180}]:[...(['book','notebook'].includes(id)&&['short-edge','upright'].includes(action.posture)&&(!saved.held||action.target==='start')?[{yaw:0,edge:1},{yaw:0,edge:-1}]:[]),null,reverseGrip,{yaw:0,edge:1},{yaw:0,edge:-1},{yaw:90},{yaw:-90},{yaw:180},...sideChoices]);
+    // Work backward from a downward final grip. On a standing book this may
+    // require a side pickup, so the palm ends above its final supporting face.
+    const supportingGrips=objectPosture(object)!=='flat'?orientations.flatMap(final=>[0,90,-90,180].map(yaw=>({rpy:euler(multiply(multiply(rotationFromEuler(object.rpy),transpose(rotationFromEuler(final))),rotationFromEuler([0,0,yaw]))),sideGrip:true,upperGrip:true}))).filter((choice,index,all)=>all.findIndex(c=>distance(c.rpy,choice.rpy)<.01)===index).flatMap(choice=>[10,-2,4].map(upperInset=>({...choice,upperInset}))):[];
+    const choices=approachChoices(action.approach)|| (object.container?cupGrips:flipped||spine?[...supportingGrips,...(flipped&&objectPosture(object)!=='flat'?[0,-20,-30,-45,20,30].map(delta=>({rpy:euler(multiply(rotationFromEuler(object.rpy),rotationFromEuler([180+delta,0,0]))),sideGrip:true,upperGrip:true})):[]),...sideChoices]:action.posture==='long-edge'?[{yaw:90,edgeAxis:0,edge:1,edgeDistance},{yaw:90,edgeAxis:0,edge:-1,edgeDistance},{yaw:90},{yaw:-90},null,{yaw:0,edge:1},{yaw:0,edge:-1},{yaw:180}]:[...(['book','notebook'].includes(id)&&['short-edge','upright'].includes(action.posture)&&(!saved.held||action.target==='start')?[{yaw:0,edge:1},{yaw:0,edge:-1}]:[]),null,reverseGrip,{yaw:0,edge:1},{yaw:0,edge:-1},{yaw:90},{yaw:-90},{yaw:180},...sideChoices]);
     // Try clear endpoints and short transfers for every grip before spending
     // time on long detours for one grip. The full route family remains a fallback.
     const pickups=new Map();
@@ -677,7 +685,8 @@ export function planActions(state,actions,options={}) {
   function rotate(action){
     if(!s.held)throw Error('empty');
     const saved=structuredClone(s),length=steps.length,p=toolPose(s.q).tip;
-    const axis=action.axis||'z',object=s.objects.find(o=>o.id===s.held),rpy=[...(object.targetRpy||object.rpy)];rpy[{x:0,y:1,z:2}[axis]]+=action.angle;
+    const axis=action.axis||'z',object=s.objects.find(o=>o.id===s.held),delta=[0,0,0];delta[{x:0,y:1,z:2}[axis]]=action.angle;
+    const rpy=euler(multiply(rotationFromEuler(delta),rotationFromEuler(object.targetRpy||object.rpy)));
     if(object.container&&rpy.slice(0,2).some(v=>Math.abs(v)>.1))throw Error('cupUpright');
     if(Math.abs(rpy[{x:0,y:1,z:2}[axis]])>180)throw Error('angle');
     let failure;

@@ -1,5 +1,6 @@
 export const words={
  en:{
+  looking:'Checking the scene…',sceneImageUsed:'Scene image used',visionUnavailable:'This connection couldn’t use the scene image, so I’m using the exact object positions.',posture_spine:'resting on its bound spine',
   cantConnect:'Can’t connect',connectionRetry:'Check your connection and press Connect to retry.',
   hostedConnection:'Connect to the robot',hostedKeyNote:'The connection is managed for you. Press Connect to begin.',
   managedAuth:'The robot service could not authenticate with Alibaba. Ask your teacher to check the saved server key.',managedModel:'The robot service could not use its configured AI model. Ask your teacher to check the server settings.',managedNetwork:'I couldn’t reach the robot’s AI service. Check your internet connection and press Connect to retry.',requestError:'I couldn’t send a valid request to the robot service. Please refresh the page and try again. Nothing moved.',
@@ -48,6 +49,7 @@ export const words={
   mic:'Dictate a command',micStop:'Finish dictation',listening:'Listening… tap the microphone to finish.',speechReady:'Review the words above, then press Send.',speechUnavailable:'Speech recognition isn’t available in this browser. Open the page in a supported browser, or type your command.',speechDenied:'Microphone or speech permission was denied. Allow it in your browser’s site settings, or type your command.',speechEmpty:'I didn’t hear a command. Tap the microphone and try again, or type it.',speechDevice:'I couldn’t start the microphone. Check that a working microphone is connected and available.',speechNetwork:'The browser’s speech service could not complete recognition. Check the connection or type your command.',speechNote:'Dictation uses your browser’s speech service. Review before sending.'
  },
  zh:{
+  looking:'正在查看场景…',sceneImageUsed:'已使用场景图片',visionUnavailable:'此连接暂时无法使用场景图片，我会使用物品的准确位置。',posture_spine:'书脊朝下放置',
   cantConnect:'无法连接',connectionRetry:'请检查网络连接，然后点击连接重试。',
   hostedConnection:'连接机械臂',hostedKeyNote:'连接已配置。点击连接即可开始。',
   managedAuth:'机械臂服务未能通过阿里云验证，请老师检查服务器中保存的密钥。',managedModel:'机械臂服务无法使用已配置的 AI 模型，请老师检查服务器设置。',managedNetwork:'无法连接机械臂的 AI 服务，请检查网络连接，然后点击连接重试。',requestError:'我未能向机械臂服务发送有效请求。请刷新网页后重试，机械臂没有移动。',

@@ -80,6 +80,28 @@ class SchoolServerTests(unittest.TestCase):
         self.assertEqual(self.request('/api/chat', huge)[0], 400)
         self.assertEqual(self.calls, [])
 
+    def test_scene_images_use_a_server_chosen_vision_model_and_reject_remote_urls(self):
+        image = {'data':'data:image/jpeg;base64,/9j/2Q==', 'width':2, 'height':2}
+        status, data, _ = self.request('/api/chat', {**self.body, 'scene_image':image})
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(data)['perception']['imageStatus'], 'seen')
+        self.assertEqual(self.calls[0][1]['model'], 'qwen3.7-plus')
+        self.assertEqual(self.calls[0][1]['messages'][-1]['content'][1]['image_url']['url'], image['data'])
+        self.assertEqual(self.request('/api/chat', {**self.body, 'scene_image':{**image, 'data':'https://other.example/image'}})[0], 400)
+
+    def test_unavailable_image_access_falls_back_once_to_the_text_model(self):
+        calls = []
+        def provider(config, body):
+            calls.append(json.loads(json.dumps(body)))
+            return (404, {'error':'model'}) if len(calls) == 1 else (200, {'choices':[{'message':{'content':'{"reply":"Ready","actions":[]}'}}]})
+        self.app.transport = provider
+        status, data, _ = self.request('/api/chat', {**self.body, 'scene_image':{'data':'data:image/jpeg;base64,/9j/2Q==', 'width':2, 'height':2}})
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(data)['perception']['imageStatus'], 'unavailable')
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(calls[1]['model'], 'qwen3.8-flash')
+        self.assertIsInstance(calls[1]['messages'][-1]['content'], str)
+
     def test_upstream_credential_echo_is_redacted_and_limits_apply(self):
         self.app.transport = lambda config, body: (200, {'choices':[{'message':{'content':KEY}}]})
         status, data, _ = self.request('/api/chat', self.body)

@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from '../beginner-3axis/vendor/three/examples/jsm/controls/OrbitControls.js';
-import { fk, toolPose } from './kinematics.mjs?v=spatial-20261022-1';
-import { CATALOG, DESK, graspWidth } from './world.mjs?v=spatial-20261022-1';
-import {objectGeometry,gripperGeometry,armGeometry,LINK_RADII,JOINT_RADII,JOINT_LENGTHS,CAP_RADII,CAP_OFFSETS} from './shapes.mjs?v=spatial-20261022-1';
+import { fk, toolPose } from './kinematics.mjs?v=vision-20261022-1';
+import { CATALOG, DESK, graspWidth } from './world.mjs?v=vision-20261022-1';
+import {objectGeometry,gripperGeometry,armGeometry,LINK_RADII,JOINT_RADII,JOINT_LENGTHS,CAP_RADII,CAP_OFFSETS} from './shapes.mjs?v=vision-20261022-1';
 
 export function createScene(container) {
   const scene=new THREE.Scene(); scene.background=new THREE.Color('#eeeee7');
@@ -178,5 +178,15 @@ export function createScene(container) {
     controls.update();camera.updateMatrixWorld();station.updateMatrixWorld(true);
     renderer.render(scene,camera);
   });
-  return {update,preview,clearPreview,language:()=>{},resetView:()=>{camera.position.set(400,-750,580);controls.target.set(-205,-60,150);}};
+  function capture(){
+    // Read only the simulated scene, never the surrounding page or a camera.
+    const image=document.createElement('canvas'),scale=Math.min(1,512/Math.max(renderer.domElement.width,renderer.domElement.height));
+    image.width=Math.max(1,Math.round(renderer.domElement.width*scale));image.height=Math.max(1,Math.round(renderer.domElement.height*scale));
+    const wasVisible=ghosts.visible;ghosts.visible=false;
+    try{controls.update();camera.updateMatrixWorld();station.updateMatrixWorld(true);renderer.render(scene,camera);image.getContext('2d').drawImage(renderer.domElement,0,0,image.width,image.height);}
+    finally{ghosts.visible=wasVisible;}
+    const data=image.toDataURL('image/jpeg',.6),frame={width:image.width,height:image.height,objects:[...objects].filter(([,m])=>m.visible).map(([id,m])=>{const p=m.getWorldPosition(new THREE.Vector3()).project(camera);return {id,pixel:[Math.round((p.x+1)*image.width/2),Math.round((1-p.y)*image.height/2)],inFrame:Math.abs(p.x)<=1&&Math.abs(p.y)<=1&&Math.abs(p.z)<=1};})};
+    return data.length<=64000?{data,width:image.width,height:image.height,frame}:null;
+  }
+  return {update,preview,clearPreview,capture,language:()=>{},resetView:()=>{camera.position.set(400,-750,580);controls.target.set(-205,-60,150);}};
 }

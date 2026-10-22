@@ -35,6 +35,8 @@ def validate(config):
         raise ValueError('Choose one of the supported Alibaba endpoints.')
     if not re.fullmatch(r'[\w.\-]{1,100}', config.get('model', '')):
         raise ValueError('Invalid model name.')
+    if not re.fullmatch(r'[\w.\-]{1,100}', config.get('vision_model', 'qwen3.7-plus')):
+        raise ValueError('Invalid image model name.')
     if not isinstance(config.get('port'), int) or not 1024 <= config['port'] <= 65535:
         raise ValueError('Use an unprivileged port between 1024 and 65535.')
     origin = urlsplit(config.get('public_url', ''))
@@ -64,6 +66,7 @@ def configure(args):
         'key': key or previous.get('key', ''),
         'base': args.base or previous.get('base', BASE),
         'model': args.model or previous.get('model', 'qwen3.8-flash'),
+        'vision_model': getattr(args, 'vision_model', None) or previous.get('vision_model', 'qwen3.7-plus'),
         'port': args.port or previous.get('port', 8082),
         'bind': args.bind or previous.get('bind', '0.0.0.0'),
         'public_url': args.public_url or previous.get('public_url', 'http://127.0.0.1:8082'),
@@ -127,6 +130,12 @@ class App:
         # The browser cannot replace the robot instructions, model or upstream.
         clean = [{'role':'system', 'content':self.system}] + [
             {'role':m['role'], 'content':m['content']} for m in messages[1:]]
+        image = body.get('scene_image')
+        if image and (not isinstance(image, dict) or any(type(image.get(k)) is not int or not 1 <= image[k] <= 512 for k in ('width', 'height')) or not isinstance(image.get('data'), str) or len(image['data']) > 64000 or not re.fullmatch(r'data:image/jpeg;base64,[A-Za-z0-9+/]+={0,2}', image['data'])):
+            return 400, {'error':'image'}
+        text = clean[-1]['content']
+        if image:
+            clean[-1]['content'] = [{'type':'text', 'text':text}, {'type':'image_url', 'image_url':{'url':image['data']}}]
         with self.lock:
             now = time.monotonic()
             self.requests[:] = [(stamp, ip) for stamp, ip in self.requests if now-stamp < 60]
@@ -136,12 +145,21 @@ class App:
         if not self.slots.acquire(blocking=False):
             return 429, {'error':'busy'}
         try:
-            status, data = self.transport(self.config, {'model':self.config['model'], 'messages':clean,
+            payload = {'model':self.config.get('vision_model', 'qwen3.7-plus') if image else self.config['model'], 'messages':clean,
                 'temperature':.6 if body.get('temperature') == .6 else .2, 'max_tokens':2000, 'response_format':{'type':'json_object'},
-                'stream':False, 'enable_thinking':False})
+                'stream':False, 'enable_thinking':False}
+            status, data = self.transport(self.config, payload)
+            image_status = 'seen' if image else None
+            if image and status in (400, 403, 404):
+                clean[-1]['content'] = text
+                payload['model'] = self.config['model']
+                status, data = self.transport(self.config, payload)
+                image_status = 'unavailable'
             # Do not return a credential even if an upstream diagnostic echoes it.
             if self.config['key'] in json.dumps(data):
                 return 502, {'error':'response'}
+            if status == 200 and image_status:
+                data = {**data, 'perception':{'imageStatus':image_status}}
             return status, data
         finally:
             self.slots.release()
@@ -196,7 +214,7 @@ def handler_for(app):
                 return self.send_data(403, {'error':'origin'})
             try:
                 size = int(self.headers.get('Content-Length', '0'))
-                if self.headers.get('Transfer-Encoding') or not 0 < size <= 48000 or self.headers.get('Content-Type', '').split(';')[0] != 'application/json':
+                if self.headers.get('Transfer-Encoding') or not 0 < size <= 112000 or self.headers.get('Content-Type', '').split(';')[0] != 'application/json':
                     return self.send_data(400, {'error':'request'})
                 self.connection.settimeout(30)
                 body = json.loads(self.rfile.read(size))
@@ -215,6 +233,7 @@ def main():
     parser.add_argument('--bind', choices=('127.0.0.1', '0.0.0.0'))
     parser.add_argument('--base', choices=sorted(ENDPOINTS))
     parser.add_argument('--model')
+    parser.add_argument('--vision-model')
     args = parser.parse_args()
     try:
         if args.command == 'configure':

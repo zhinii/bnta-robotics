@@ -16,7 +16,7 @@ test('relay preflight is restricted to the simulator origin',async()=>{
 test('relay fails closed without the hosted key and rejects oversized or non-scene requests',async()=>{
  delete process.env.ALIBABA_API_KEY;
  assert.equal((await POST(request())).status,503);process.env.ALIBABA_API_KEY=key;
- assert.equal((await POST(new Request(url,{method:'POST',headers,body:'x'.repeat(48001)}))).status,413);
+ assert.equal((await POST(new Request(url,{method:'POST',headers,body:'x'.repeat(112001)}))).status,413);
  assert.equal((await POST(new Request(url,{method:'POST',headers,body:JSON.stringify({messages:[{role:'user',content:'ordinary arbitrary API request'}]})}))).status,400);
  const health=await (await GET(new Request(url))).text();assert.ok(health.includes('true'));assert.ok(!health.includes(key));
 });
