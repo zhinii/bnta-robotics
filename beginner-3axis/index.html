@@ -1,59 +1,27 @@
 <!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <title>Robot Lab · Three-axis / 三轴机器人实验室</title>
-  <link rel="stylesheet" href="./quest-prototype.css">
-  <script type="importmap">{"imports":{"three":"./vendor/three/build/three.module.js"}}</script>
-</head>
-<body data-course="true">
-  <main>
-    <section id="world" aria-label="Robot world / 机器人世界">
-      <div id="scene"></div>
-      <div id="view-tools">
-        <button data-command="home" data-en="⌂ View" data-zh="⌂ 视角"></button>
-        <button data-command="trail" aria-pressed="true" data-en="Trail" data-zh="轨迹"></button>
-        <button data-command="path" aria-pressed="true" data-en="Path" data-zh="路径"></button>
-        <button data-command="clear trail" data-en="Clear" data-zh="清除"></button>
-      </div>
-    </section>
-    <aside id="quest" aria-label="Coach · Quest Log / 教练 · 任务日志">
-      <header>
-        <button id="chat-toggle" aria-expanded="true" aria-controls="conversation">
-          <span id="chat-title">Coach · Quest Log</span><span id="chat-state"></span><span id="toggle-icon">−</span>
-        </button>
-        <select id="language" aria-label="Language / 语言"><option value="en">EN</option><option value="zh">中文</option></select>
-        <button id="stop" data-command="stop" data-en="■ Stop" data-zh="■ 停止"></button>
-      </header>
-      <div id="chat-body">
-        <div id="conversation" role="log" aria-live="off" tabindex="0"></div>
-        <section id="operation" hidden>
-          <div class="operation-top"><button data-command="controls" data-en="Controls" data-zh="控制"></button><button data-command="steps" data-en="Program" data-zh="程序"></button><button data-command="status" data-en="Status" data-zh="状态"></button></div>
-          <output id="actual"></output>
-          <div id="movement">
-            <form id="target-form">
-              <div class="coordinates">
-                <label>X <input id="x" type="number" step="any" inputmode="decimal"></label>
-                <label>Y <input id="y" type="number" step="any" inputmode="decimal"></label>
-                <label>Z <input id="z" type="number" step="any" inputmode="decimal"></label>
-              </div>
-              <div class="inline"><button id="preview" type="button" data-en="Preview (mm)" data-zh="预览（毫米）"></button><button class="accent" type="submit" data-en="Move" data-zh="移动"></button><button type="button" data-command="open" data-en="Open" data-zh="张开"></button><button type="button" data-command="close" data-en="Close" data-zh="闭合"></button></div>
-            </form>
-          </div>
-          <div id="program" hidden><ol id="steps-list"></ol></div>
-          <div class="inline playback"><button id="record" data-en="Record off" data-zh="录制关"></button><button data-command="run" data-en="Run" data-zh="运行"></button><button data-command="pause" data-en="Pause" data-zh="暂停"></button><button data-command="reset" data-en="Reset" data-zh="重置"></button></div>
-        </section>
-      </div>
-      <div id="options" aria-label="Suggested replies / 建议回复"></div>
-      <form id="composer">
-        <button type="button" data-command="menu" aria-label="Menu / 菜单">☰</button>
-        <input id="message" autocomplete="off" maxlength="2000" aria-label="Message / 消息">
-        <button id="send" type="submit" class="accent" data-en="Send" data-zh="发送"></button>
-      </form>
-    </aside>
-  </main>
-  <output id="announcement" aria-live="polite" class="sr-only"></output>
-  <script type="module" src="./quest-prototype.mjs"></script>
-</body>
-</html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Robot challenges · 机器人挑战</title>
+<link rel="stylesheet" href="./challenge.css"><script type="importmap">{"imports":{"three":"./vendor/three/build/three.module.js"}}</script></head>
+<body>
+<header class="top"><div class="brand"><span class="brand-icon">◎</span><div><strong data-t="title">Robot challenges</strong><small data-t="tagline"></small></div></div><div class="top-actions"><select id="language" aria-label="Language / 语言"><option value="en">English</option><option value="zh">中文</option></select><button id="stop" class="danger" data-t="stop">■ Stop</button></div></header>
+<nav class="levels" aria-label="Challenge / 挑战"><button data-mode="easy" aria-pressed="true"><span>01</span><div><strong data-t="easy"></strong><small data-t="easyName"></small></div></button><button data-mode="medium" aria-pressed="false"><span>02</span><div><strong data-t="medium"></strong><small data-t="mediumName"></small></div></button><button data-mode="hard" aria-pressed="false"><span>03</span><div><strong data-t="hard"></strong><small data-t="hardName"></small></div></button></nav>
+<main>
+ <section id="world"><div id="scene"></div><div id="task-card"><div class="eyebrow" id="task-name"></div><p id="task-description"></p><div id="checks"></div></div><div class="scene-tools"><button id="home" data-t="view"></button><button id="reset" data-t="reset"></button></div><div id="completion" hidden><strong data-t="complete"></strong><button id="next" data-t="next"></button></div><small class="model-note" data-t="limitsNote"></small></section>
+ <aside id="panel">
+  <div id="arm-picker" hidden><span data-t="arm"></span><div><button data-arm="A" class="arm-a" aria-pressed="true" data-t="armA"></button><button data-arm="B" class="arm-b" aria-pressed="false" data-t="armB"></button></div></div>
+  <div class="record-bar"><button id="record" type="button" aria-pressed="false"></button><span id="timer-status"></span></div>
+  <div class="replay-stats" aria-label="Replay metrics / 回放数据"><div><small data-t="replayTime"></small><strong id="replay-time">0.00 s</strong></div><div><small data-t="moveCount"></small><strong id="replay-moves">0 / 0</strong></div><div><small data-t="actionCount"></small><strong id="replay-actions">0 / 0</strong></div></div>
+  <div class="tabs"><button data-tab="controls" aria-pressed="true" data-t="controls"></button><button data-tab="program" aria-pressed="false"><span data-t="program"></span><span id="step-count">0</span></button></div>
+  <div id="panel-scroll">
+   <section id="controls-panel">
+    <div class="control-heading"><div class="control-modes"><strong id="control-title"></strong><button id="control-mode" type="button">XYZ</button></div><span id="tcp"></span><span id="target-tcp"></span></div>
+    <div id="xyz-inputs" class="xyz"></div><div id="joint-inputs"></div>
+    <p id="preview-state"></p><div class="primary-actions"><button id="move" class="primary" data-t="move"></button><button id="add-move" data-t="addMove"></button></div>
+    <div class="grip-actions"><button data-action="open" data-t="open"></button><button data-action="close" data-t="close"></button></div>
+    <p class="muted" data-t="recordHelp"></p>
+    <details id="positions"><summary data-t="coordinates"></summary><div id="task-positions"></div><p class="muted" data-t="coordsNote"></p></details>
+   </section>
+   <section id="program-panel" hidden><p class="muted" data-t="programHelp"></p><p class="muted" data-t="timerHelp"></p><ol id="steps"></ol><div class="append"><select id="append-action" aria-label="Append action / 添加动作"><option value="open" data-t="open"></option><option value="close" data-t="close"></option></select><button id="append" data-t="add"></button></div><div class="program-actions"><button id="run" class="primary" data-t="run"></button><button id="pause" data-t="pause"></button><button id="clear" data-t="clear"></button></div><div class="files"><button id="export" data-t="save"></button><button id="import" data-t="load"></button><input id="file" type="file" accept="application/json,.json" hidden></div><small class="muted" id="save-state" data-t="savedLocally"></small></section>
+  </div>
+  <div id="feedback" role="status" aria-live="polite"></div><form id="command-form"><input id="command" maxlength="240" autocomplete="off" aria-label="Command / 命令"><button class="primary" data-t="send" type="submit"></button></form>
+ </aside>
+</main><script type="module" src="./challenge-ui.mjs"></script></body></html>

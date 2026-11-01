@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { registerHooks } from "node:module";
 import { JSDOM } from "jsdom";
-const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
-assert.equal(html, readFileSync(new URL("../quest-lab.html", import.meta.url), "utf8"), "course preview matches the default entry");
+// Historical course entry; the default entry is now the challenge-only app.
+const html = readFileSync(new URL("../quest-lab.html", import.meta.url), "utf8");
 const dom = new JSDOM(html, { url: "http://localhost/beginner-3axis/", pretendToBeVisual: true });
 const w = dom.window, queue = new Map(); let now = 0, sequence = 0, calls = 0;
 w.HTMLCanvasElement.prototype.getContext = () => null;

@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import {registerHooks} from 'node:module';import {JSDOM} from 'jsdom';
+const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');assert.equal(html,readFileSync(new URL('../challenge.html',import.meta.url),'utf8'));
+const dom=new JSDOM(html,{url:'http://localhost/beginner-3axis/',pretendToBeVisual:true}),w=dom.window;
+for(const k of ['window','document','localStorage','HTMLElement','Event','navigator'])Object.defineProperty(globalThis,k,{value:k==='window'?w:w[k],configurable:true});
+globalThis.devicePixelRatio=1;globalThis.innerHeight=844;globalThis.visualViewport=null;globalThis.requestAnimationFrame=()=>1;globalThis.cancelAnimationFrame=()=>{};
+w.HTMLCanvasElement.prototype.getContext=()=>null;
+const hook=registerHooks({resolve(s,c,next){return s==='three'?{url:new URL('../vendor/three/build/three.module.js',import.meta.url).href,shortCircuit:true}:next(s,c);}});
+await import('../challenge-ui.mjs');hook.deregister();
+const $=id=>document.getElementById(id),send=value=>{$('command').value=value;$('command-form').dispatchEvent(new w.Event('submit',{cancelable:true}));};
+assert.equal(document.querySelector('[data-t="lessons"]'),null);assert.equal(document.querySelectorAll('[data-mode]').length,3);
+const before=$('tcp').textContent;send('目标 147 -85 80');assert.equal($('tcp').textContent,before);send('添加 移动');assert.equal($('step-count').textContent,'1');
+send('中文');assert.equal(document.documentElement.lang,'zh');send('中等');assert.equal(document.querySelectorAll('#joint-inputs .joint').length,6);assert.equal($('joint-inputs').hidden,false);
+send('困难');assert.equal($('arm-picker').hidden,false);send('机械臂 B');assert.equal(document.querySelector('[data-arm="B"]').getAttribute('aria-pressed'),'true');send('添加 移动');
+assert.equal(JSON.parse(localStorage.getItem('bnta:robot-challenges:v1')).programs.hard[0].arm,'B');send('简单');assert.equal($('step-count').textContent,'1','per-mode program retained');
+assert.equal($('command').hidden,false);assert.equal($('stop').hidden,false);console.log('Challenge DOM PASS: default entry, no lessons, non-moving preview, bilingual commands, six joints, arm selection and per-mode programs.');w.close();
