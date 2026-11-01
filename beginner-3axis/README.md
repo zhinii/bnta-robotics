@@ -24,7 +24,7 @@ All challenges reuse the white/orange FAIRINO-inspired robot geometry from the m
 
 Manual placement is practice, never a challenge pass. Completion requires replay from the initial scene, every recorded step finishing, and all physical task conditions being met. Paused, stopped, incomplete or failed playback cannot pass. Editing, importing or restarting clears the current verified result. Each successful replay unlocks the next difficulty; earned unlocks persist on this device (challenge revision 2). Old completion claims are not migrated.
 
-The iPad layout keeps Record, Replay, timer, motion controls and command input available. Landscape uses a scene/control split; portrait places the scene above a two-column joint panel. Task instructions sit outside the 3D viewport; numbered orange/green targets show pickup and placement.
+The iPad layout keeps Record, Replay, timer, motion controls and command input available. Landscape uses a scene/control split; portrait places the scene above a two-column joint panel. Task instructions and pickup/place/slot/handoff coordinates remain visible outside the 3D viewport. Current position and current target are pinned above the scrolling Controls/Program content, with the active arm and step shown during replay. Numbered orange/green targets show pickup and placement.
 
 Each difficulty has its own program saved under `bnta:robot-challenges:v1`. Save/Open file exports and validates a portable JSON program. Reload restores programs with motion stopped and the scene at its start. Earlier course saves are not read or overwritten.
 

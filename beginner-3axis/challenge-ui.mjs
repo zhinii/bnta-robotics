@@ -1,6 +1,6 @@
-import { ChallengeController, initialWorld, armById, pose, limits, validJoints, solvePosition, atPose, collision, clone, gripPoint, upgradeHandoffSteps } from './challenge-model.mjs?v=xyz-preview-1';
-import { createChallengeScene } from './challenge-scene.mjs?v=xyz-preview-1';
-import { text, words } from './challenge-i18n.mjs?v=xyz-preview-1';
+import { ChallengeController, initialWorld, armById, pose, limits, validJoints, solvePosition, atPose, collision, clone, gripPoint, upgradeHandoffSteps } from './challenge-model.mjs?v=coordinates-visible-1';
+import { createChallengeScene } from './challenge-scene.mjs?v=coordinates-visible-1';
+import { text, words } from './challenge-i18n.mjs?v=coordinates-visible-1';
 import { CONFIG } from './model.mjs';
 import { ARM, toolReachFor } from './challenge-kinematics.mjs';
 const $=id=>document.getElementById(id),KEY='bnta:robot-challenges:v1',modes=['easy','medium','hard'];
@@ -66,6 +66,11 @@ function startProgram(){if(controller.busy)return say('busy',{},true);pending=nu
 function stop(){pending=null;recording=false;controller.stop();say('stopped');}
 function reset(){pending=null;recording=false;controller.reset();syncDraft();say('resetDone');}
 function formatPosition(p){return p.map((v,i)=>['X','Y','Z'][i]+' '+v.toFixed(1)).join(' · ')+' mm';}
+function showCoordinates(id,key,p,armId){
+  const label=t(key)+(controller.world.mode==='hard'?' · '+t(armId==='A'?'armA':'armB'):''),value=p?formatPosition(p):'X — · Y — · Z — mm',el=$(id),snapshot=label+'|'+value;
+  if(el.dataset.value===snapshot)return;el.dataset.value=snapshot;
+  const name=document.createElement('strong'),coordinates=document.createElement('span');name.textContent=label;coordinates.textContent=value;el.replaceChildren(name,document.createTextNode(' '),coordinates);
+}
 function render(){
   if(!controller)return;const world=controller.world,a=arm();document.documentElement.lang=language;$('language').value=language;
   document.querySelectorAll('[data-t]').forEach(el=>el.textContent=t(el.dataset.t));
@@ -78,7 +83,10 @@ function render(){
   $('controls-actions').hidden=tab!=='controls';
   $('control-title').textContent=t(controlMode);$('control-mode').hidden=a.axes===3;$('control-mode').textContent=t(controlMode==='xyz'?'joints':'xyz');
   const targetPosition=controlMode==='xyz'?coordinateTarget:draft&&validJoints(a,draft)?pose(a,draft).tip:null;
-  $('tcp').textContent=t('status')+' · '+formatPosition(pose(a).tip);$('target-tcp').textContent=targetPosition?t('previewArm')+' · '+formatPosition(targetPosition):draft&&validJoints(a,draft)?t('previewArm')+' · '+formatPosition(pose(a,draft).tip):'';
+  const replayStep=controller.running?controller.program[controller.index]:null,displayArm=replayStep?armById(world,replayStep.arm):a;
+  const displayedTarget=replayStep?pose(displayArm,replayStep.type==='move'?replayStep.q:displayArm.q).tip:targetPosition||(draft&&validJoints(a,draft)?pose(a,draft).tip:null);
+  showCoordinates('tcp','currentPosition',pose(displayArm).tip,displayArm.id);showCoordinates('target-tcp','currentTarget',displayedTarget,displayArm.id);
+  $('target-tcp').classList.toggle('invalid',!controller.running&&!!previewError);
   document.querySelectorAll('[data-joint-name]').forEach(el=>el.textContent=words[language].jointNames[Number(el.dataset.jointName)]);
   document.querySelectorAll('#xyz-inputs input[type="range"]').forEach(el=>el.setAttribute('aria-label',t('coordinateSlider',{axis:el.dataset.axis})));
   $('preview-state').textContent=t(previewError||'preview');$('preview-state').className=previewError?'error':'';
@@ -96,9 +104,12 @@ function render(){
   const verified=controller.complete;$('completion').hidden=!verified;$('next').disabled=!verified;$('next').textContent=t(world.mode==='hard'?'again':'next');
   $('replay-prompt').hidden=!world.complete||verified||controller.busy;$('replay-prompt').textContent=t(controller.program.length?'replayRequired':'recordRequired');
   $('target-legend').textContent=t(world.mode==='medium'?'targetLegendSlot':'targetLegend');
-  const positions=[[t('source'),world.mode==='hard'?[-132,-130,100]:world.source],[t('destination'),world.mode==='hard'?[142,130,100]:world.destination],...(world.mode==='hard'?[[t('transferA'),[-42,0,160]],[t('transferB'),[42,0,160]]]:[])];
-  $('task-positions').replaceChildren(...positions.map(([name,p])=>{const el=document.createElement('p');el.textContent=name+': '+formatPosition(p);return el;}));
-  if(world.mode==='medium'){const p=document.createElement('p');p.textContent=t('gate');$('task-positions').append(p);}
+  const positionsKey=world.mode+':'+language;
+  if($('task-positions').dataset.value!==positionsKey){
+    $('task-positions').dataset.value=positionsKey;
+    const positions=[[t('source'),world.mode==='hard'?[-132,-130,100]:world.source],[t('destination'),world.mode==='hard'?[142,130,100]:world.destination],...(world.wall?[[t('slotCentre'),world.wall.centre]]:[]),...(world.mode==='hard'?[[t('transferA'),[-42,0,160]],[t('transferB'),[42,0,160]]]:[])];
+    $('task-positions').replaceChildren(...positions.map(([name,p])=>{const el=document.createElement('p'),label=document.createElement('strong'),values=document.createElement('span');label.textContent=name;values.textContent=formatPosition(p);el.append(label,document.createTextNode(' '),values);return el;}));
+  }
   const programKey=JSON.stringify([controller.program,language,controller.index,controller.busy,controller.metrics.steps,controller.lastErrorIndex]);
   if(programKey!==lastProgramKey){lastProgramKey=programKey;renderProgram();}
   $('step-count').textContent=controller.program.length;

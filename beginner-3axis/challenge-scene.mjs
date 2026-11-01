@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from './vendor/three/examples/jsm/controls/OrbitControls.js';
-import { pose, atPose, gripperParts } from './challenge-model.mjs?v=xyz-preview-1';
-import { text } from './challenge-i18n.mjs?v=xyz-preview-1';
+import { pose, atPose, gripperParts } from './challenge-model.mjs?v=coordinates-visible-1';
+import { text } from './challenge-i18n.mjs?v=coordinates-visible-1';
 import { createFairinoArm, updateFairinoArm } from './fairino-arm.mjs';
 const vec=p=>new THREE.Vector3(...p),Y=new THREE.Vector3(0,1,0);
 function material(color,ghost=false){return new THREE.MeshStandardMaterial({color,roughness:.45,metalness:.15,transparent:ghost,opacity:ghost?.3:1,depthWrite:!ghost,wireframe:ghost});}

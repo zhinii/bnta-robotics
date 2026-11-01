@@ -22,7 +22,7 @@ const pairs = {
  preview:['Blue cross = target. Ghost = arm preview. Press Move to execute.','蓝色十字为目标，虚影为机械臂预览。按“移动”执行。'],previewOK:['Position preview ready. Move checks the complete path.','位置预览就绪，移动前会检查完整路径。'],coordinateTarget:['XYZ target','XYZ目标'],
  solve:['The red target cannot be reached at this wrist angle. Change the coordinates or adjust the joints.','当前手腕角度无法到达红色目标。请更改坐标或调整关节。'],path:['No joint-safe route to this target was found. Adjust the joints or use a closer waypoint.','未找到符合关节限位的路径。请调整关节或使用更近的路径点。'],orientationInvalid:['Choose a valid wrist pose with the joint controls first.','请先使用关节控制选择有效的手腕姿态。'],
  ready:['Choose a target, preview it, then move.','选择目标，查看预览，然后移动。'],
- coordinates:['Task positions','任务位置'],source:['Pickup','抓取点'],destination:['Place','放置点'],transferA:['A transfer grip','A交接点'],transferB:['B transfer grip','B交接点'],
+ coordinates:['Task positions','任务位置'],currentPosition:['Current position','当前位置'],currentTarget:['Current target','当前目标'],slotCentre:['Slot centre · 30°','通槽中心 · 30°'],source:['Pickup','抓取点'],destination:['Place','放置点'],transferA:['A transfer grip','A交接点'],transferB:['B transfer grip','B交接点'],
  gate:['Slot centre: X 215, Y 0, Z 180 mm. Opening: 132 × 64 mm, tilted 30° in the Y–Z plane. Pass the whole part through; going around the wall does not count.','通槽中心：X 215、Y 0、Z 180毫米。开口132×64毫米，在Y–Z平面倾斜30°。整个零件必须穿槽；绕墙不计通过。'],
  coordsNote:['All XYZ values use the shared world frame.','所有XYZ值均使用同一世界坐标系。'],
  programHelp:['Steps run top to bottom. Each row names the arm it controls.','步骤从上到下执行，每行标明控制的机械臂。'],
