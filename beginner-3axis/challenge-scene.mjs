@@ -14,7 +14,8 @@ export function armGraph(arm,ghost=false){
 }
 export function updateArm(graph,arm,q=arm.q){updateFairinoArm(graph,pose(arm,q),arm);}
 function release(group){group.traverse(o=>{o.geometry?.dispose();if(o.material){for(const m of Array.isArray(o.material)?o.material:[o.material]){m.map?.dispose();m.dispose();}}});group.clear();}
-function label(message,color='#314b65'){const canvas=document.createElement('canvas');canvas.width=512;canvas.height=96;const c=canvas.getContext('2d');c.fillStyle='#ffffffdd';c.beginPath();c.roundRect(0,0,512,96,20);c.fill();c.font='600 34px system-ui';c.textAlign='center';c.textBaseline='middle';c.fillStyle=color;c.fillText(message,256,48,490);const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,depthTest:false,toneMapped:false}));sprite.scale.set(105,20,1);return sprite;}
+function label(message,color='#314b65',background='#ffffffed'){const canvas=document.createElement('canvas');canvas.width=512;canvas.height=96;const c=canvas.getContext('2d');c.fillStyle=background;c.beginPath();c.roundRect(0,0,512,96,20);c.fill();c.font='700 34px system-ui';c.textAlign='center';c.textBaseline='middle';c.fillStyle=color;c.fillText(message,256,48,490);const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,depthTest:false,toneMapped:false}));sprite.scale.set(115,22,1);return sprite;}
+function line(group,a,b,color,radius=1.5){const mesh=new THREE.Mesh(new THREE.CylinderGeometry(radius,radius,1,8),new THREE.MeshBasicMaterial({color}));orient(mesh,a,b);group.add(mesh);return mesh;}
 export function createChallengeScene(host,language='en'){
   let renderer;try{renderer=new THREE.WebGLRenderer({antialias:true});}catch{host.textContent=text(language,'webgl');return {update(){},home(){},dispose(){},available:false};}
   renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));renderer.setClearColor('#e9eff3');renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.25;host.append(renderer.domElement);renderer.domElement.setAttribute('aria-label',text(language,'sceneLabel'));
@@ -25,16 +26,27 @@ export function createChallengeScene(host,language='en'){
   const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.minDistance=150;controls.maxDistance=1800;controls.maxPolarAngle=Math.PI*.49;
   let worldGroup=new THREE.Group(),labels=new THREE.Group(),arms=[],ghosts=[],part,ghostPart,mode='',lang='',lastWorld=null;
   scene.add(worldGroup,labels);
-  function home(){const hard=mode==='hard';controls.target.set(hard?0:115,0,mode==='easy'?105:125);camera.position.set(mode==='easy'?390:530,hard?-650:mode==='easy'?-340:-510,hard?420:mode==='easy'?280:380);controls.update();}
+  function home(){const hard=mode==='hard',medium=mode==='medium';controls.target.set(hard?0:medium?180:115,0,medium?140:105);camera.position.set(hard?530:medium?-420:390,hard?-650:medium?-360:-340,hard?420:medium?350:280);controls.update();}
   function build(world,language){
     release(worldGroup);release(labels);arms=[];ghosts=[];mode=world.mode;lang=language;
     for(const arm of world.arms){const graph=armGraph(arm),ghost=armGraph(arm,true);worldGroup.add(graph.group,ghost.group);arms.push(graph);ghosts.push(ghost);const tag=label(text(language,arm.id==='A'?'armA':'armB'),arm.id==='A'?'#96601c':'#215f9b');tag.position.copy(vec(arm.base));tag.position.z=25;labels.add(tag);}
     for(const [i,p] of [world.source,world.destination].entries()){
-      const pillar=new THREE.Mesh(new THREE.CylinderGeometry(9,15,p[2]-12,16),material('#b7c5d0'));pillar.rotation.x=Math.PI/2;pillar.position.set(p[0],p[1],(p[2]-12)/2);pillar.castShadow=true;pillar.receiveShadow=true;worldGroup.add(pillar);
-      const target=new THREE.Mesh(new THREE.BoxGeometry(world.part.size[0]+12,world.part.size[1]+12,5),material(i?'#85ba9b':'#e8bc79'));target.position.set(p[0],p[1],p[2]-10);if(i&&world.mode==='medium')target.rotation.z=Math.PI/2;target.castShadow=true;target.receiveShadow=true;worldGroup.add(target);
-      const tag=label(text(language,i?'destination':'source'));tag.position.set(p[0],p[1],p[2]-34);labels.add(tag);
+      const color=i?'#16885b':'#e78617',tilted=i&&world.mode==='medium',top=p[2]-(tilted?38:12);
+      const pillar=new THREE.Mesh(new THREE.CylinderGeometry(12,20,top,20),material('#a5b8c6'));pillar.rotation.x=Math.PI/2;pillar.position.set(p[0],p[1],top/2);pillar.castShadow=true;pillar.receiveShadow=true;worldGroup.add(pillar);
+      const target=new THREE.Mesh(new THREE.BoxGeometry(world.part.size[0]+16,world.part.size[1]+16,6),material(color));
+      target.position.set(p[0],p[1],p[2]-11);if(tilted){const c=Math.cos(Math.PI/6),s=Math.sin(Math.PI/6);rotation(target,[0,-1,0,c,0,-s,s,0,c]);}target.castShadow=true;target.receiveShadow=true;worldGroup.add(target);
+      const ring=new THREE.Mesh(new THREE.TorusGeometry(world.mode==='easy'?30:45,2.5,10,48),new THREE.MeshBasicMaterial({color}));ring.position.set(p[0],p[1],2);worldGroup.add(ring);
+      const mark=world.mode==='hard'?[p[0]+(i?42:-42),p[1],p[2]]:p;
+      const halo=new THREE.Mesh(new THREE.TorusGeometry(11,1.4,8,32),new THREE.MeshBasicMaterial({color,depthTest:false}));halo.position.copy(vec(mark));worldGroup.add(halo);
+      for(const end of [[8,0,0],[0,8,0]])line(worldGroup,mark.map((v,j)=>v-end[j]),mark.map((v,j)=>v+end[j]),color,.6);
+      const tag=label(text(language,i?'placeMark':'pickupMark'),'#ffffff',color);if(world.mode==='medium')tag.scale.set(150,28,1);tag.position.set(p[0],p[1],p[2]+65);labels.add(tag);line(worldGroup,[p[0],p[1],p[2]+14],[p[0],p[1],p[2]+52],color,1);
+      if(i){const goal=new THREE.Mesh(new THREE.BoxGeometry(...world.part.size),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.13,depthWrite:false}));goal.position.copy(vec(p));rotation(goal,world.destinationRotation);worldGroup.add(goal);const outline=new THREE.LineSegments(new THREE.EdgesGeometry(goal.geometry),new THREE.LineBasicMaterial({color,transparent:true,opacity:.8}));outline.position.copy(goal.position);outline.quaternion.copy(goal.quaternion);worldGroup.add(outline);}
     }
-    for(const box of world.obstacles){const mesh=new THREE.Mesh(new THREE.BoxGeometry(...box.max.map((v,i)=>v-box.min[i])),material('#7c94a8'));mesh.position.copy(vec(box.max.map((v,i)=>(v+box.min[i])/2)));mesh.castShadow=true;mesh.receiveShadow=true;worldGroup.add(mesh);}
+    for(const box of world.obstacles){
+      if(!box.polygon){const mesh=new THREE.Mesh(new THREE.BoxGeometry(...box.max.map((v,i)=>v-box.min[i])),material('#7c94a8'));mesh.position.copy(vec(box.max.map((v,i)=>(v+box.min[i])/2)));worldGroup.add(mesh);}
+    }
+    if(world.wall){const shape=new THREE.Shape([[-200,0],[200,0],[200,540],[-200,540]].map(p=>new THREE.Vector2(...p)));shape.holes.push(new THREE.Path([...world.wall.opening].reverse().map(p=>new THREE.Vector2(...p))));const mat=material('#68859d');mat.transparent=true;mat.opacity=.24;mat.depthWrite=false;const mesh=new THREE.Mesh(new THREE.ExtrudeGeometry(shape,{depth:12,bevelEnabled:false}),mat);mesh.setRotationFromMatrix(new THREE.Matrix4().set(0,0,1,0,1,0,0,0,0,1,0,0,0,0,0,1));mesh.position.x=world.wall.planeX-6;worldGroup.add(mesh);}
+    if(world.wall){const wall=world.wall;for(const x of [wall.planeX-6,wall.planeX+6])for(let i=0;i<4;i++){const a=wall.opening[i],b=wall.opening[(i+1)%4];line(worldGroup,[x,a[0],a[1]],[x,b[0],b[1]],'#d79a26',2.2);}for(const y of [-200,200])line(worldGroup,[wall.planeX,y,0],[wall.planeX,y,540],'#68859d',2);line(worldGroup,[wall.planeX,-200,540],[wall.planeX,200,540],'#68859d',2);const tag=label(text(language,'slotMark'),'#785200','#fff0c7');tag.position.set(wall.planeX,0,280);labels.add(tag);}
     if(world.mode==='hard')for(const [i,x]of [-42,42].entries()){const mark=new THREE.Mesh(new THREE.TorusGeometry(12,1.5,8,24),material(i?'#5b98db':'#dca442'));mark.position.set(x,0,160);worldGroup.add(mark);const tag=label(text(language,i?'transferB':'transferA'));tag.position.set(x,0,123);labels.add(tag);}
     part=new THREE.Mesh(new THREE.BoxGeometry(...world.part.size),material('#edab39'));part.castShadow=true;part.receiveShadow=true;worldGroup.add(part);
     ghostPart=new THREE.Mesh(new THREE.BoxGeometry(...world.part.size),material('#3c9ae2',true));worldGroup.add(ghostPart);

@@ -1,6 +1,7 @@
 // Deterministic challenge world. Degrees and millimetres throughout.
 import { CONFIG, fk as fk3, solveIk, validateJointPose } from './model.mjs';
 import { JOINTS, homeFor, toolPose, ikTool, valid, transform, multiply, rotationFromEuler } from './challenge-kinematics.mjs';
+import { slottedWall, segmentPanel, boxPanel, slotAligned } from './challenge-wall.mjs';
 export const clone = value => structuredClone(value);
 const rad = Math.PI / 180, I = [1,0,0,0,1,0,0,0,1];
 const xyz = p => [p.x,p.y,p.z];
@@ -41,14 +42,13 @@ export function initialWorld(mode='easy') {
   if(mode==='hard')arms.push(makeArm('B',6,[220,0,0],180));
   let source=[147,-85,80],destination=[147,85,80],size=[14,14,14],obstacles=[];
   if(mode==='medium') {
-    source=[220,-110,130]; destination=[220,110,130]; size=[84,14,14];
-    down(arms[0],[190,-140,170]);
-    obstacles=[{min:[130,-6,0],max:[182,6,210]},{min:[258,-6,0],max:[310,6,210]},
-      {min:[182,-6,0],max:[258,6,100]}];
+    source=[130,-100,110]; destination=[330,0,180]; size=[112,14,14];
+    down(arms[0],[125,-120,170]);
+    obstacles=slottedWall().panels;
   }
   if(mode==='hard') { source=[-90,-130,100]; destination=[100,130,100]; size=[84,14,14]; down(arms[0],[-140,-150,170]); down(arms[1],[140,150,170]); }
-  return {version:1,mode,arms,source,destination,obstacles,part:{position:[...source],rotation:[...I],size,owner:null,receiver:null,offset:null,relativeRotation:null},
-    evidence:{picked:false,gate:false,handoff:false,delivered:false,jointMove:false},complete:false};
+  return {version:1,mode,arms,source,destination,destinationRotation:mode==='medium'?rotationFromEuler([-90,-30,90]):[...I],obstacles,wall:mode==='medium'?slottedWall():null,part:{position:[...source],rotation:[...I],size,owner:null,receiver:null,offset:null,relativeRotation:null},
+    evidence:{picked:false,gate:false,slotEntry:false,handoff:false,delivered:false,jointMove:false},complete:false};
 }
 export const armById=(world,id)=>world.arms.find(a=>a.id===id);
 export function gripPoint(world,id) {
@@ -61,6 +61,7 @@ function carry(world) {
 }
 export function atPose(world,id,q) {const next=clone(world);armById(next,id).q=[...q];carry(next);return next;}
 function segmentBox(a,b,box,pad=0) {
+  if(box.polygon)return segmentPanel(a,b,box,pad);
   let lo=0,hi=1;
   for(let i=0;i<3;i++){const d=b[i]-a[i],mn=box.min[i]-pad,mx=box.max[i]+pad;if(Math.abs(d)<1e-9){if(a[i]<mn||a[i]>mx)return false;}else{let x=(mn-a[i])/d,y=(mx-a[i])/d;if(x>y)[x,y]=[y,x];lo=Math.max(lo,x);hi=Math.min(hi,y);if(lo>hi)return false;}}return true;
 }
@@ -73,6 +74,8 @@ function segmentDistance(a,b,c,d) {
 }
 export function bounds(position,rotation,size) {const half=[0,1,2].map(i=>size.reduce((s,n,j)=>s+Math.abs(rotation[i*3+j])*n/2,0));return {min:sub(position,half),max:add(position,half)};}
 const overlap=(a,b)=>[0,1,2].every(i=>a.min[i]<b.max[i]-.01&&a.max[i]>b.min[i]+.01);
+const hitsBox=(shape,box)=>box.polygon?boxPanel(shape.position,shape.rotation,shape.size,box):overlap(bounds(shape.position,shape.rotation,shape.size),box);
+const boundsShape=b=>({position:b.min.map((v,i)=>(v+b.max[i])/2),rotation:I,size:b.max.map((v,i)=>v-b.min[i])});
 // Contact bounds follow the existing main-lab FAIRINO gripper (local Y jaw travel).
 export function gripperParts(arm,q=arm.q) {
   const p=pose(arm,q),gap=arm.closed?10:26;
@@ -97,13 +100,13 @@ export function collision(world) {
     if(p.points.slice(2).some(point=>point[2]<10)||gripperParts(arm).some(g=>bounds(g.position,g.rotation,g.size).min[2]<0))return 'table';
     for(const box of world.obstacles) {
       if(segments.some(s=>segmentBox(s.a,s.b,box,s.radius)))return 'obstacle';
-      if(jointBounds(arm).some(j=>overlap(j,box)))return 'obstacle';
-      if(gripperParts(arm).some(g=>overlap(bounds(g.position,g.rotation,g.size),box)))return 'obstacle';
+      if(jointBounds(arm).some(j=>hitsBox(boundsShape(j),box)))return 'obstacle';
+      if(gripperParts(arm).some(g=>hitsBox(g,box)))return 'obstacle';
     }
   }
   if(world.part.owner) {
     const b=bounds(world.part.position,world.part.rotation,world.part.size);
-    if(b.min[2]<0)return 'table'; if(world.obstacles.some(o=>overlap(b,o)))return 'partCollision';
+    if(b.min[2]<0)return 'table'; if(world.obstacles.some(o=>hitsBox(world.part,o)))return 'partCollision';
   }
   if(world.arms.length===2) {
     const a=pose(world.arms[0]).points,b=pose(world.arms[1]).points,sa=armSegments(world.arms[0]),sb=armSegments(world.arms[1]);
@@ -121,14 +124,21 @@ export function planMove(world,id,q,kind='joints') {
   if(world.part.receiver)return {error:'handoffLocked'};
   const arm=armById(world,id);if(!arm||!validJoints(arm,q))return {error:'limits'};
   const start=arm.q,n=Math.max(1,Math.ceil(Math.max(...q.map((v,i)=>Math.abs(v-start[i])))/.5)),samples=[];
-  let crossed=world.evidence.gate, previous=world.part.position;
+  let crossed=world.evidence.gate,entering=world.evidence.slotEntry,previous=world.part.position;
   for(let i=1;i<=n;i++) {
     const next=atPose(world,id,start.map((v,k)=>v+(q[k]-v)*i/n)),error=collision(next);if(error)return {error};
     const p=next.part.position;
-    if(world.mode==='medium'&&world.part.owner===id&&previous[1]<0&&p[1]>=0&&p[0]>182&&p[0]<258&&p[2]>100&&p[2]<180)crossed=true;
+    if(world.wall&&world.part.owner===id&&previous[0]<world.wall.planeX&&p[0]>=world.wall.planeX){
+      const wall=world.wall,dx=p[1]-wall.centre[1],dz=p[2]-wall.centre[2];
+      if(Math.abs(dx*wall.u[0]+dz*wall.u[1])<wall.width/2&&Math.abs(dx*wall.v[0]+dz*wall.v[1])<wall.height/2){
+        if(!slotAligned(next.part,wall))return {error:'slotAlignment'};
+        entering=true;
+      }
+    }
+    if(world.wall&&world.part.owner===id){const b=bounds(next.part.position,next.part.rotation,next.part.size);if(entering&&b.min[0]>world.wall.planeX+world.wall.depth/2)crossed=true;if(b.max[0]<world.wall.planeX-world.wall.depth/2)entering=false;}
     previous=p;samples.push(next);
   }
-  const end=samples.at(-1);end.evidence.gate=crossed;
+  const end=samples.at(-1);end.evidence.gate=crossed;end.evidence.slotEntry=entering;
   if(kind==='joints'&&arm.axes===6&&distance(start,q)>.1)end.evidence.jointMove=true;
   return {samples,end,duration:Math.max(250,Math.max(...q.map((v,i)=>Math.abs(v-start[i])))/55*1000)};
 }
@@ -165,7 +175,7 @@ export function applyAction(world,step) {
     }else if(next.part.owner===arm.id) {
       const atSource=distance(next.part.position,next.source)<4,atDestination=distance(next.part.position,next.destination)<4;
       if(!atSource&&!atDestination)return {error:'unsupported'};
-      if(atDestination&&next.mode==='medium'&&Math.abs(next.part.rotation[3])<.96)return {error:'socketOrientation'};
+      if(atDestination&&next.mode==='medium'&&Math.abs([0,3,6].reduce((s,i)=>s+next.part.rotation[i]*next.destinationRotation[i],0))<.98)return {error:'socketOrientation'};
       if(atDestination&&next.mode==='hard'&&(arm.id!=='B'||!next.evidence.handoff))return {error:'handoffOrder'};
       next.part.owner=null;next.part.offset=null;next.part.relativeRotation=null;
       if(atDestination)next.evidence.delivered=true;
@@ -186,16 +196,17 @@ export function upgradeHandoffSteps(mode,steps){
 }
 export class ChallengeController {
   constructor(mode='easy',onChange=()=>{}) {this.world=initialWorld(mode);this.onChange=onChange;this.program=[];this.operation=null;this.running=false;this.paused=false;this.index=-1;this.lastError=null;this.lastErrorIndex=null;this.clearMetrics();}
-  clearMetrics(){this.lastError=null;this.lastErrorIndex=null;this.metrics={elapsed:0,moves:0,actions:0,steps:[],status:'timerReady'};}
+  clearMetrics(){this.verifiedProgram=null;this.lastError=null;this.lastErrorIndex=null;this.metrics={elapsed:0,moves:0,actions:0,steps:[],status:'timerReady'};}
+  get complete(){return !this.busy&&!this.lastError&&this.world.complete&&this.metrics.status==='timerComplete'&&this.verifiedProgram===JSON.stringify(this.program);}
   emit(){this.onChange(this);}
   get busy(){return !!this.operation||this.running;}
   reset(){this.stop();this.world=initialWorld(this.world.mode);this.lastError=null;this.lastErrorIndex=null;this.clearMetrics();this.emit();}
   selectMode(mode){this.stop();this.world=initialWorld(mode);this.program=[];this.lastError=null;this.lastErrorIndex=null;this.clearMetrics();this.emit();}
-  execute(step){if(this.busy)return {error:'busy'};const r=applyAction(this.world,step);if(r.error){this.lastError=r.error;this.lastErrorIndex=null;this.emit();return r;}this.lastError=null;this.lastErrorIndex=null;this.operation={...r,elapsed:0};this.emit();return {ok:true};}
+  execute(step){if(this.busy)return {error:'busy'};const r=applyAction(this.world,step);if(r.error){this.lastError=r.error;this.lastErrorIndex=null;this.emit();return r;}this.clearMetrics();this.operation={...r,elapsed:0};this.emit();return {ok:true};}
   add(step){if(this.busy)return {error:'busy'};if(this.program.length>=100)return {error:'program'};this.program.push(clone(step));this.clearMetrics();this.emit();return {ok:true};}
   edit(index,action){if(this.busy)return false;if(action==='delete')this.program.splice(index,1);else{const target=index+(action==='up'?-1:1);if(!this.program[target])return false;[this.program[index],this.program[target]]=[this.program[target],this.program[index]];}this.clearMetrics();this.emit();return true;}
   run(){if(this.busy)return {error:'busy'};if(!this.program.length)return {error:'empty'};this.clearMetrics();const checked=validateSequence(this.world.mode,this.program);if(checked.error&&checked.error!=='handoffLocked'){this.lastError=checked.error;this.lastErrorIndex=checked.index;this.metrics.status='timerInvalid';this.emit();return checked;}this.world=initialWorld(this.world.mode);this.lastError=null;this.lastErrorIndex=null;this.running=true;this.paused=false;this.metrics.status='timerRunning';this.index=0;this.startStep();this.emit();return {ok:true};}
-  startStep(){if(this.index>=this.program.length){this.running=false;this.operation=null;this.metrics.status=this.world.complete?'timerComplete':'timerIncomplete';return;}const r=applyAction(this.world,this.program[this.index]);if(r.error){this.lastError=r.error;this.lastErrorIndex=this.index;this.stop();this.metrics.status='timerInvalid';return;}this.operation={...r,elapsed:0};}
+  startStep(){if(this.index>=this.program.length){this.running=false;this.operation=null;this.metrics.status=this.world.complete?'timerComplete':'timerIncomplete';this.verifiedProgram=this.world.complete?JSON.stringify(this.program):null;return;}const r=applyAction(this.world,this.program[this.index]);if(r.error){this.lastError=r.error;this.lastErrorIndex=this.index;this.stop();this.metrics.status='timerInvalid';return;}this.operation={...r,elapsed:0};}
   tick(dt){if(!this.operation||this.paused||!Number.isFinite(dt))return;const op=this.operation,used=Math.max(0,Math.min(dt,100,op.duration-op.elapsed));op.elapsed+=used;if(this.running)this.metrics.elapsed+=used;const ratio=Math.min(1,op.elapsed/op.duration);
     if(op.samples?.length)this.world=clone(op.samples[Math.min(op.samples.length-1,Math.floor(ratio*op.samples.length))]);
     if(ratio===1){this.world=clone(op.end);this.operation=null;if(this.running){const step=this.program[this.index];this.metrics.actions++;if(step.type==='move')this.metrics.moves++;this.metrics.steps.push({arm:step.arm,type:step.type,duration:op.duration});this.index++;this.startStep();}}this.emit();}

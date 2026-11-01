@@ -27,7 +27,7 @@ try{
   await send('program');assert.equal(await page.locator('#steps li').count(),route.length);assert.equal(await page.locator('#completion').isVisible(),false);
   await page.locator('#run').click();await page.locator('#completion').waitFor({state:'visible',timeout:60000});
   assert.match(await page.locator('#checks').textContent(),/✓ Place/);
-  if(mode==='medium')assert.match(await page.locator('#checks').textContent(),/✓ Pass gate/);
+  if(mode==='medium')assert.match(await page.locator('#checks').textContent(),/✓ Pass slot/);
   if(mode==='hard'){assert.match(await page.locator('#checks').textContent(),/✓ Transfer to B/);assert.equal(await page.locator('.arm-badge.b').count(),5);}
   await page.locator('#language').selectOption('zh');assert.match(await page.locator('#completion').textContent(),/挑战完成/);
   await send('控制');if(mode==='hard')await page.locator('[data-arm="B"]').click();
@@ -40,7 +40,7 @@ try{
   await page.locator('#language').selectOption('en');console.log(mode+' browser PASS: preview, authored program, actual completion, bilingual UI, desktop and two phone sizes');
  }
  await send('program');const count=await page.locator('#steps li').count();await page.locator('#run').click();await page.locator('#pause').click();const paused=await page.locator('#tcp').textContent();await page.waitForTimeout(250);assert.equal(await page.locator('#tcp').textContent(),paused);await page.locator('#stop').click();assert.equal(await page.locator('#steps li').count(),count);assert.equal(await page.locator('#completion').isVisible(),false);
- const downloadPromise=page.waitForEvent('download');await page.locator('#export').click();const download=await downloadPromise;assert.equal(download.suggestedFilename(),'robot-challenge-hard.json');
+ await page.locator('.program-files summary').click();const downloadPromise=page.waitForEvent('download');await page.locator('#export').click();const download=await downloadPromise;assert.equal(download.suggestedFilename(),'robot-challenge-hard.json');
  await page.reload();await send('program');assert.equal(await page.locator('#steps li').count(),count);assert.equal(await page.locator('#completion').isVisible(),false);
  await page.locator('#file').setInputFiles({name:'bad.json',mimeType:'application/json',buffer:Buffer.from('{"version":1,"mode":"hard","steps":[{"type":"move","arm":"B","q":[0,999,0,0,0,0],"kind":"joints"}]}')});await page.waitForFunction(()=>document.querySelector('#feedback').textContent.includes('not a valid'));assert.equal(await page.locator('#steps li').count(),count);
  await page.setViewportSize({width:390,height:844});await page.locator('#command').focus();await page.evaluate(()=>{Object.defineProperty(visualViewport,'height',{value:390,configurable:true});visualViewport.dispatchEvent(new Event('resize'));});assert.ok((await page.locator('#command-form').boundingBox()).y<350);

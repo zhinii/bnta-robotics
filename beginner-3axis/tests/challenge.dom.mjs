@@ -5,6 +5,7 @@ for(const k of ['window','document','localStorage','HTMLElement','Event','naviga
 globalThis.devicePixelRatio=1;globalThis.innerHeight=844;globalThis.visualViewport=null;globalThis.requestAnimationFrame=()=>1;globalThis.cancelAnimationFrame=()=>{};
 w.HTMLCanvasElement.prototype.getContext=()=>null;
 const hook=registerHooks({resolve(s,c,next){return s==='three'?{url:new URL('../vendor/three/build/three.module.js',import.meta.url).href,shortCircuit:true}:next(s,c);}});
+localStorage.setItem('bnta:robot-challenges:v1',JSON.stringify({version:1,challengeRevision:2,passed:['easy','medium']}));
 await import('../challenge-ui.mjs');hook.deregister();
 const $=id=>document.getElementById(id),send=value=>{$('command').value=value;$('command-form').dispatchEvent(new w.Event('submit',{cancelable:true}));};
 assert.equal(document.querySelector('[data-t="lessons"]'),null);assert.equal(document.querySelectorAll('[data-mode]').length,3);

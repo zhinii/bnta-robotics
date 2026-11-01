@@ -7,6 +7,8 @@ const browser=await chromium.launch({channel:'msedge',headless:true});
 try{
  const page=await browser.newPage({viewport:{width:1280,height:850}}),errors=[];
  page.on('pageerror',e=>errors.push(e.message));
+ // These focused tests start with previously earned unlocks; challenge-ipad covers earning them.
+ await page.addInitScript(()=>{if(!localStorage.getItem('bnta:robot-challenges:v1'))localStorage.setItem('bnta:robot-challenges:v1',JSON.stringify({version:1,challengeRevision:2,passed:['easy','medium']}));});
  await page.goto('http://127.0.0.1:4223/beginner-3axis/');
  await page.locator('#joint-0').waitFor({state:'attached'});
  const send=async s=>{await page.locator('#command').fill(s);await page.locator('#command-form button').click();};

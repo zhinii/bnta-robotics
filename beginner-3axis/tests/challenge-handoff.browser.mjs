@@ -6,6 +6,8 @@ const browser=await chromium.launch({channel:'msedge',headless:true});
 try{
  const page=await browser.newPage({viewport:{width:1280,height:850}}),errors=[];
  page.on('pageerror',e=>errors.push(e.message));
+ // These focused tests start with previously earned unlocks; challenge-ipad covers earning them.
+ await page.addInitScript(()=>{if(!localStorage.getItem('bnta:robot-challenges:v1'))localStorage.setItem('bnta:robot-challenges:v1',JSON.stringify({version:1,challengeRevision:2,passed:['easy','medium']}));});
  await page.goto('http://127.0.0.1:4223/beginner-3axis/');await page.locator('#joint-0').waitFor({state:'attached'});
  const send=async s=>{await page.locator('#command').fill(s);await page.locator('#command-form button').click();};
  const act=async step=>{await page.locator(`[data-arm="${step.arm}"]`).click();if(step.type==='move'){await send('joints '+step.q.join(' '));await send('move');}else await send(step.type);await page.waitForFunction(()=>!document.querySelector('#move').disabled);};
@@ -17,7 +19,7 @@ try{
  await page.locator('#language').selectOption('zh');assert.match(await page.locator('#feedback').textContent(),/错误：两臂/);await page.locator('#language').selectOption('en');
  if(process.argv[3]){await mkdir(process.argv[3],{recursive:true});await page.screenshot({path:process.argv[3]+'/manual-shared-grip-error.png'});}
  await act(route[6]);assert.match(await page.locator('#checks').textContent(),/Holding: Arm B/);
- for(const step of route.slice(8))await act(step);assert.equal(await page.locator('#completion').isVisible(),true);
+ for(const step of route.slice(8))await act(step);assert.equal(await page.locator('#completion').isVisible(),false);
  await page.locator('#record').click();await send('program');
  const stored=await page.evaluate(()=>JSON.parse(localStorage.getItem('bnta:robot-challenges:v1')).programs.hard);
  assert.equal(stored.length,10);assert.deepEqual(stored.slice(5,7),[{type:'close',arm:'B'},{type:'open',arm:'A'}]);

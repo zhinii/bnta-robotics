@@ -1,7 +1,30 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {initialWorld,pose,collision,atPose,applyAction,solvePosition,validateSequence,ChallengeController,distance,upgradeHandoffSteps} from '../challenge-model.mjs';
 import {ikTool} from '../challenge-kinematics.mjs';import {words} from '../challenge-i18n.mjs';import {referenceProgram} from './challenge-fixtures.mjs';
+import {rotationFromEuler} from '../challenge-kinematics.mjs';
+import {boxPanel} from '../challenge-wall.mjs';
 const advance=(c,ms=60000)=>{for(let n=0;n<ms;n+=100)c.tick(100);};
+test('manual recording cannot pass; only a complete replay of the unchanged program can',()=>{
+ const c=new ChallengeController(),route=referenceProgram('easy');
+ for(const step of route){assert.equal(c.execute(step).ok,true);advance(c);c.add(step);assert.equal(c.complete,false);}
+ assert.equal(c.world.complete,true);assert.equal(c.metrics.elapsed,0);assert.equal(c.complete,false);
+ c.run();assert.equal(c.complete,false);c.tick(100);c.pause();advance(c);assert.equal(c.complete,false);c.pause();advance(c);assert.equal(c.complete,true);
+ c.edit(0,'delete');assert.equal(c.complete,false);c.program=route;c.run();advance(c);assert.equal(c.complete,true);
+ c.program.push({type:'open',arm:'A'});assert.equal(c.complete,false,'direct program replacement invalidates proof');
+ c.run();advance(c);assert.equal(c.complete,true);c.reset();assert.equal(c.complete,false);
+});
+test('completion waits for every recorded action, even after placement',()=>{
+ const c=new ChallengeController();c.program=[...referenceProgram('easy'),{type:'open',arm:'A'}];c.run();
+ while(c.metrics.actions<6)c.tick(100);assert.equal(c.world.complete,true);assert.equal(c.running,true);assert.equal(c.complete,false);c.stop();assert.equal(c.complete,false);
+ c.run();advance(c);assert.equal(c.complete,true);assert.equal(c.metrics.actions,7);
+});
+test('tall wall has a closed angled slot: tilted part fits, level and off-centre parts collide',()=>{
+ const w=initialWorld('medium'),at=[215,0,180],tilted=rotationFromEuler([-90,-30,90]),level=rotationFromEuler([-90,0,90]);
+ const hits=(p,r)=>w.obstacles.some(o=>boxPanel(p,r,w.part.size,o));
+ assert.equal(hits(at,tilted),false);assert.equal(hits(at,level),true);
+ assert.equal(hits([215,0,240],tilted),true);assert.equal(hits([215,90,180],tilted),true);
+ assert.equal(Math.max(...w.obstacles.map(o=>o.max[2])),540);assert.ok(solvePosition(w.arms[0],[215,0,550]).error);
+});
 test('each difficulty uses the specified physical joint counts and independent bases',()=>{assert.deepEqual(initialWorld('easy').arms.map(a=>a.q.length),[3]);assert.deepEqual(initialWorld('medium').arms.map(a=>a.q.length),[6]);assert.deepEqual(initialWorld('hard').arms.map(a=>a.q.length),[6,6]);for(const mode of ['easy','medium','hard'])assert.equal(collision(initialWorld(mode)),null);});
 for(const mode of ['easy','medium','hard'])test(mode+' records a solvable program and completes only through real execution',()=>{const c=new ChallengeController(mode),program=referenceProgram(mode);for(const step of program)c.add(step);assert.equal(c.world.complete,false);assert.equal(c.run().ok,true);assert.equal(c.world.complete,false);advance(c);assert.equal(c.world.complete,true);assert.equal(c.world.part.owner,null);assert.ok(distance(c.world.part.position,c.world.destination)<4);assert.equal(c.running,false);});
 test('preview never mutates the live pose or part, and real wrist roll changes orientation',()=>{const w=initialWorld('medium'),before=structuredClone(w),q=[...w.arms[0].q];q[5]+=30;const preview=atPose(w,'A',q);assert.deepEqual(w,before);assert.ok(distance(pose(preview.arms[0]).tip,pose(w.arms[0]).tip)<1e-8);assert.notDeepEqual(pose(preview.arms[0]).rotation,pose(w.arms[0]).rotation);});

@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "node --test tests/*.test.mjs",
+    "test:ipad": "node tests/challenge-ipad.browser.mjs",
     "test:dom": "node tests/challenge.dom.mjs",
     "test:challenges": "node --test tests/challenge.test.mjs",
     "test:browser": "node tests/challenge.browser.mjs",
