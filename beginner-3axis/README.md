@@ -10,7 +10,7 @@ The default `beginner-3axis/` entry is a bilingual challenge-only robot workspac
 | Medium | Six joints | Grip the long part, tilt it through the closed 30° slot in a tall wall, and release in the matching destination cradle. |
 | Hard | Two six-joint arms | A picks up the part, both arms align at the transfer marks, B closes its gripper, A opens its gripper, then B moves and places it. |
 
-Six-axis tasks open with J1–J6 sliders and numerical angle fields. An XYZ helper preserves the tool's current orientation; wrist rotation remains necessary to fit the medium task. Targets appear as a ghost before movement. Preview does not move an arm or change who holds the part.
+Six-axis tasks open with J1–J6 sliders and numerical angle fields. An XYZ helper preserves the tool's current orientation; wrist rotation remains necessary to fit the medium task. Typing XYZ coordinates or moving their sliders immediately displays a target cross and a ghost arm when a reachable pose exists. XYZ keeps the wrist attitude selected in the joint preview. An unreachable target remains marked in red with a bilingual explanation; it never silently disappears or enables Move. Preview does not move an arm, record a step or change who holds the part.
 
 ## Simple programming
 
@@ -37,6 +37,7 @@ From this directory, run `python server/serve.py --port 4223`, then open `http:/
 - `npm run test:challenges`: pure model, collision, ownership, replay and bilingual checks.
 - `npm run test:dom`: default interface, preview, Chinese commands, arm selection and saved programs.
 - `npm run test:browser -- <Playwright-module-path>`: actual Edge walkthrough of all three tasks, responsive layouts, pause/stop, export, reload and file validation. `BNTA_PREVIEW_URL` can select another preview; `BNTA_SCREENSHOTS` selects the evidence directory.
+- `node tests/challenge-xyz.browser.mjs`: typed coordinate and slider previews, unreachable target feedback, recovery, recording only on Move, and preserving a draft wrist pose. Uses `BNTA_PLAYWRIGHT_PATH`.
 - `npm run test:ipad`: actual touch-browser recording/replay through all three tasks, progression gates, bilingual iPad portrait/landscape, edits/import/stopped replay. Set `BNTA_PLAYWRIGHT_PATH` if Playwright is outside this package.
 - `npm test`: model tests including the preserved earlier modules.
 

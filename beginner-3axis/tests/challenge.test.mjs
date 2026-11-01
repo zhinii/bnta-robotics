@@ -2,6 +2,7 @@ import test from 'node:test';import assert from 'node:assert/strict';
 import {initialWorld,pose,collision,atPose,applyAction,solvePosition,validateSequence,ChallengeController,distance,upgradeHandoffSteps} from '../challenge-model.mjs';
 import {ikTool} from '../challenge-kinematics.mjs';import {words} from '../challenge-i18n.mjs';import {referenceProgram} from './challenge-fixtures.mjs';
 import {rotationFromEuler} from '../challenge-kinematics.mjs';
+import {orientationError} from '../challenge-kinematics.mjs';
 import {boxPanel} from '../challenge-wall.mjs';
 const advance=(c,ms=60000)=>{for(let n=0;n<ms;n+=100)c.tick(100);};
 test('manual recording cannot pass; only a complete replay of the unchanged program can',()=>{
@@ -28,6 +29,11 @@ test('tall wall has a closed angled slot: tilted part fits, level and off-centre
 test('each difficulty uses the specified physical joint counts and independent bases',()=>{assert.deepEqual(initialWorld('easy').arms.map(a=>a.q.length),[3]);assert.deepEqual(initialWorld('medium').arms.map(a=>a.q.length),[6]);assert.deepEqual(initialWorld('hard').arms.map(a=>a.q.length),[6,6]);for(const mode of ['easy','medium','hard'])assert.equal(collision(initialWorld(mode)),null);});
 for(const mode of ['easy','medium','hard'])test(mode+' records a solvable program and completes only through real execution',()=>{const c=new ChallengeController(mode),program=referenceProgram(mode);for(const step of program)c.add(step);assert.equal(c.world.complete,false);assert.equal(c.run().ok,true);assert.equal(c.world.complete,false);advance(c);assert.equal(c.world.complete,true);assert.equal(c.world.part.owner,null);assert.ok(distance(c.world.part.position,c.world.destination)<4);assert.equal(c.running,false);});
 test('preview never mutates the live pose or part, and real wrist roll changes orientation',()=>{const w=initialWorld('medium'),before=structuredClone(w),q=[...w.arms[0].q];q[5]+=30;const preview=atPose(w,'A',q);assert.deepEqual(w,before);assert.ok(distance(pose(preview.arms[0]).tip,pose(w.arms[0]).tip)<1e-8);assert.notDeepEqual(pose(preview.arms[0]).rotation,pose(w.arms[0]).rotation);});
+test('XYZ preview translates the draft wrist pose without executing or drifting its attitude',()=>{
+ const w=initialWorld('medium'),before=structuredClone(w),arm=w.arms[0],reference=[...arm.q];reference[5]+=30;const start=pose(arm,reference);let seed=reference;
+ for(let n=1;n<=10;n++){const target=start.tip.map((v,i)=>v+(i===0?n:0)),r=solvePosition(arm,target,reference,seed);assert.ok(r.q,r.error);assert.ok(distance(pose(arm,r.q).tip,target)<.12);assert.ok(Math.hypot(...orientationError(start.rotation,pose(arm,r.q).rotation))<.004);seed=r.q;}
+ assert.deepEqual(w,before);assert.ok(Math.hypot(...orientationError(pose(arm).rotation,pose(arm,seed).rotation))>.4);
+});
 test('unrotated carried part cannot cross the gate and rejected movement is atomic',()=>{let w=initialWorld('medium');const route=referenceProgram('medium');for(const s of route.slice(0,2))w=applyAction(w,s).end;const before=structuredClone(w),q=ikTool([220,110,130],w.arms[0].q,'nearest',[0,0,0]).q;assert.ok(q);assert.ok(['partCollision','obstacle'].includes(applyAction(w,{type:'move',arm:'A',q,kind:'xyz'}).error));assert.deepEqual(w,before);assert.equal(w.complete,false);});
 test('B grips, A releases, then B moves; blocked movement never changes the shared grip',()=>{
  let w=initialWorld('hard');const route=referenceProgram('hard');

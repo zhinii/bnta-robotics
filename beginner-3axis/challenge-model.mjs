@@ -23,11 +23,14 @@ export function pose(arm, q = arm.q) {
   const world = p => add(transform(base,p),arm.base);
   return { points:points.map(world), tip:world(tip), rotation:multiply(base,rotation), origins:origins.map(world), axes:axes.map(a=>transform(base,a)) };
 }
-export function solvePosition(arm, position) {
+export function solvePosition(arm, position, referenceQ=arm.q, seedQ=referenceQ) {
   if (!Array.isArray(position)||position.length!==3||!position.every(Number.isFinite)) return {error:'numbers'};
+  if(!validJoints(arm,referenceQ)||!validJoints(arm,seedQ))return {error:'limits'};
   const local=transform(rotationFromEuler([0,0,-arm.yaw]),sub(position,arm.base));
-  if(arm.axes===3) { const r=solveIk({x:local[0],y:local[1],z:local[2]},arm.q.map(v=>v*rad)); return r.ok?{q:r.value.map(v=>v/rad)}:{error:'reach'}; }
-  return ikTool(local,arm.q,'nearest',toolPose(arm.q).rpy);
+  if(arm.axes===3) { const r=solveIk({x:local[0],y:local[1],z:local[2]},seedQ.map(v=>v*rad)); return r.ok?{q:r.value.map(v=>v/rad)}:{error:'reach'}; }
+  // XYZ translates the selected preview pose. Keep its attitude fixed while
+  // the previous solution seeds the next edit, without changing the real arm.
+  return ikTool(local,seedQ,'nearest',toolPose(referenceQ).rpy);
 }
 export function validJoints(arm,q) {
   return Array.isArray(q)&&q.length===arm.axes&&q.every(Number.isFinite)&&

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from './vendor/three/examples/jsm/controls/OrbitControls.js';
-import { pose, atPose, gripperParts } from './challenge-model.mjs';
-import { text } from './challenge-i18n.mjs';
+import { pose, atPose, gripperParts } from './challenge-model.mjs?v=xyz-preview-1';
+import { text } from './challenge-i18n.mjs?v=xyz-preview-1';
 import { createFairinoArm, updateFairinoArm } from './fairino-arm.mjs';
 const vec=p=>new THREE.Vector3(...p),Y=new THREE.Vector3(0,1,0);
 function material(color,ghost=false){return new THREE.MeshStandardMaterial({color,roughness:.45,metalness:.15,transparent:ghost,opacity:ghost?.3:1,depthWrite:!ghost,wireframe:ghost});}
@@ -9,7 +9,7 @@ function orient(mesh,a,b){const d=vec(b).sub(vec(a));mesh.position.copy(vec(a).a
 function rotation(mesh,r){mesh.setRotationFromMatrix(new THREE.Matrix4().set(r[0],r[1],r[2],0,r[3],r[4],r[5],0,r[6],r[7],r[8],0,0,0,0,1));}
 export function armGraph(arm,ghost=false){
   const graph=createFairinoArm(arm.axes);
-  if(ghost)graph.group.traverse(o=>{if(o.isMesh){o.material=new THREE.MeshBasicMaterial({color:'#3c9ae2',transparent:true,opacity:.18,depthWrite:false,wireframe:true});o.castShadow=false;o.receiveShadow=false;}});
+  if(ghost)graph.group.traverse(o=>{if(o.isMesh){o.material=new THREE.MeshBasicMaterial({color:'#1677dc',transparent:true,opacity:.32,depthWrite:false,wireframe:true});o.castShadow=false;o.receiveShadow=false;}});
   return graph;
 }
 export function updateArm(graph,arm,q=arm.q){updateFairinoArm(graph,pose(arm,q),arm);}
@@ -24,7 +24,7 @@ export function createChallengeScene(host,language='en'){
   const ground=new THREE.Mesh(new THREE.PlaneGeometry(1600,1400),material('#e3eaf0'));ground.position.z=-1;ground.receiveShadow=true;scene.add(ground);
   const grid=new THREE.GridHelper(1100,22,'#acbecd','#d4dfe7');grid.rotation.x=Math.PI/2;grid.position.z=.1;scene.add(grid);
   const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.minDistance=150;controls.maxDistance=1800;controls.maxPolarAngle=Math.PI*.49;
-  let worldGroup=new THREE.Group(),labels=new THREE.Group(),arms=[],ghosts=[],part,ghostPart,mode='',lang='',lastWorld=null;
+  let worldGroup=new THREE.Group(),labels=new THREE.Group(),arms=[],ghosts=[],part,ghostPart,targetMarker,targetLine,mode='',lang='',lastWorld=null;
   scene.add(worldGroup,labels);
   function home(){const hard=mode==='hard',medium=mode==='medium';controls.target.set(hard?0:medium?180:115,0,medium?140:105);camera.position.set(hard?530:medium?-420:390,hard?-650:medium?-360:-340,hard?420:medium?350:280);controls.update();}
   function build(world,language){
@@ -50,13 +50,21 @@ export function createChallengeScene(host,language='en'){
     if(world.mode==='hard')for(const [i,x]of [-42,42].entries()){const mark=new THREE.Mesh(new THREE.TorusGeometry(12,1.5,8,24),material(i?'#5b98db':'#dca442'));mark.position.set(x,0,160);worldGroup.add(mark);const tag=label(text(language,i?'transferB':'transferA'));tag.position.set(x,0,123);labels.add(tag);}
     part=new THREE.Mesh(new THREE.BoxGeometry(...world.part.size),material('#edab39'));part.castShadow=true;part.receiveShadow=true;worldGroup.add(part);
     ghostPart=new THREE.Mesh(new THREE.BoxGeometry(...world.part.size),material('#3c9ae2',true));worldGroup.add(ghostPart);
+    // The requested XYZ point stays visible even when no reachable arm pose exists.
+    targetMarker=new THREE.Group();targetMarker.name='coordinate-target';targetMarker.renderOrder=20;
+    for(const axis of [[1,0,0],[0,1,0],[0,0,1]]){const cross=line(targetMarker,axis.map(v=>v*-10),axis.map(v=>v*10),'#1677dc',1.2);cross.material.depthTest=false;cross.material.depthWrite=false;cross.renderOrder=20;}
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(7,1.1,8,32),new THREE.MeshBasicMaterial({color:'#1677dc',depthTest:false,depthWrite:false}));ring.renderOrder=20;targetMarker.add(ring);
+    const tag=label(text(language,'coordinateTarget'),'#165caa');tag.position.z=26;tag.scale.set(90,17,1);tag.renderOrder=21;targetMarker.add(tag);worldGroup.add(targetMarker);
+    targetLine=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3()]),new THREE.LineDashedMaterial({color:'#1677dc',dashSize:5,gapSize:3,depthTest:false,depthWrite:false,transparent:true,opacity:.7}));targetLine.renderOrder=19;worldGroup.add(targetLine);
     for(const [axis,end,color]of [['X',[80,0,0],'#c86255'],['Y',[0,80,0],'#4b9d77'],['Z',[0,0,80],'#5382c4']]){const arrow=new THREE.ArrowHelper(vec(end).normalize(),vec([0,0,0]),80,color,8,4);worldGroup.add(arrow);const tag=label(axis,color);tag.scale.set(20,14,1);tag.position.copy(vec(end));labels.add(tag);}
     home();
   }
-  function update(world,{language='en',selected='A',target=null,error=false}={}){
+  function update(world,{language='en',selected='A',target=null,targetPosition=null,error=false}={}){
     lastWorld=world;if(world.mode!==mode||language!==lang)build(world,language);
     renderer.domElement.setAttribute('aria-label',text(language,'sceneLabel'));
     const changed=target&&world.arms.find(a=>a.id===selected).q.some((v,i)=>Math.abs(v-target[i])>.01);
+    targetMarker.visible=targetLine.visible=Array.isArray(targetPosition)&&targetPosition.length===3&&targetPosition.every(Number.isFinite);
+    if(targetMarker.visible){const color=error?'#d02f48':'#1677dc';targetMarker.position.copy(vec(targetPosition));targetMarker.traverse(o=>{if(o.isMesh)o.material.color.set(color);});const positions=targetLine.geometry.attributes.position,tip=pose(world.arms.find(a=>a.id===selected)).tip;positions.setXYZ(0,...tip);positions.setXYZ(1,...targetPosition);positions.needsUpdate=true;targetLine.geometry.computeBoundingSphere();targetLine.computeLineDistances();targetLine.material.color.set(color);}
     world.arms.forEach((a,i)=>{updateArm(arms[i],a);ghosts[i].group.visible=a.id===selected&&!!changed;if(a.id===selected&&target){updateArm(ghosts[i],a,target);ghosts[i].group.traverse(o=>{if(o.material)o.material.color.set(error?'#c34554':'#308dcb');});}});
     part.position.copy(vec(world.part.position));rotation(part,world.part.rotation);
     ghostPart.visible=!!changed&&world.part.owner===selected;
