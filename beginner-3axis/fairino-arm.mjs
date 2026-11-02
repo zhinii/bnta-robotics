@@ -38,5 +38,5 @@ export function updateFairinoArm(graph,p,arm){
  graph.joints.forEach((m,i)=>{m.position.copy(local(p.origins[i+1]));m.quaternion.setFromUnitVectors(Y,V(p.axes[i+1]));graph.caps[i].position.copy(m.position);graph.caps[i].quaternion.copy(m.quaternion);});
  graph.tool.position.copy(local(p.tip));const r=p.rotation;
  graph.tool.quaternion.setFromRotationMatrix(new THREE.Matrix4().set(r[0],r[1],r[2],0,r[3],r[4],r[5],0,r[6],r[7],r[8],0,0,0,0,1));
- graph.jaws.forEach(j=>j.position.y=j.userData.sign*(arm.closed?10:26));
+ graph.jaws.forEach((j,i)=>j.position.y=arm.closed?(arm.jawY||[-10,10])[i]:j.userData.sign*26);
 }

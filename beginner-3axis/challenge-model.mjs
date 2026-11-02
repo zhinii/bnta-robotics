@@ -2,6 +2,7 @@
 import { CONFIG, fk as fk3, solveIk, validateJointPose } from './model.mjs';
 import { JOINTS, homeFor, toolPose, ikTool, valid, transform, multiply, rotationFromEuler } from './challenge-kinematics.mjs';
 import { slottedWall, segmentPanel, boxPanel, slotAligned } from './challenge-wall.mjs';
+import { boxesIntersect, jawContact } from './challenge-contact.mjs';
 export const clone = value => structuredClone(value);
 const rad = Math.PI / 180, I = [1,0,0,0,1,0,0,0,1];
 const xyz = p => [p.x,p.y,p.z];
@@ -51,7 +52,7 @@ export function initialWorld(mode='easy') {
   }
   if(mode==='hard') { source=[-90,-130,100]; destination=[100,130,100]; size=[84,14,14]; down(arms[0],[-140,-150,170]); down(arms[1],[140,150,170]); }
   return {version:1,mode,arms,source,destination,destinationRotation:mode==='medium'?rotationFromEuler([-90,-30,90]):[...I],obstacles,wall:mode==='medium'?slottedWall():null,part:{position:[...source],rotation:[...I],size,owner:null,receiver:null,offset:null,relativeRotation:null},
-    evidence:{picked:false,gate:false,slotEntry:false,handoff:false,delivered:false,jointMove:false},complete:false};
+    evidence:{picked:false,gate:false,slotEntry:false,handoff:false,delivered:false,jointMove:false},complete:false,failure:null};
 }
 export const armById=(world,id)=>world.arms.find(a=>a.id===id);
 export function gripPoint(world,id) {
@@ -76,14 +77,18 @@ function segmentDistance(a,b,c,d) {
   return distance(add(a,u.map(x=>x*s)),add(c,v.map(x=>x*t)));
 }
 export function bounds(position,rotation,size) {const half=[0,1,2].map(i=>size.reduce((s,n,j)=>s+Math.abs(rotation[i*3+j])*n/2,0));return {min:sub(position,half),max:add(position,half)};}
-const overlap=(a,b)=>[0,1,2].every(i=>a.min[i]<b.max[i]-.01&&a.max[i]>b.min[i]+.01);
-const hitsBox=(shape,box)=>box.polygon?boxPanel(shape.position,shape.rotation,shape.size,box):overlap(bounds(shape.position,shape.rotation,shape.size),box);
+const hitsBox=(shape,box)=>box.polygon?boxPanel(shape.position,shape.rotation,shape.size,box):boxesIntersect(shape,boundsShape(box));
 const boundsShape=b=>({position:b.min.map((v,i)=>(v+b.max[i])/2),rotation:I,size:b.max.map((v,i)=>v-b.min[i])});
 // Contact bounds follow the existing main-lab FAIRINO gripper (local Y jaw travel).
 export function gripperParts(arm,q=arm.q) {
-  const p=pose(arm,q),gap=arm.closed?10:26;
-  return [[[0,0,38],[26,26,4]],[[0,0,32],[14,14,8]],[[0,0,23],[22,54,12]],...[-1,1].map(s=>[[0,s*gap,3],[12,6,32]])].map(([centre,size])=>({position:add(p.tip,transform(p.rotation,centre)),rotation:p.rotation,size}));
+  const p=pose(arm,q),jaws=arm.closed?(arm.jawY||[-10,10]):[-26,26];
+  return [[[0,0,38],[26,26,4]],[[0,0,32],[14,14,8]],[[0,0,23],[22,54,12]],...jaws.map(y=>[[0,y,3],[12,6,32]])].map(([centre,size])=>({position:add(p.tip,transform(p.rotation,centre)),rotation:p.rotation,size}));
 }
+export function graspContact(arm,part){
+  if(gripperParts(arm).slice(0,3).some(g=>boxesIntersect(g,part)))return null;
+  return jawContact(pose(arm),part);
+}
+function segmentShape(a,b,shape,pad=0){const r=transpose(shape.rotation),local=p=>transform(r,sub(p,shape.position));return segmentBox(local(a),local(b),{min:shape.size.map(v=>-v/2),max:shape.size.map(v=>v/2)},pad);}
 export function armSegments(arm){
  const p=pose(arm);
  return p.points.slice(1).map((b,i)=>({a:p.points[i],b,radius:i===0?33:i===p.points.length-2?13:Math.max(9,18-(i-1)*2)}));
@@ -106,6 +111,12 @@ export function collision(world) {
       if(jointBounds(arm).some(j=>hitsBox(boundsShape(j),box)))return 'obstacle';
       if(gripperParts(arm).some(g=>hitsBox(g,box)))return 'obstacle';
     }
+    // Fingers may touch the graspable part during approach. The palm and links cannot
+    // pass through a loose part or the part carried by the other robot.
+    if(arm.axes===6&&world.part.owner!==arm.id){
+      for(let i=1;i<segments.length-1;i++)if(segmentShape(segments[i].a,segments[i].b,world.part,segments[i].radius))return 'partCollision';
+      if(gripperParts(arm).slice(0,3).some(g=>boxesIntersect(g,world.part)))return 'partCollision';
+    }
   }
   if(world.part.owner) {
     const b=bounds(world.part.position,world.part.rotation,world.part.size);
@@ -114,18 +125,15 @@ export function collision(world) {
   if(world.arms.length===2) {
     const a=pose(world.arms[0]).points,b=pose(world.arms[1]).points,sa=armSegments(world.arms[0]),sb=armSegments(world.arms[1]);
     for(let i=0;i<a.length-1;i++)for(let j=0;j<b.length-1;j++)if(segmentDistance(a[i],a[i+1],b[j],b[j+1])<sa[i].radius+sb[j].radius+2)return 'armCollision';
-    for(let side=0;side<2;side++){const other=pose(world.arms[1-side]).points;for(const g of gripperParts(world.arms[side]))for(let i=0;i<other.length-1;i++)if(segmentBox(other[i],other[i+1],bounds(g.position,g.rotation,g.size),(side?sa:sb)[i].radius))return 'armCollision';}
-    for(const ga of gripperParts(world.arms[0]))for(const gb of gripperParts(world.arms[1]))if(overlap(bounds(ga.position,ga.rotation,ga.size),bounds(gb.position,gb.rotation,gb.size)))return 'armCollision';
-    if(world.part.owner){const other=world.arms.find(a=>a.id!==world.part.owner),points=pose(other).points,part=bounds(world.part.position,world.part.rotation,world.part.size);
-      // Only the final tool segment may make intended contact at a handoff grip point.
-      for(let i=0;i<points.length-1;i++)if(!(i===points.length-2&&distance(pose(other).tip,gripPoint(world,other.id))<18&&pose(other).tip[2]>=gripPoint(world,other.id)[2]-1)&&segmentBox(points[i],points[i+1],part,6))return 'partCollision';
-    }
+    for(let side=0;side<2;side++){const other=pose(world.arms[1-side]).points;for(const g of gripperParts(world.arms[side]))for(let i=0;i<other.length-1;i++)if(segmentShape(other[i],other[i+1],g,(side?sa:sb)[i].radius))return 'armCollision';}
+    for(const ga of gripperParts(world.arms[0]))for(const gb of gripperParts(world.arms[1]))if(boxesIntersect(ga,gb))return 'armCollision';
   }
   return null;
 }
 export function planMove(world,id,q,kind='joints') {
-  if(world.part.receiver)return {error:'handoffLocked'};
+  if(world.failure)return {error:'restartRequired'};
   const arm=armById(world,id);if(!arm||!validJoints(arm,q))return {error:'limits'};
+  if(world.part.receiver&&distance(arm.q,q)>.01)return dropPart(world,'handoffDropped');
   const start=arm.q,n=Math.max(1,Math.ceil(Math.max(...q.map((v,i)=>Math.abs(v-start[i])))/.5)),samples=[];
   let crossed=world.evidence.gate,entering=world.evidence.slotEntry,previous=world.part.position;
   for(let i=1;i<=n;i++) {
@@ -146,24 +154,40 @@ export function planMove(world,id,q,kind='joints') {
   return {samples,end,duration:Math.max(250,Math.max(...q.map((v,i)=>Math.abs(v-start[i])))/55*1000)};
 }
 function success(world) {
-  const e=world.evidence;world.complete=e.delivered&&e.picked&&(world.mode!=='medium'||(e.gate&&e.jointMove))&&(world.mode!=='hard'||e.handoff);return world;
+  const e=world.evidence;world.complete=!world.failure&&e.delivered&&e.picked&&(world.mode!=='medium'||(e.gate&&e.jointMove))&&(world.mode!=='hard'||e.handoff);return world;
+}
+function dropPart(world,reason){
+  const start=clone(world);start.failure=reason;start.complete=false;start.evidence.delivered=false;
+  start.part.owner=null;start.part.receiver=null;start.part.offset=null;start.part.relativeRotation=null;
+  for(const arm of start.arms){arm.closed=false;arm.jawY=null;}
+  const end=clone(start),bottom=bounds(end.part.position,end.part.rotation,end.part.size).min[2];end.part.position[2]-=Math.max(0,bottom);
+  return {start,end,failure:reason,duration:Math.max(180,Math.sqrt(2*Math.max(0,bottom)/9810)*1000)};
+}
+function supportedAt(part,position){
+  // Contact area on the stand, not exact TCP matching. Tilt remains unrestricted
+  // as long as the part is close enough to rest on the support.
+  const b=bounds(part.position,part.rotation,part.size),bottom=b.min[2];
+  return Math.abs(part.position[0]-position[0])<=16&&Math.abs(part.position[1]-position[1])<=12&&Math.abs(bottom-(position[2]-part.size[2]/2))<=8;
 }
 export function applyAction(world,step) {
+  if(world.failure)return {error:'restartRequired'};
   const next=clone(world),arm=armById(next,step.arm);if(!arm)return {error:'arm'};
   if(step.type==='move')return planMove(world,step.arm,step.q,step.kind);
   if(step.type==='close') {
     if(arm.closed)return {error:'alreadyClosed'};
-    if(next.mode==='hard'&&arm.id==='B'&&next.part.owner==='A') {
-      if(distance(pose(arm).tip,gripPoint(next,'B'))>3)return {error:'handoffPosition'};
-      const rotation=pose(arm).rotation;
-      if(rotation[8]<.96||next.part.rotation[8]<.96||Math.abs([1,4,7].reduce((sum,i)=>sum+rotation[i]*next.part.rotation[i],0))<.96)return {error:'handoffOrientation'};
-      arm.closed=true;next.part.receiver='B';
+    const contact=graspContact(arm,next.part);
+    if(next.mode==='hard'&&!contact){
+      // A missed grip closes on empty space. Releasing the other arm afterwards
+      // is a real failed handoff, not a program rejected before it can play.
+      arm.closed=true;arm.jawY=null;
+      if(gripperParts(arm).some(g=>boxesIntersect(g,next.part)))return {error:'gripPosition'};
+    } else if(next.mode==='hard'&&arm.id==='B'&&next.part.owner==='A') {
+      arm.closed=true;arm.jawY=contact.jawY;next.part.receiver='B';
     } else {
     if(next.part.owner)return {error:'occupied'};
-    if(distance(pose(arm).tip,gripPoint(next,arm.id))>3)return {error:'gripPosition'};
-    if(arm.axes===6&&Math.abs([1,4,7].reduce((sum,i)=>sum+pose(arm).rotation[i]*next.part.rotation[i],0))<.96)return {error:'gripOrientation'};
+    if(!contact)return {error:'gripPosition'};
     if(next.mode==='hard'&&arm.id!=='A')return {error:'firstArm'};
-    arm.closed=true;const p=pose(arm);next.part.owner=arm.id;next.part.offset=transform(transpose(p.rotation),sub(next.part.position,p.tip));next.part.relativeRotation=multiply(transpose(p.rotation),next.part.rotation);next.evidence.picked=true;next.evidence.delivered=false;
+    arm.closed=true;arm.jawY=contact.jawY;const p=pose(arm);next.part.owner=arm.id;next.part.offset=transform(transpose(p.rotation),sub(next.part.position,p.tip));next.part.relativeRotation=multiply(transpose(p.rotation),next.part.rotation);next.evidence.picked=true;next.evidence.delivered=false;
     }
   } else if(step.type==='handoff') {
     return {error:'handoffSteps'};
@@ -176,20 +200,26 @@ export function applyAction(world,step) {
       next.part.owner=receiver.id;next.part.receiver=null;
       next.part.offset=transform(transpose(p.rotation),sub(next.part.position,p.tip));next.part.relativeRotation=multiply(transpose(p.rotation),next.part.rotation);next.evidence.handoff=true;
     }else if(next.part.owner===arm.id) {
-      const atSource=distance(next.part.position,next.source)<4,atDestination=distance(next.part.position,next.destination)<4;
-      if(!atSource&&!atDestination)return {error:'unsupported'};
+      const atSource=supportedAt(next.part,next.source),atDestination=next.mode==='medium'?distance(next.part.position,next.destination)<10:supportedAt(next.part,next.destination);
+      if(!atSource&&!atDestination)return next.mode==='hard'?dropPart(next,'partDropped'):{error:'unsupported'};
       if(atDestination&&next.mode==='medium'&&Math.abs([0,3,6].reduce((s,i)=>s+next.part.rotation[i]*next.destinationRotation[i],0))<.98)return {error:'socketOrientation'};
       if(atDestination&&next.mode==='hard'&&(arm.id!=='B'||!next.evidence.handoff))return {error:'handoffOrder'};
       next.part.owner=null;next.part.offset=null;next.part.relativeRotation=null;
+      if(next.mode!=='medium')next.part.position[2]+=(atDestination?next.destination:next.source)[2]-next.part.size[2]/2-bounds(next.part.position,next.part.rotation,next.part.size).min[2];
       if(atDestination)next.evidence.delivered=true;
     }
-    arm.closed=false;
+    arm.closed=false;arm.jawY=null;
   } else return {error:'command'};
+  if(step.type==='close'){
+    // Check the fingers throughout their travel, not just at the closed pose.
+    const target=arm.jawY||[-10,10],trial=clone(next),moving=armById(trial,arm.id);
+    for(let i=0;i<=24;i++){moving.jawY=target.map((y,j)=>[-26,26][j]+(y-[-26,26][j])*i/24);const hit=collision(trial);if(hit)return {error:hit};}
+  }
   const error=collision(next);return error?{error}:{end:success(next),duration:150};
 }
 export function validateSequence(mode,steps) {
   let world=initialWorld(mode);if(!Array.isArray(steps)||steps.length>100)return {error:'program'};
-  for(let i=0;i<steps.length;i++){const r=applyAction(world,steps[i]);if(r.error)return {error:r.error,index:i};world=r.end;}
+  for(let i=0;i<steps.length;i++){const r=applyAction(world,steps[i]);if(r.error)return {error:r.error,index:i};if(r.failure)return {failure:r.failure,index:i,end:r.end};world=r.end;}
   return {end:world};
 }
 // Preserve earlier saved programs by expanding the retired one-click handoff.
@@ -199,20 +229,21 @@ export function upgradeHandoffSteps(mode,steps){
 }
 export class ChallengeController {
   constructor(mode='easy',onChange=()=>{}) {this.world=initialWorld(mode);this.onChange=onChange;this.program=[];this.operation=null;this.running=false;this.paused=false;this.index=-1;this.lastError=null;this.lastErrorIndex=null;this.clearMetrics();}
-  clearMetrics(){this.verifiedProgram=null;this.lastError=null;this.lastErrorIndex=null;this.metrics={elapsed:0,moves:0,actions:0,steps:[],status:'timerReady'};}
+  clearMetrics(){this.verifiedProgram=null;this.lastError=this.world?.failure||null;this.lastErrorIndex=null;this.metrics={elapsed:0,moves:0,actions:0,steps:[],status:this.world?.failure?'timerFailed':'timerReady'};}
   get complete(){return !this.busy&&!this.lastError&&this.world.complete&&this.metrics.status==='timerComplete'&&this.verifiedProgram===JSON.stringify(this.program);}
   emit(){this.onChange(this);}
   get busy(){return !!this.operation||this.running;}
   reset(){this.stop();this.world=initialWorld(this.world.mode);this.lastError=null;this.lastErrorIndex=null;this.clearMetrics();this.emit();}
   selectMode(mode){this.stop();this.world=initialWorld(mode);this.program=[];this.lastError=null;this.lastErrorIndex=null;this.clearMetrics();this.emit();}
-  execute(step){if(this.busy)return {error:'busy'};const r=applyAction(this.world,step);if(r.error){this.lastError=r.error;this.lastErrorIndex=null;this.emit();return r;}this.clearMetrics();this.operation={...r,elapsed:0};this.emit();return {ok:true};}
+  execute(step){if(this.busy)return {error:'busy'};const r=applyAction(this.world,step);if(r.error){this.lastError=r.error;this.lastErrorIndex=null;this.emit();return r;}this.clearMetrics();this.operation={...r,elapsed:0};if(r.start)this.world=clone(r.start);this.emit();return {ok:true};}
   add(step){if(this.busy)return {error:'busy'};if(this.program.length>=100)return {error:'program'};this.program.push(clone(step));this.clearMetrics();this.emit();return {ok:true};}
   edit(index,action){if(this.busy)return false;if(action==='delete')this.program.splice(index,1);else{const target=index+(action==='up'?-1:1);if(!this.program[target])return false;[this.program[index],this.program[target]]=[this.program[target],this.program[index]];}this.clearMetrics();this.emit();return true;}
-  run(){if(this.busy)return {error:'busy'};if(!this.program.length)return {error:'empty'};this.clearMetrics();const checked=validateSequence(this.world.mode,this.program);if(checked.error&&checked.error!=='handoffLocked'){this.lastError=checked.error;this.lastErrorIndex=checked.index;this.metrics.status='timerInvalid';this.emit();return checked;}this.world=initialWorld(this.world.mode);this.lastError=null;this.lastErrorIndex=null;this.running=true;this.paused=false;this.metrics.status='timerRunning';this.index=0;this.startStep();this.emit();return {ok:true};}
-  startStep(){if(this.index>=this.program.length){this.running=false;this.operation=null;this.metrics.status=this.world.complete?'timerComplete':'timerIncomplete';this.verifiedProgram=this.world.complete?JSON.stringify(this.program):null;return;}const r=applyAction(this.world,this.program[this.index]);if(r.error){this.lastError=r.error;this.lastErrorIndex=this.index;this.stop();this.metrics.status='timerInvalid';return;}this.operation={...r,elapsed:0};}
+  run(){if(this.busy)return {error:'busy'};if(!this.program.length)return {error:'empty'};this.clearMetrics();const checked=validateSequence(this.world.mode,this.program);if(checked.error){this.lastError=checked.error;this.lastErrorIndex=checked.index;this.metrics.status='timerInvalid';this.emit();return checked;}this.world=initialWorld(this.world.mode);this.lastError=null;this.lastErrorIndex=null;this.running=true;this.paused=false;this.metrics.status='timerRunning';this.index=0;this.startStep();this.emit();return {ok:true};}
+  startStep(){if(this.index>=this.program.length){this.running=false;this.operation=null;this.metrics.status=this.world.complete?'timerComplete':'timerIncomplete';this.verifiedProgram=this.world.complete?JSON.stringify(this.program):null;return;}const r=applyAction(this.world,this.program[this.index]);if(r.error){this.lastError=r.error;this.lastErrorIndex=this.index;this.stop();this.metrics.status='timerInvalid';return;}this.operation={...r,elapsed:0};if(r.start)this.world=clone(r.start);}
   tick(dt){if(!this.operation||this.paused||!Number.isFinite(dt))return;const op=this.operation,used=Math.max(0,Math.min(dt,100,op.duration-op.elapsed));op.elapsed+=used;if(this.running)this.metrics.elapsed+=used;const ratio=Math.min(1,op.elapsed/op.duration);
     if(op.samples?.length)this.world=clone(op.samples[Math.min(op.samples.length-1,Math.floor(ratio*op.samples.length))]);
-    if(ratio===1){this.world=clone(op.end);this.operation=null;if(this.running){const step=this.program[this.index];this.metrics.actions++;if(step.type==='move')this.metrics.moves++;this.metrics.steps.push({arm:step.arm,type:step.type,duration:op.duration});this.index++;this.startStep();}}this.emit();}
+    if(op.failure)this.world.part.position[2]=op.start.part.position[2]+(op.end.part.position[2]-op.start.part.position[2])*ratio*ratio;
+    if(ratio===1){this.world=clone(op.end);this.operation=null;if(op.failure){this.lastError=op.failure;this.lastErrorIndex=this.running?this.index:null;this.running=false;this.paused=false;this.index=-1;this.metrics.status='timerFailed';this.verifiedProgram=null;}else if(this.running){const step=this.program[this.index];this.metrics.actions++;if(step.type==='move')this.metrics.moves++;this.metrics.steps.push({arm:step.arm,type:step.type,duration:op.duration});this.index++;this.startStep();}}this.emit();}
   pause(){if(this.running){this.paused=!this.paused;this.metrics.status=this.paused?'timerPaused':'timerRunning';this.emit();}}
-  stop(){if(this.running)this.metrics.status='timerStopped';this.operation=null;this.running=false;this.paused=false;this.index=-1;this.emit();}
+  stop(){if(this.operation?.failure){this.world=clone(this.operation.end);this.lastError=this.world.failure;this.lastErrorIndex=this.running?this.index:null;}if(this.world.failure)this.metrics.status='timerFailed';else if(this.running)this.metrics.status='timerStopped';this.operation=null;this.running=false;this.paused=false;this.index=-1;this.emit();}
 }

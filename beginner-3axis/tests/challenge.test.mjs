@@ -35,19 +35,19 @@ test('XYZ preview translates the draft wrist pose without executing or drifting 
  assert.deepEqual(w,before);assert.ok(Math.hypot(...orientationError(pose(arm).rotation,pose(arm,seed).rotation))>.4);
 });
 test('unrotated carried part cannot cross the gate and rejected movement is atomic',()=>{let w=initialWorld('medium');const route=referenceProgram('medium');for(const s of route.slice(0,2))w=applyAction(w,s).end;const before=structuredClone(w),q=ikTool([220,110,130],w.arms[0].q,'nearest',[0,0,0]).q;assert.ok(q);assert.ok(['partCollision','obstacle'].includes(applyAction(w,{type:'move',arm:'A',q,kind:'xyz'}).error));assert.deepEqual(w,before);assert.equal(w.complete,false);});
-test('B grips, A releases, then B moves; blocked movement never changes the shared grip',()=>{
+test('B grips, A releases, then B moves; premature moves and releases plan a drop',()=>{
  let w=initialWorld('hard');const route=referenceProgram('hard');
  assert.equal(applyAction(w,{type:'handoff',arm:'A'}).error,'handoffSteps');
  for(const step of route.slice(0,4))w=applyAction(w,step).end;
- assert.equal(applyAction(w,{type:'close',arm:'B'}).error,'handoffPosition');
- assert.equal(applyAction(w,{type:'open',arm:'A'}).error,'unsupported');
+ const miss=applyAction(w,{type:'close',arm:'B'});assert.ok(miss.end);assert.equal(miss.end.part.receiver,null);assert.equal(miss.end.arms[1].closed,true);
+ assert.equal(applyAction(w,{type:'open',arm:'A'}).failure,'partDropped');
  w=applyAction(w,route[4]).end;const original=clonePart(w);
  w=applyAction(w,route[5]).end;assert.equal(w.part.owner,'A');assert.equal(w.part.receiver,'B');assert.ok(w.arms.every(a=>a.closed));assert.equal(w.evidence.handoff,false);
  const shared=structuredClone(w);
- for(const step of [route[7],route[8]])assert.equal(applyAction(w,step).error,'handoffLocked');
+ for(const step of [route[7],route[8]])assert.equal(applyAction(w,step).failure,'handoffDropped');
  assert.deepEqual(w,shared);assert.equal(applyAction(w,{type:'close',arm:'B'}).error,'alreadyClosed');
  w=applyAction(w,route[6]).end;assert.equal(w.part.owner,'B');assert.equal(w.part.receiver,null);assert.equal(w.arms[0].closed,false);assert.equal(w.arms[1].closed,true);assert.equal(w.evidence.handoff,true);assert.deepEqual(clonePart(w),original);
- assert.equal(applyAction(w,{type:'open',arm:'B'}).error,'unsupported');
+ assert.equal(applyAction(w,{type:'open',arm:'B'}).failure,'partDropped');
  for(const step of route.slice(7))w=applyAction(w,step).end;assert.equal(w.complete,true);
 });
 function clonePart(w){return {position:[...w.part.position],rotation:[...w.part.rotation]};}
@@ -56,12 +56,12 @@ test('B can release a shared grip without completing or losing the handoff',()=>
  w=applyAction(w,{type:'open',arm:'B'}).end;assert.equal(w.part.owner,'A');assert.equal(w.part.receiver,null);assert.equal(w.arms[0].closed,true);assert.equal(w.arms[1].closed,false);assert.equal(w.evidence.handoff,false);assert.deepEqual(clonePart(w),part);
  assert.equal(applyAction(w,{type:'close',arm:'B'}).end.part.receiver,'B');
 });
-test('replay stops at the premature B move, preserves both grips and freezes timing',()=>{
+test('replay drops the part at a premature B move, fails and requires restart',()=>{
  const c=new ChallengeController('hard'),route=referenceProgram('hard');c.program=[...route.slice(0,6),route[8]];
- assert.equal(validateSequence('hard',c.program).error,'handoffLocked');assert.equal(c.run().ok,true);advance(c);
- assert.equal(c.lastError,'handoffLocked');assert.equal(c.lastErrorIndex,6);assert.equal(c.running,false);assert.equal(c.operation,null);assert.equal(c.world.part.receiver,'B');assert.equal(c.world.part.owner,'A');assert.ok(c.world.arms.every(a=>a.closed));assert.equal(c.world.complete,false);
- assert.equal(c.metrics.actions,6);assert.equal(c.metrics.moves,4);assert.equal(c.metrics.status,'timerInvalid');const stopped=structuredClone({world:c.world,metrics:c.metrics});advance(c);assert.deepEqual({world:c.world,metrics:c.metrics},stopped);
- assert.equal(c.execute({type:'open',arm:'A'}).ok,true);advance(c);assert.equal(c.world.part.owner,'B');assert.equal(c.world.part.receiver,null);
+ assert.equal(validateSequence('hard',c.program).failure,'handoffDropped');assert.equal(c.run().ok,true);advance(c);
+ assert.equal(c.lastError,'handoffDropped');assert.equal(c.lastErrorIndex,6);assert.equal(c.running,false);assert.equal(c.operation,null);assert.equal(c.world.part.receiver,null);assert.equal(c.world.part.owner,null);assert.ok(c.world.arms.every(a=>!a.closed));assert.equal(c.world.failure,'handoffDropped');assert.equal(c.world.complete,false);
+ assert.equal(c.metrics.actions,6);assert.equal(c.metrics.moves,4);assert.equal(c.metrics.status,'timerFailed');const stopped=structuredClone({world:c.world,metrics:c.metrics});advance(c);assert.deepEqual({world:c.world,metrics:c.metrics},stopped);
+ assert.equal(c.execute({type:'open',arm:'A'}).error,'restartRequired');c.reset();assert.equal(c.world.failure,null);c.program=route;assert.equal(c.run().ok,true);advance(c);assert.equal(c.complete,true);
 });
 test('saved one-click handoffs expand to two explicit actions without mutating the file',()=>{
  const old=[{type:'handoff',arm:'A'}],before=structuredClone(old);assert.deepEqual(upgradeHandoffSteps('hard',old),[{type:'close',arm:'B'},{type:'open',arm:'A'}]);assert.deepEqual(old,before);

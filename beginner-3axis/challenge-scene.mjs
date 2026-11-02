@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from './vendor/three/examples/jsm/controls/OrbitControls.js';
-import { pose, atPose, gripperParts } from './challenge-model.mjs?v=coordinates-visible-1';
-import { text } from './challenge-i18n.mjs?v=coordinates-visible-1';
-import { createFairinoArm, updateFairinoArm } from './fairino-arm.mjs';
+import { pose, atPose, gripperParts } from './challenge-model.mjs?v=contact-failure-1';
+import { text } from './challenge-i18n.mjs?v=contact-failure-1';
+import { createFairinoArm, updateFairinoArm } from './fairino-arm.mjs?v=contact-failure-1';
 const vec=p=>new THREE.Vector3(...p),Y=new THREE.Vector3(0,1,0);
 function material(color,ghost=false){return new THREE.MeshStandardMaterial({color,roughness:.45,metalness:.15,transparent:ghost,opacity:ghost?.3:1,depthWrite:!ghost,wireframe:ghost});}
 function orient(mesh,a,b){const d=vec(b).sub(vec(a));mesh.position.copy(vec(a).add(vec(b)).multiplyScalar(.5));mesh.scale.set(1,d.length(),1);mesh.quaternion.setFromUnitVectors(Y,d.normalize());}
@@ -24,12 +24,12 @@ export function createChallengeScene(host,language='en'){
   const ground=new THREE.Mesh(new THREE.PlaneGeometry(1600,1400),material('#e3eaf0'));ground.position.z=-1;ground.receiveShadow=true;scene.add(ground);
   const grid=new THREE.GridHelper(1100,22,'#acbecd','#d4dfe7');grid.rotation.x=Math.PI/2;grid.position.z=.1;scene.add(grid);
   const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.minDistance=150;controls.maxDistance=1800;controls.maxPolarAngle=Math.PI*.49;
-  let worldGroup=new THREE.Group(),labels=new THREE.Group(),arms=[],ghosts=[],part,ghostPart,targetMarker,targetLine,mode='',lang='',lastWorld=null;
-  scene.add(worldGroup,labels);
+  let worldGroup=new THREE.Group(),labels=new THREE.Group(),introLabels=new THREE.Group(),arms=[],ghosts=[],part,ghostPart,targetMarker,targetLine,targetLabel,mode='',lang='',lastWorld=null;
+  scene.add(worldGroup,labels,introLabels);
   function home(){const hard=mode==='hard',medium=mode==='medium';controls.target.set(hard?0:medium?180:115,0,medium?140:105);camera.position.set(hard?530:medium?-420:390,hard?-650:medium?-360:-340,hard?420:medium?350:280);controls.update();}
   function build(world,language){
-    release(worldGroup);release(labels);arms=[];ghosts=[];mode=world.mode;lang=language;
-    for(const arm of world.arms){const graph=armGraph(arm),ghost=armGraph(arm,true);worldGroup.add(graph.group,ghost.group);arms.push(graph);ghosts.push(ghost);const tag=label(text(language,arm.id==='A'?'armA':'armB'),arm.id==='A'?'#96601c':'#215f9b');tag.position.copy(vec(arm.base));tag.position.z=25;labels.add(tag);}
+    release(worldGroup);release(labels);release(introLabels);arms=[];ghosts=[];mode=world.mode;lang=language;
+    for(const arm of world.arms){const graph=armGraph(arm),ghost=armGraph(arm,true);worldGroup.add(graph.group,ghost.group);arms.push(graph);ghosts.push(ghost);const tag=label(text(language,arm.id==='A'?'armA':'armB'),arm.id==='A'?'#96601c':'#215f9b');tag.position.copy(vec(arm.base));tag.position.z=25;introLabels.add(tag);}
     for(const [i,p] of [world.source,world.destination].entries()){
       const color=i?'#16885b':'#e78617',tilted=i&&world.mode==='medium',top=p[2]-(tilted?38:12);
       const pillar=new THREE.Mesh(new THREE.CylinderGeometry(12,20,top,20),material('#a5b8c6'));pillar.rotation.x=Math.PI/2;pillar.position.set(p[0],p[1],top/2);pillar.castShadow=true;pillar.receiveShadow=true;worldGroup.add(pillar);
@@ -39,39 +39,40 @@ export function createChallengeScene(host,language='en'){
       const mark=world.mode==='hard'?[p[0]+(i?42:-42),p[1],p[2]]:p;
       const halo=new THREE.Mesh(new THREE.TorusGeometry(11,1.4,8,32),new THREE.MeshBasicMaterial({color,depthTest:false}));halo.position.copy(vec(mark));worldGroup.add(halo);
       for(const end of [[8,0,0],[0,8,0]])line(worldGroup,mark.map((v,j)=>v-end[j]),mark.map((v,j)=>v+end[j]),color,.6);
-      const tag=label(text(language,i?'placeMark':'pickupMark'),'#ffffff',color);if(world.mode==='medium')tag.scale.set(150,28,1);tag.position.set(p[0],p[1],p[2]+65);labels.add(tag);line(worldGroup,[p[0],p[1],p[2]+14],[p[0],p[1],p[2]+52],color,1);
+      const tag=label(text(language,i?'placeMark':'pickupMark'),'#ffffff',color);if(world.mode==='medium')tag.scale.set(150,28,1);tag.position.set(p[0],p[1],p[2]+65);introLabels.add(tag);line(introLabels,[p[0],p[1],p[2]+14],[p[0],p[1],p[2]+52],color,1);
       if(i){const goal=new THREE.Mesh(new THREE.BoxGeometry(...world.part.size),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.13,depthWrite:false}));goal.position.copy(vec(p));rotation(goal,world.destinationRotation);worldGroup.add(goal);const outline=new THREE.LineSegments(new THREE.EdgesGeometry(goal.geometry),new THREE.LineBasicMaterial({color,transparent:true,opacity:.8}));outline.position.copy(goal.position);outline.quaternion.copy(goal.quaternion);worldGroup.add(outline);}
     }
     for(const box of world.obstacles){
       if(!box.polygon){const mesh=new THREE.Mesh(new THREE.BoxGeometry(...box.max.map((v,i)=>v-box.min[i])),material('#7c94a8'));mesh.position.copy(vec(box.max.map((v,i)=>(v+box.min[i])/2)));worldGroup.add(mesh);}
     }
     if(world.wall){const shape=new THREE.Shape([[-200,0],[200,0],[200,540],[-200,540]].map(p=>new THREE.Vector2(...p)));shape.holes.push(new THREE.Path([...world.wall.opening].reverse().map(p=>new THREE.Vector2(...p))));const mat=material('#68859d');mat.transparent=true;mat.opacity=.24;mat.depthWrite=false;const mesh=new THREE.Mesh(new THREE.ExtrudeGeometry(shape,{depth:12,bevelEnabled:false}),mat);mesh.setRotationFromMatrix(new THREE.Matrix4().set(0,0,1,0,1,0,0,0,0,1,0,0,0,0,0,1));mesh.position.x=world.wall.planeX-6;worldGroup.add(mesh);}
-    if(world.wall){const wall=world.wall;for(const x of [wall.planeX-6,wall.planeX+6])for(let i=0;i<4;i++){const a=wall.opening[i],b=wall.opening[(i+1)%4];line(worldGroup,[x,a[0],a[1]],[x,b[0],b[1]],'#d79a26',2.2);}for(const y of [-200,200])line(worldGroup,[wall.planeX,y,0],[wall.planeX,y,540],'#68859d',2);line(worldGroup,[wall.planeX,-200,540],[wall.planeX,200,540],'#68859d',2);const tag=label(text(language,'slotMark'),'#785200','#fff0c7');tag.position.set(wall.planeX,0,280);labels.add(tag);}
-    if(world.mode==='hard')for(const [i,x]of [-42,42].entries()){const mark=new THREE.Mesh(new THREE.TorusGeometry(12,1.5,8,24),material(i?'#5b98db':'#dca442'));mark.position.set(x,0,160);worldGroup.add(mark);const tag=label(text(language,i?'transferB':'transferA'));tag.position.set(x,0,123);labels.add(tag);}
+    if(world.wall){const wall=world.wall;for(const x of [wall.planeX-6,wall.planeX+6])for(let i=0;i<4;i++){const a=wall.opening[i],b=wall.opening[(i+1)%4];line(worldGroup,[x,a[0],a[1]],[x,b[0],b[1]],'#d79a26',2.2);}for(const y of [-200,200])line(worldGroup,[wall.planeX,y,0],[wall.planeX,y,540],'#68859d',2);line(worldGroup,[wall.planeX,-200,540],[wall.planeX,200,540],'#68859d',2);const tag=label(text(language,'slotMark'),'#785200','#fff0c7');tag.position.set(wall.planeX,0,280);introLabels.add(tag);}
+    if(world.mode==='hard')for(const [i,x]of [-42,42].entries()){const mark=new THREE.Mesh(new THREE.TorusGeometry(12,1.5,8,24),material(i?'#5b98db':'#dca442'));mark.position.set(x,0,160);worldGroup.add(mark);const tag=label(text(language,i?'transferB':'transferA'));tag.position.set(x,0,123);introLabels.add(tag);}
     part=new THREE.Mesh(new THREE.BoxGeometry(...world.part.size),material('#edab39'));part.castShadow=true;part.receiveShadow=true;worldGroup.add(part);
     ghostPart=new THREE.Mesh(new THREE.BoxGeometry(...world.part.size),material('#3c9ae2',true));worldGroup.add(ghostPart);
     // The requested XYZ point stays visible even when no reachable arm pose exists.
     targetMarker=new THREE.Group();targetMarker.name='coordinate-target';targetMarker.renderOrder=20;
     for(const axis of [[1,0,0],[0,1,0],[0,0,1]]){const cross=line(targetMarker,axis.map(v=>v*-10),axis.map(v=>v*10),'#1677dc',1.2);cross.material.depthTest=false;cross.material.depthWrite=false;cross.renderOrder=20;}
     const ring=new THREE.Mesh(new THREE.TorusGeometry(7,1.1,8,32),new THREE.MeshBasicMaterial({color:'#1677dc',depthTest:false,depthWrite:false}));ring.renderOrder=20;targetMarker.add(ring);
-    const tag=label(text(language,'coordinateTarget'),'#165caa');tag.position.z=26;tag.scale.set(90,17,1);tag.renderOrder=21;targetMarker.add(tag);worldGroup.add(targetMarker);
+    const tag=label(text(language,'coordinateTarget'),'#165caa');tag.position.z=26;tag.scale.set(90,17,1);tag.renderOrder=21;targetLabel=tag;targetMarker.add(tag);worldGroup.add(targetMarker);
     targetLine=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3()]),new THREE.LineDashedMaterial({color:'#1677dc',dashSize:5,gapSize:3,depthTest:false,depthWrite:false,transparent:true,opacity:.7}));targetLine.renderOrder=19;worldGroup.add(targetLine);
     for(const [axis,end,color]of [['X',[80,0,0],'#c86255'],['Y',[0,80,0],'#4b9d77'],['Z',[0,0,80],'#5382c4']]){const arrow=new THREE.ArrowHelper(vec(end).normalize(),vec([0,0,0]),80,color,8,4);worldGroup.add(arrow);const tag=label(axis,color);tag.scale.set(20,14,1);tag.position.copy(vec(end));labels.add(tag);}
     home();
   }
-  function update(world,{language='en',selected='A',target=null,targetPosition=null,error=false}={}){
+  function update(world,{language='en',selected='A',target=null,targetPosition=null,error=false,introVisible=true}={}){
     lastWorld=world;if(world.mode!==mode||language!==lang)build(world,language);
+    introLabels.visible=labels.visible=targetLabel.visible=introVisible;
     renderer.domElement.setAttribute('aria-label',text(language,'sceneLabel'));
     const changed=target&&world.arms.find(a=>a.id===selected).q.some((v,i)=>Math.abs(v-target[i])>.01);
     targetMarker.visible=targetLine.visible=Array.isArray(targetPosition)&&targetPosition.length===3&&targetPosition.every(Number.isFinite);
     if(targetMarker.visible){const color=error?'#d02f48':'#1677dc';targetMarker.position.copy(vec(targetPosition));targetMarker.traverse(o=>{if(o.isMesh)o.material.color.set(color);});const positions=targetLine.geometry.attributes.position,tip=pose(world.arms.find(a=>a.id===selected)).tip;positions.setXYZ(0,...tip);positions.setXYZ(1,...targetPosition);positions.needsUpdate=true;targetLine.geometry.computeBoundingSphere();targetLine.computeLineDistances();targetLine.material.color.set(color);}
     world.arms.forEach((a,i)=>{updateArm(arms[i],a);ghosts[i].group.visible=a.id===selected&&!!changed;if(a.id===selected&&target){updateArm(ghosts[i],a,target);ghosts[i].group.traverse(o=>{if(o.material)o.material.color.set(error?'#c34554':'#308dcb');});}});
-    part.position.copy(vec(world.part.position));rotation(part,world.part.rotation);
+    part.position.copy(vec(world.part.position));rotation(part,world.part.rotation);part.material.color.set(world.failure?'#cb4a45':'#edab39');
     ghostPart.visible=!!changed&&world.part.owner===selected;
     if(ghostPart.visible){const next=atPose(world,selected,target);ghostPart.position.copy(vec(next.part.position));rotation(ghostPart,next.part.rotation);ghostPart.material.color.set(error?'#c34554':'#308dcb');}
   }
   function size(){const w=host.clientWidth,h=host.clientHeight;if(w&&h){renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}}
   const observer=new ResizeObserver(size);observer.observe(host);let frame;
   function draw(){controls.update();renderer.render(scene,camera);frame=requestAnimationFrame(draw);}size();draw();
-  return {available:true,update,home,dispose(){cancelAnimationFrame(frame);observer.disconnect();controls.dispose();release(worldGroup);release(labels);ground.geometry.dispose();ground.material.dispose();grid.geometry.dispose();grid.material.dispose();renderer.dispose();renderer.domElement.remove();}};
+  return {available:true,update,home,dispose(){cancelAnimationFrame(frame);observer.disconnect();controls.dispose();release(worldGroup);release(labels);release(introLabels);ground.geometry.dispose();ground.material.dispose();grid.geometry.dispose();grid.material.dispose();renderer.dispose();renderer.domElement.remove();}};
 }
