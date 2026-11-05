@@ -1,16 +1,16 @@
-import { ChallengeController, initialWorld, armById, pose, limits, validJoints, solvePosition, atPose, collision, clone, gripPoint, upgradeHandoffSteps } from './challenge-model.mjs?v=contact-failure-1';
-import { createChallengeScene } from './challenge-scene.mjs?v=contact-failure-1';
-import { text, words } from './challenge-i18n.mjs?v=contact-failure-1';
+import { ChallengeController, initialWorld, armById, pose, limits, validJoints, solvePosition, atPose, collision, clone, gripPoint, upgradeHandoffSteps } from './challenge-model.mjs?v=explore-1';
+import { createChallengeScene } from './challenge-scene.mjs?v=explore-1';
+import { text, words } from './challenge-i18n.mjs?v=explore-1';
 import { CONFIG } from './model.mjs';
 import { ARM, toolReachFor } from './challenge-kinematics.mjs';
-const $=id=>document.getElementById(id),KEY='bnta:robot-challenges:v1',modes=['easy','medium','hard'];
+const $=id=>document.getElementById(id),KEY='bnta:robot-challenges:v1',challenges=['easy','medium','hard'],modes=['explore',...challenges];
 let saved=null;try{saved=JSON.parse(localStorage.getItem(KEY));}catch{}
 let language=saved?.language==='zh'?'zh':'en',selected='A',tab='controls',controlMode='xyz',draft=null,previewError=null,view=null,controller=null,pending=null,lastProgramKey='',lastComplete=false;
-let message={key:'ready',vars:{},error:false},programs={easy:[],medium:[],hard:[]},saveFailed=false,recording=false;
+let message={key:'ready',vars:{},error:false},programs={explore:[],easy:[],medium:[],hard:[]},saveFailed=false,recording=false;
 let coordinateTarget=null,xyzReference=null,xyzSeed=null,introVisible=true;
 // Only this UI's successful live replays award progress. Imported programs do not.
-const passed=new Set(saved?.challengeRevision===2&&Array.isArray(saved.passed)?saved.passed.filter(m=>modes.includes(m)):[]);
-const unlocked=mode=>mode==='easy'||passed.has(modes[modes.indexOf(mode)-1]);
+const passed=new Set(saved?.challengeRevision===2&&Array.isArray(saved.passed)?saved.passed.filter(m=>challenges.includes(m)):[]);
+const unlocked=mode=>mode==='explore'||mode==='easy'||passed.has(challenges[challenges.indexOf(mode)-1]);
 const t=(key,vars)=>text(language,key,vars),arm=()=>armById(controller.world,selected);
 function validSteps(mode,steps){
   if(!Array.isArray(steps)||steps.length>100)return false;const world=initialWorld(mode);
@@ -32,7 +32,7 @@ function changed(){
   if(controller.lastError&&!controller.running){message=controller.lastErrorIndex===null?{key:controller.lastError,vars:{},error:true}:{key:'programError',vars:{step:controller.lastErrorIndex+1,reason:controller.lastError},error:true};}
   lastComplete=controller.complete;render();
 }
-function syncDraft(){draft=[...arm().q];coordinateTarget=null;xyzReference=[...draft];xyzSeed=[...draft];controlMode=arm().axes===3?'xyz':'joints';buildInputs();preview();}
+function syncDraft(){draft=[...arm().q];coordinateTarget=null;xyzReference=[...draft];xyzSeed=[...draft];controlMode=arm().axes===3||controller.world.mode==='explore'?'xyz':'joints';buildInputs();preview();}
 function selectMode(mode){if(controller.busy){say('busy',{},true);return false;}if(!unlocked(mode)){say('locked',{},true);return false;}persist();pending=null;recording=false;selected='A';introVisible=true;controller.selectMode(mode);controller.program=clone(programs[mode]);tab='controls';lastProgramKey='';syncDraft();say('ready');$('panel-scroll').scrollTop=0;persist();return true;}
 function selectArm(id){if(!armById(controller.world,id))return say('command',{},true);selected=id;syncDraft();render();$('panel-scroll').scrollTop=0;}
 function buildInputs(){
@@ -73,7 +73,7 @@ function showCoordinates(id,key,p,armId){
   const name=document.createElement('strong'),coordinates=document.createElement('span');name.textContent=label;coordinates.textContent=value;el.replaceChildren(name,document.createTextNode(' '),coordinates);
 }
 function render(){
-  if(!controller)return;const world=controller.world,a=arm();document.documentElement.lang=language;$('language').value=language;
+  if(!controller)return;const world=controller.world,a=arm(),exploring=world.mode==='explore';document.documentElement.lang=language;$('language').value=language;
   document.querySelectorAll('[data-t]').forEach(el=>el.textContent=t(el.dataset.t));
   document.querySelectorAll('[data-mode]').forEach(b=>{b.setAttribute('aria-pressed',String(b.dataset.mode===world.mode));b.disabled=controller.busy||!unlocked(b.dataset.mode);b.title=t(unlocked(b.dataset.mode)?b.dataset.mode+'Name':'locked');});
   document.querySelectorAll('[data-arm]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.arm===selected)));
@@ -81,6 +81,7 @@ function render(){
   $('task-name').textContent=t(world.modeName||world.mode+'Name');$('task-description').textContent=t(world.mode+'Task');
   // Introductory cards clear on the first adjustment; navigation coordinates stay pinned.
   $('task-card').hidden=$('target-legend').hidden=document.querySelector('.model-note').hidden=!introVisible;
+  $('target-legend').hidden=!introVisible||exploring;$('checks').hidden=exploring;
   $('failure').hidden=!world.failure;$('failure-reason').textContent=world.failure?t(world.failure):'';
   $('arm-picker').hidden=world.mode!=='hard';
   $('controls-panel').hidden=tab!=='controls';$('program-panel').hidden=tab!=='program';$('xyz-inputs').hidden=controlMode!=='xyz';$('joint-inputs').hidden=controlMode!=='joints';
@@ -99,7 +100,7 @@ function render(){
   $('record').disabled=controller.busy;$('record').setAttribute('aria-pressed',String(recording));$('record').textContent=t(recording?'finishRecord':'record');$('record').title=t('recordHelp');
   const metrics=controller.metrics;$('replay-time').textContent=(metrics.elapsed/1000).toFixed(2)+' s';$('replay-moves').textContent=metrics.moves+' / '+controller.program.filter(s=>s.type==='move').length;$('replay-actions').textContent=metrics.actions+' / '+controller.program.length;$('timer-status').textContent=t(metrics.status);$('timer-status').dataset.status=metrics.status;
   $('run').disabled=controller.busy||!controller.program.length;$('clear').disabled=controller.busy||!controller.program.length;$('append').disabled=controller.busy;
-  $('attempt-stage').textContent=t(world.failure?'stageFailed':controller.complete?'stageVerified':controller.running?'stageReplaying':recording?'stageRecording':controller.program.length?'stageReplay':'stageRecord');
+  $('attempt-stage').textContent=t(exploring?(controller.running?'stageReplaying':recording?'stageRecording':'exploreName'):world.failure?'stageFailed':controller.complete?'stageVerified':controller.running?'stageReplaying':recording?'stageRecording':controller.program.length?'stageReplay':'stageRecord');
   $('attempt-stage').dataset.stage=controller.complete?'verified':recording?'recording':'ready';
   $('pause').disabled=!controller.running;$('pause').textContent=t(controller.paused?'resume':'pause');$('import').disabled=controller.busy;$('export').disabled=controller.busy;
   const checks=[['picked','checkPick'],...(world.mode==='medium'?[['gate','checkGate']]:[]),...(world.mode==='hard'?[['handoff','checkHandoff']]:[]),['delivered','checkPlace']];
@@ -108,10 +109,10 @@ function render(){
   const verified=controller.complete;$('completion').hidden=!verified;$('next').disabled=!verified;$('next').textContent=t(world.mode==='hard'?'again':'next');
   $('replay-prompt').hidden=!world.complete||verified||controller.busy;$('replay-prompt').textContent=t(controller.program.length?'replayRequired':'recordRequired');
   $('target-legend').textContent=t(world.mode==='medium'?'targetLegendSlot':'targetLegend');
-  const positionsKey=world.mode+':'+language;
+  const positionsKey=world.mode+':'+language+(exploring?JSON.stringify(world.parts.map(p=>[p.id,p.owner,...p.position.map(v=>v.toFixed(1))])):'');
   if($('task-positions').dataset.value!==positionsKey){
-    $('task-positions').dataset.value=positionsKey;
-    const positions=[[t('source'),world.mode==='hard'?[-132,-130,100]:world.source],[t('destination'),world.mode==='hard'?[142,130,100]:world.destination],...(world.wall?[[t('slotCentre'),world.wall.centre]]:[]),...(world.mode==='hard'?[[t('transferA'),[-42,0,160]],[t('transferB'),[42,0,160]]]:[])];
+    $('task-positions').dataset.value=positionsKey;$('task-positions').classList.toggle('exploring',exploring);
+    const positions=exploring?world.parts.map(p=>[t('block',{n:p.id})+(p.owner?' · '+t('held'):''),p.position]):[[t('source'),world.mode==='hard'?[-132,-130,100]:world.source],[t('destination'),world.mode==='hard'?[142,130,100]:world.destination],...(world.wall?[[t('slotCentre'),world.wall.centre]]:[]),...(world.mode==='hard'?[[t('transferA'),[-42,0,160]],[t('transferB'),[42,0,160]]]:[])];
     $('task-positions').replaceChildren(...positions.map(([name,p])=>{const el=document.createElement('p'),label=document.createElement('strong'),values=document.createElement('span');label.textContent=name;values.textContent=formatPosition(p);el.append(label,document.createTextNode(' '),values);return el;}));
   }
   const programKey=JSON.stringify([controller.program,language,controller.index,controller.busy,controller.metrics.steps,controller.lastErrorIndex]);
@@ -131,7 +132,7 @@ function renderProgram(){
   }));if(!controller.program.length){const p=document.createElement('p');p.className='muted';p.textContent=t('emptyProgram');$('steps').append(p);}
 }
 async function command(raw){
-  const s=raw.trim().toLowerCase(),aliases={'简单':'easy','中等':'medium','困难':'hard','帮助':'help','移动':'move','张开':'open','闭合':'close','交接':'handoff','运行':'run','暂停':'pause','停止':'stop','重置':'reset','程序':'program','控制':'controls','中文':'language zh','英语':'language en','录制 开':'record on','录制 关':'record off'};
+  const s=raw.trim().toLowerCase(),aliases={'探索':'explore','自由探索':'explore','简单':'easy','中等':'medium','困难':'hard','帮助':'help','移动':'move','张开':'open','闭合':'close','交接':'handoff','运行':'run','暂停':'pause','停止':'stop','重置':'reset','程序':'program','控制':'controls','中文':'language zh','英语':'language en','录制 开':'record on','录制 关':'record off'};
   const input=aliases[s]||s;if(modes.includes(input))return selectMode(input);
   if(input==='help')return say('help');if(input==='stop')return stop();if(input==='pause')return controller.pause();if(input==='reset')return reset();if(input==='run')return startProgram();
   if(input==='language zh'||input==='language en'){language=input.endsWith('zh')?'zh':'en';persist();render();return;}
@@ -160,5 +161,5 @@ $('import').onclick=()=>$('file').click();$('file').onchange=async()=>{try{const
 let fullHeight=innerHeight;function fit(){const h=visualViewport?.height||innerHeight;if(document.activeElement?.tagName!=='INPUT')fullHeight=innerHeight;document.documentElement.style.setProperty('--height',h+'px');document.body.classList.toggle('keyboard',document.activeElement?.tagName==='INPUT'&&h<fullHeight-100);}
 window.visualViewport?.addEventListener('resize',fit);window.addEventListener('resize',fit);document.addEventListener('focusin',fit);document.addEventListener('focusout',()=>setTimeout(fit,0));
 syncDraft();view=createChallengeScene($('scene'),language);render();fit();if(controller.program.length)say('loaded');
-let frame,last=0;function tick(now){const wasRunning=controller.running;controller.tick(Math.min(100,now-(last||now)));last=now;if(wasRunning&&!controller.running&&!controller.lastError){say(controller.complete?'complete':'endIncomplete');persist();}frame=requestAnimationFrame(tick);}frame=requestAnimationFrame(tick);
+let frame,last=0;function tick(now){const wasRunning=controller.running;controller.tick(Math.min(100,now-(last||now)));last=now;if(wasRunning&&!controller.running&&!controller.lastError){say(controller.world.mode==='explore'?'exploreReplayDone':controller.complete?'complete':'endIncomplete');persist();}frame=requestAnimationFrame(tick);}frame=requestAnimationFrame(tick);
 window.addEventListener('pagehide',()=>{pending=null;persist();cancelAnimationFrame(frame);view.dispose();});

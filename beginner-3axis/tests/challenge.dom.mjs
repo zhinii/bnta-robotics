@@ -8,7 +8,7 @@ const hook=registerHooks({resolve(s,c,next){return s==='three'?{url:new URL('../
 localStorage.setItem('bnta:robot-challenges:v1',JSON.stringify({version:1,challengeRevision:2,passed:['easy','medium']}));
 await import('../challenge-ui.mjs');hook.deregister();
 const $=id=>document.getElementById(id),send=value=>{$('command').value=value;$('command-form').dispatchEvent(new w.Event('submit',{cancelable:true}));};
-assert.equal(document.querySelector('[data-t="lessons"]'),null);assert.equal(document.querySelectorAll('[data-mode]').length,3);
+assert.equal(document.querySelector('[data-t="lessons"]'),null);assert.equal(document.querySelectorAll('[data-mode]').length,4);
 const before=$('tcp').textContent;send('目标 147 -85 80');assert.equal($('tcp').textContent,before);send('添加 移动');assert.equal($('step-count').textContent,'1');
 send('中文');assert.equal(document.documentElement.lang,'zh');send('中等');assert.equal(document.querySelectorAll('#joint-inputs .joint').length,6);assert.equal($('joint-inputs').hidden,false);
 send('困难');assert.equal($('arm-picker').hidden,false);send('机械臂 B');assert.equal(document.querySelector('[data-arm="B"]').getAttribute('aria-pressed'),'true');send('添加 移动');

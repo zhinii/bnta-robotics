@@ -41,7 +41,7 @@ const makeArm=(id,axes,base=[0,0,0],yaw=0)=>({id,axes,base,yaw,q:axes===3?CONFIG
 // Six-axis start poses are solved once from a downward-facing tool.
 function down(arm,p) { const local=transform(rotationFromEuler([0,0,-arm.yaw]),sub(p,arm.base)); const r=ikTool(local,arm.q,'nearest',[0,0,-arm.yaw]); if(!r.q)throw Error('Start pose: '+r.error); arm.q=r.q; }
 export function initialWorld(mode='easy') {
-  if(!['easy','medium','hard'].includes(mode))throw Error('mode');
+  if(!['explore','easy','medium','hard'].includes(mode))throw Error('mode');
   const arms=[makeArm('A',mode==='easy'?3:6,mode==='hard'?[-220,0,0]:[0,0,0])];
   if(mode==='hard')arms.push(makeArm('B',6,[220,0,0],180));
   let source=[147,-85,80],destination=[147,85,80],size=[14,14,14],obstacles=[];
@@ -51,8 +51,14 @@ export function initialWorld(mode='easy') {
     obstacles=slottedWall().panels;
   }
   if(mode==='hard') { source=[-90,-130,100]; destination=[100,130,100]; size=[84,14,14]; down(arms[0],[-140,-150,170]); down(arms[1],[140,150,170]); }
-  return {version:1,mode,arms,source,destination,destinationRotation:mode==='medium'?rotationFromEuler([-90,-30,90]):[...I],obstacles,wall:mode==='medium'?slottedWall():null,part:{position:[...source],rotation:[...I],size,owner:null,receiver:null,offset:null,relativeRotation:null},
+  const world={version:1,mode,arms,source,destination,destinationRotation:mode==='medium'?rotationFromEuler([-90,-30,90]):[...I],obstacles,wall:mode==='medium'?slottedWall():null,part:{position:[...source],rotation:[...I],size,owner:null,receiver:null,offset:null,relativeRotation:null},
     evidence:{picked:false,gate:false,slotEntry:false,handoff:false,delivered:false,jointMove:false},complete:false,failure:null};
+  if(mode==='explore'){
+    down(arms[0],[170,-90,130]);
+    world.parts=[[150,-70,16],[210,0,16],[150,70,16]].map((position,i)=>({...clone(world.part),id:i+1,position,size:[24,18,32],color:['#edab39','#549ed5','#a27bce'][i]}));
+    world.part=world.parts[0];
+  }
+  return world;
 }
 export const armById=(world,id)=>world.arms.find(a=>a.id===id);
 export function gripPoint(world,id) {
@@ -113,14 +119,15 @@ export function collision(world) {
     }
     // Fingers may touch the graspable part during approach. The palm and links cannot
     // pass through a loose part or the part carried by the other robot.
-    if(arm.axes===6&&world.part.owner!==arm.id){
-      for(let i=1;i<segments.length-1;i++)if(segmentShape(segments[i].a,segments[i].b,world.part,segments[i].radius))return 'partCollision';
-      if(gripperParts(arm).slice(0,3).some(g=>boxesIntersect(g,world.part)))return 'partCollision';
+    for(const part of world.parts||[world.part])if(arm.axes===6&&part.owner!==arm.id){
+      for(let i=1;i<segments.length-1;i++)if(segmentShape(segments[i].a,segments[i].b,part,segments[i].radius))return 'partCollision';
+      if(gripperParts(arm).slice(0,3).some(g=>boxesIntersect(g,part)))return 'partCollision';
     }
   }
   if(world.part.owner) {
     const b=bounds(world.part.position,world.part.rotation,world.part.size);
-    if(b.min[2]<0)return 'table'; if(world.obstacles.some(o=>hitsBox(world.part,o)))return 'partCollision';
+    if(b.min[2]<-.01)return 'table'; if(world.obstacles.some(o=>hitsBox(world.part,o)))return 'partCollision';
+    if(world.parts?.some(p=>p!==world.part&&boxesIntersect(p,world.part)))return 'partCollision';
   }
   if(world.arms.length===2) {
     const a=pose(world.arms[0]).points,b=pose(world.arms[1]).points,sa=armSegments(world.arms[0]),sb=armSegments(world.arms[1]);
@@ -154,7 +161,25 @@ export function planMove(world,id,q,kind='joints') {
   return {samples,end,duration:Math.max(250,Math.max(...q.map((v,i)=>Math.abs(v-start[i])))/55*1000)};
 }
 function success(world) {
-  const e=world.evidence;world.complete=!world.failure&&e.delivered&&e.picked&&(world.mode!=='medium'||(e.gate&&e.jointMove))&&(world.mode!=='hard'||e.handoff);return world;
+  const e=world.evidence;world.complete=world.mode!=='explore'&&!world.failure&&e.delivered&&e.picked&&(world.mode!=='medium'||(e.gate&&e.jointMove))&&(world.mode!=='hard'||e.handoff);return world;
+}
+function putDown(world,id){
+  const start=clone(world),arm=armById(start,id);arm.closed=false;arm.jawY=null;
+  start.part.owner=null;start.part.offset=null;start.part.relativeRotation=null;
+  const end=clone(start),part=end.part,floorZ=part.position[2]-bounds(part.position,part.rotation,part.size).min[2];
+  const other=end.parts.filter(p=>p!==part),hits=()=>other.some(p=>boxesIntersect(part,p));
+  // Settle on the work surface or the first block beneath it. A release never
+  // creates a failure or a completion in Explore, and the block stays graspable.
+  let previous=part.position[2];
+  for(let z=previous;z>floorZ;){
+    z=Math.max(floorZ,z-2);part.position[2]=z;
+    if(hits()){
+      let lo=z,hi=previous;for(let i=0;i<18;i++){part.position[2]=(lo+hi)/2;if(hits())lo=part.position[2];else hi=part.position[2];}
+      part.position[2]=hi;break;
+    }
+    previous=z;
+  }
+  return {start,end,settling:true,duration:Math.max(150,Math.sqrt(2*Math.max(0,start.part.position[2]-part.position[2])/9810)*1000)};
 }
 function dropPart(world,reason){
   const start=clone(world);start.failure=reason;start.complete=false;start.evidence.delivered=false;
@@ -175,8 +200,12 @@ export function applyAction(world,step) {
   if(step.type==='move')return planMove(world,step.arm,step.q,step.kind);
   if(step.type==='close') {
     if(arm.closed)return {error:'alreadyClosed'};
+    if(next.mode==='explore'&&!next.part.owner){
+      const candidate=next.parts.filter(p=>graspContact(arm,p)).sort((a,b)=>distance(pose(arm).tip,a.position)-distance(pose(arm).tip,b.position))[0];
+      if(candidate)next.part=candidate;
+    }
     const contact=graspContact(arm,next.part);
-    if(next.mode==='hard'&&!contact){
+    if((next.mode==='hard'||next.mode==='explore')&&!contact){
       // A missed grip closes on empty space. Releasing the other arm afterwards
       // is a real failed handoff, not a program rejected before it can play.
       arm.closed=true;arm.jawY=null;
@@ -192,6 +221,7 @@ export function applyAction(world,step) {
   } else if(step.type==='handoff') {
     return {error:'handoffSteps'};
   } else if(step.type==='open') {
+    if(next.mode==='explore'&&next.part.owner===arm.id)return putDown(next,arm.id);
     if(next.part.receiver===arm.id){
       // B can let go again without disturbing A's grip or completing a handoff.
       next.part.receiver=null;
@@ -239,11 +269,11 @@ export class ChallengeController {
   add(step){if(this.busy)return {error:'busy'};if(this.program.length>=100)return {error:'program'};this.program.push(clone(step));this.clearMetrics();this.emit();return {ok:true};}
   edit(index,action){if(this.busy)return false;if(action==='delete')this.program.splice(index,1);else{const target=index+(action==='up'?-1:1);if(!this.program[target])return false;[this.program[index],this.program[target]]=[this.program[target],this.program[index]];}this.clearMetrics();this.emit();return true;}
   run(){if(this.busy)return {error:'busy'};if(!this.program.length)return {error:'empty'};this.clearMetrics();const checked=validateSequence(this.world.mode,this.program);if(checked.error){this.lastError=checked.error;this.lastErrorIndex=checked.index;this.metrics.status='timerInvalid';this.emit();return checked;}this.world=initialWorld(this.world.mode);this.lastError=null;this.lastErrorIndex=null;this.running=true;this.paused=false;this.metrics.status='timerRunning';this.index=0;this.startStep();this.emit();return {ok:true};}
-  startStep(){if(this.index>=this.program.length){this.running=false;this.operation=null;this.metrics.status=this.world.complete?'timerComplete':'timerIncomplete';this.verifiedProgram=this.world.complete?JSON.stringify(this.program):null;return;}const r=applyAction(this.world,this.program[this.index]);if(r.error){this.lastError=r.error;this.lastErrorIndex=this.index;this.stop();this.metrics.status='timerInvalid';return;}this.operation={...r,elapsed:0};if(r.start)this.world=clone(r.start);}
+  startStep(){if(this.index>=this.program.length){this.running=false;this.operation=null;this.metrics.status=this.world.mode==='explore'?'timerFinished':this.world.complete?'timerComplete':'timerIncomplete';this.verifiedProgram=this.world.complete?JSON.stringify(this.program):null;return;}const r=applyAction(this.world,this.program[this.index]);if(r.error){this.lastError=r.error;this.lastErrorIndex=this.index;this.stop();this.metrics.status='timerInvalid';return;}this.operation={...r,elapsed:0};if(r.start)this.world=clone(r.start);}
   tick(dt){if(!this.operation||this.paused||!Number.isFinite(dt))return;const op=this.operation,used=Math.max(0,Math.min(dt,100,op.duration-op.elapsed));op.elapsed+=used;if(this.running)this.metrics.elapsed+=used;const ratio=Math.min(1,op.elapsed/op.duration);
     if(op.samples?.length)this.world=clone(op.samples[Math.min(op.samples.length-1,Math.floor(ratio*op.samples.length))]);
-    if(op.failure)this.world.part.position[2]=op.start.part.position[2]+(op.end.part.position[2]-op.start.part.position[2])*ratio*ratio;
+    if(op.failure||op.settling)this.world.part.position[2]=op.start.part.position[2]+(op.end.part.position[2]-op.start.part.position[2])*ratio*ratio;
     if(ratio===1){this.world=clone(op.end);this.operation=null;if(op.failure){this.lastError=op.failure;this.lastErrorIndex=this.running?this.index:null;this.running=false;this.paused=false;this.index=-1;this.metrics.status='timerFailed';this.verifiedProgram=null;}else if(this.running){const step=this.program[this.index];this.metrics.actions++;if(step.type==='move')this.metrics.moves++;this.metrics.steps.push({arm:step.arm,type:step.type,duration:op.duration});this.index++;this.startStep();}}this.emit();}
   pause(){if(this.running){this.paused=!this.paused;this.metrics.status=this.paused?'timerPaused':'timerRunning';this.emit();}}
-  stop(){if(this.operation?.failure){this.world=clone(this.operation.end);this.lastError=this.world.failure;this.lastErrorIndex=this.running?this.index:null;}if(this.world.failure)this.metrics.status='timerFailed';else if(this.running)this.metrics.status='timerStopped';this.operation=null;this.running=false;this.paused=false;this.index=-1;this.emit();}
+  stop(){if(this.operation?.settling)this.world=clone(this.operation.end);if(this.operation?.failure){this.world=clone(this.operation.end);this.lastError=this.world.failure;this.lastErrorIndex=this.running?this.index:null;}if(this.world.failure)this.metrics.status='timerFailed';else if(this.running)this.metrics.status='timerStopped';this.operation=null;this.running=false;this.paused=false;this.index=-1;this.emit();}
 }
