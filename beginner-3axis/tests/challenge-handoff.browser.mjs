@@ -1,3 +1,4 @@
+import {enterChallenge,exportProgram} from './challenge-browser-helpers.mjs';
 import assert from 'node:assert/strict';
 import {mkdir} from 'node:fs/promises';
 import {referenceProgram} from './challenge-fixtures.mjs';
@@ -9,8 +10,8 @@ const out=process.argv[3]||'../../test-artifacts/contact-failure';await mkdir(ou
 try{
  const page=await browser.newPage({viewport:{width:1024,height:768},hasTouch:true,isMobile:true}),errors=[];
  page.on('pageerror',e=>errors.push(e.message));
- await page.addInitScript(()=>localStorage.setItem('bnta:robot-challenges:v1',JSON.stringify({version:1,challengeRevision:2,passed:['easy','medium'],mode:'hard'})));
  await page.goto(process.env.BNTA_PREVIEW_URL||'http://127.0.0.1:4223/beginner-3axis/');await page.locator('#joint-5').waitFor({state:'attached'});
+ await enterChallenge(page,'hard');
  const send=async s=>{await page.locator('#command').fill(s);await page.locator('#command-form button').tap();};
  const idle=()=>page.waitForFunction(()=>!document.querySelector('#record').disabled);
  const act=async step=>{await page.locator(`[data-arm="${step.arm}"]`).tap();if(step.type==='move'){await send('joints '+step.q.join(' '));await send('move');}else await send(step.type);await idle();};
@@ -24,7 +25,7 @@ try{
  await page.locator('#reset').tap();await page.locator('#record').tap();for(const step of route.slice(0,6))await act(step);
  assert.match(await page.locator('#checks').textContent(),/Holding: A \+ B/);await act(route[8]);
  assert.equal(await page.locator('#failure').isVisible(),true);assert.match(await page.locator('#failure-reason').textContent(),/both arms were gripping/);assert.equal(await page.locator('#step-count').textContent(),'7');assert.equal(await page.locator('#record').getAttribute('aria-pressed'),'false');assert.equal(await page.locator('#move').isDisabled(),true);assert.equal(await page.locator('[data-action="close"]').isDisabled(),true);assert.equal(await page.locator('#completion').isVisible(),false);
- const stored=await page.evaluate(()=>JSON.parse(localStorage.getItem('bnta:robot-challenges:v1')).programs.hard);assert.deepEqual(stored,[...route.slice(0,6),route[8]]);
+ const stored=(await exportProgram(page)).steps;assert.deepEqual(stored,[...route.slice(0,6),route[8]]);
  await page.screenshot({path:out+'/manual-drop-en.png'});await page.locator('#language').selectOption('zh');assert.match(await page.locator('#failure-reason').textContent(),/零件掉落.*共同夹持/);await page.setViewportSize({width:768,height:1024});await page.screenshot({path:out+'/manual-drop-zh-portrait.png'});await page.locator('#language').selectOption('en');
  await page.locator('#restart').tap();assert.equal(await page.locator('#failure').isVisible(),false);assert.equal(await page.locator('#task-card').isVisible(),true);assert.equal(await page.locator('#step-count').textContent(),'7');
  // The same failed recording replays to the same action and freezes the timer.

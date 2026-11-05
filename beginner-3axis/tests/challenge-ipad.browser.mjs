@@ -44,6 +44,6 @@ try{
  await page.locator('#run').tap();await page.waitForFunction(()=>document.querySelector('#timer-status').dataset.status==='timerIncomplete');assert.equal(await page.locator('#completion').isVisible(),false);
  await page.locator('#file').setInputFiles({name:'claimed.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify({version:1,mode:'easy',steps:referenceProgram('easy'),replay:{status:'timerComplete'}}))});assert.equal(await page.locator('#completion').isVisible(),false);
  await page.locator('#run').tap();await page.locator('#stop').tap();assert.equal(await page.locator('#completion').isVisible(),false);assert.equal(await page.locator('#timer-status').getAttribute('data-status'),'timerStopped');
- await page.reload();await page.locator('#axis-x').waitFor();assert.equal(await page.locator('#completion').isVisible(),false);assert.equal(await page.locator('[data-mode="medium"]').isEnabled(),true,'earned unlock survives reload');
+ await page.reload();await page.locator('#axis-x').waitFor();assert.equal(await page.locator('#completion').isVisible(),false);assert.equal(await page.locator('[data-mode="medium"]').isEnabled(),false,'reload clears earned unlocks');assert.equal(await page.locator('[data-mode="explore"]').getAttribute('aria-pressed'),'true');assert.equal(await page.locator('#step-count').textContent(),'0');
  assert.deepEqual(errors,[]);console.log('Editing, incomplete/stopped replay, untrusted imported score and reload checks passed; no page errors.');
 }finally{await browser.close();}

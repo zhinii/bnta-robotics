@@ -1,16 +1,16 @@
+import {enterChallenge} from './challenge-browser-helpers.mjs';
 import assert from 'node:assert/strict';
 import {mkdir} from 'node:fs/promises';
 import {referenceProgram} from './challenge-fixtures.mjs';
 import {initialWorld,applyAction} from '../challenge-model.mjs';
-const {chromium}=await import(process.argv[2]||'playwright');
+const {chromium}=await import(process.env.BNTA_PLAYWRIGHT_PATH||process.argv[2]||'playwright');
 const browser=await chromium.launch({channel:'msedge',headless:true});
 try{
  const page=await browser.newPage({viewport:{width:1280,height:850}}),errors=[];
  page.on('pageerror',e=>errors.push(e.message));
- // These focused tests start with previously earned unlocks; challenge-ipad covers earning them.
- await page.addInitScript(()=>{if(!localStorage.getItem('bnta:robot-challenges:v1'))localStorage.setItem('bnta:robot-challenges:v1',JSON.stringify({version:1,challengeRevision:2,passed:['easy','medium']}));});
- await page.goto('http://127.0.0.1:4223/beginner-3axis/');
+ await page.goto(process.env.BNTA_PREVIEW_URL||'http://127.0.0.1:4223/beginner-3axis/');
  await page.locator('#joint-0').waitFor({state:'attached'});
+ await enterChallenge(page,'easy');
  const send=async s=>{await page.locator('#command').fill(s);await page.locator('#command-form button').click();};
  const record=page.locator('#record');assert.equal(await record.getAttribute('aria-pressed'),'false');
  await record.click();assert.equal(await record.getAttribute('aria-pressed'),'true');
@@ -39,6 +39,7 @@ try{
  if(process.argv[3]){await mkdir(process.argv[3],{recursive:true});await page.screenshot({path:process.argv[3]+'/replay-result.png'});}
  await record.click();assert.equal(await page.locator('#step-count').textContent(),'0');assert.equal(await page.locator('#replay-time').textContent(),'0.00 s');
  await send('target 147 -85 80');await send('move');await page.locator('#stop').click();assert.equal(await page.locator('#step-count').textContent(),'0','interrupted movement is not a completed recorded move');
+ await enterChallenge(page,'hard');
  for(const mode of ['easy','medium','hard']){
   await page.locator(`[data-mode="${mode}"]`).click();await page.setViewportSize({width:1280,height:850});
   if(process.argv[3])await page.screenshot({path:process.argv[3]+'/'+mode+'-detail.png'});

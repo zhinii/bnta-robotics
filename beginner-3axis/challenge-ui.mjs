@@ -1,15 +1,16 @@
-import { ChallengeController, initialWorld, armById, pose, limits, validJoints, solvePosition, atPose, collision, clone, gripPoint, upgradeHandoffSteps } from './challenge-model.mjs?v=explore-1';
-import { createChallengeScene } from './challenge-scene.mjs?v=explore-1';
-import { text, words } from './challenge-i18n.mjs?v=explore-1';
+import { ChallengeController, initialWorld, armById, pose, limits, validJoints, solvePosition, atPose, collision, clone, gripPoint, upgradeHandoffSteps } from './challenge-model.mjs?v=fresh-explore-1';
+import { createChallengeScene } from './challenge-scene.mjs?v=fresh-explore-1';
+import { text, words } from './challenge-i18n.mjs?v=fresh-explore-1';
 import { CONFIG } from './model.mjs';
 import { ARM, toolReachFor } from './challenge-kinematics.mjs';
 const $=id=>document.getElementById(id),KEY='bnta:robot-challenges:v1',challenges=['easy','medium','hard'],modes=['explore',...challenges];
-let saved=null;try{saved=JSON.parse(localStorage.getItem(KEY));}catch{}
-let language=saved?.language==='zh'?'zh':'en',selected='A',tab='controls',controlMode='xyz',draft=null,previewError=null,view=null,controller=null,pending=null,lastProgramKey='',lastComplete=false;
-let message={key:'ready',vars:{},error:false},programs={explore:[],easy:[],medium:[],hard:[]},saveFailed=false,recording=false;
+// Every visit is fresh. Remove only this app's legacy save, even if it is malformed.
+try{localStorage.removeItem(KEY);}catch{}
+let language='en',selected='A',tab='controls',controlMode='xyz',draft=null,previewError=null,view=null,controller=null,pending=null,lastProgramKey='',lastComplete=false;
+let message={key:'ready',vars:{},error:false},programs={explore:[],easy:[],medium:[],hard:[]},recording=false;
 let coordinateTarget=null,xyzReference=null,xyzSeed=null,introVisible=true;
 // Only this UI's successful live replays award progress. Imported programs do not.
-const passed=new Set(saved?.challengeRevision===2&&Array.isArray(saved.passed)?saved.passed.filter(m=>challenges.includes(m)):[]);
+const passed=new Set();
 const unlocked=mode=>mode==='explore'||mode==='easy'||passed.has(challenges[challenges.indexOf(mode)-1]);
 const t=(key,vars)=>text(language,key,vars),arm=()=>armById(controller.world,selected);
 function validSteps(mode,steps){
@@ -17,23 +18,22 @@ function validSteps(mode,steps){
   return steps.every(s=>s&&['move','open','close'].includes(s.type)&&armById(world,s.arm)&&
     (s.type!=='move'||(validJoints(armById(world,s.arm),s.q)&&['xyz','joints'].includes(s.kind))));
 }
-if(saved?.version===1)for(const mode of modes){const steps=upgradeHandoffSteps(mode,saved.programs?.[mode]);if(validSteps(mode,steps))programs[mode]=steps;}
-controller=new ChallengeController(modes.includes(saved?.mode)&&unlocked(saved.mode)?saved.mode:'easy',changed);
+controller=new ChallengeController('explore',changed);
 controller.program=clone(programs[controller.world.mode]);
-function persist(){programs[controller.world.mode]=clone(controller.program);try{localStorage.setItem(KEY,JSON.stringify({version:1,challengeRevision:2,passed:[...passed],language,mode:controller.world.mode,programs}));}catch{saveFailed=true;}}
+function rememberProgram(){programs[controller.world.mode]=clone(controller.program);}
 function say(key,vars={},error=false){message={key,vars,error};render();}
 function report(result){if(result?.error){say(result.index===undefined?result.error:'programError',result.index===undefined?{}:{step:result.index+1,reason:result.error},true);return false;}return true;}
 function changed(){
   if(!controller)return;
-  if(pending&&!controller.operation&&!controller.running){const step=pending;pending=null;if(recording){const added=controller.add(step);if(added.error){recording=false;return say('recordFull',{},true);}}say(step.type==='close'&&controller.world.part.owner!==step.arm&&controller.world.part.receiver!==step.arm?'emptyGrip':controller.world.part.receiver?'sharedGrip':step.type==='open'&&step.arm==='A'&&controller.world.part.owner==='B'?'handed':{move:'moved',close:'closed',open:'opened'}[step.type]);persist();preview();}
-  if(controller.complete&&!lastComplete){passed.add(controller.world.mode);message={key:'complete',vars:{},error:false};persist();}
+  if(pending&&!controller.operation&&!controller.running){const step=pending;pending=null;if(recording){const added=controller.add(step);if(added.error){recording=false;return say('recordFull',{},true);}}say(step.type==='close'&&controller.world.part.owner!==step.arm&&controller.world.part.receiver!==step.arm?'emptyGrip':controller.world.part.receiver?'sharedGrip':step.type==='open'&&step.arm==='A'&&controller.world.part.owner==='B'?'handed':{move:'moved',close:'closed',open:'opened'}[step.type]);rememberProgram();preview();}
+  if(controller.complete&&!lastComplete){passed.add(controller.world.mode);message={key:'complete',vars:{},error:false};rememberProgram();}
   else if(controller.world.complete&&!controller.busy&&!controller.complete&&!controller.lastError)message={key:controller.program.length?'replayRequired':'recordRequired',vars:{},error:false};
   if(controller.world.failure&&!controller.busy){recording=false;message={key:controller.world.failure,vars:{},error:true};}
   if(controller.lastError&&!controller.running){message=controller.lastErrorIndex===null?{key:controller.lastError,vars:{},error:true}:{key:'programError',vars:{step:controller.lastErrorIndex+1,reason:controller.lastError},error:true};}
   lastComplete=controller.complete;render();
 }
 function syncDraft(){draft=[...arm().q];coordinateTarget=null;xyzReference=[...draft];xyzSeed=[...draft];controlMode=arm().axes===3||controller.world.mode==='explore'?'xyz':'joints';buildInputs();preview();}
-function selectMode(mode){if(controller.busy){say('busy',{},true);return false;}if(!unlocked(mode)){say('locked',{},true);return false;}persist();pending=null;recording=false;selected='A';introVisible=true;controller.selectMode(mode);controller.program=clone(programs[mode]);tab='controls';lastProgramKey='';syncDraft();say('ready');$('panel-scroll').scrollTop=0;persist();return true;}
+function selectMode(mode){if(controller.busy){say('busy',{},true);return false;}if(!unlocked(mode)){say('locked',{},true);return false;}rememberProgram();pending=null;recording=false;selected='A';introVisible=true;controller.selectMode(mode);controller.program=clone(programs[mode]);tab='controls';lastProgramKey='';syncDraft();say('ready');$('panel-scroll').scrollTop=0;rememberProgram();return true;}
 function selectArm(id){if(!armById(controller.world,id))return say('command',{},true);selected=id;syncDraft();render();$('panel-scroll').scrollTop=0;}
 function buildInputs(){
   const a=arm(),q=draft&&validJoints(a,draft)?draft:a.q,p=controlMode==='xyz'&&coordinateTarget?coordinateTarget:pose(a,q).tip;
@@ -56,12 +56,12 @@ function readXYZ(){const values=['x','y','z'].map(axis=>$('axis-'+axis).value);i
 function readJoints(){coordinateTarget=null;xyzReference=null;xyzSeed=null;const values=arm().q.map((_,i)=>$('joint-'+i).value);draft=values.every(v=>v.trim()&&Number.isFinite(Number(v)))?values.map(Number):null;if(draft)introVisible=false;preview();}
 function preview(){if(draft){previewError=validJoints(arm(),draft)?(controller.world.part.receiver?'handoffLocked':collision(atPose(controller.world,selected,draft))):'limits';}else previewError=previewError||'numbers';render();}
 function execute(type){if(controller.busy)return say('busy',{},true);const step={arm:selected,type};if(type==='move'){if(!draft||!validJoints(arm(),draft))return say(previewError||'numbers',{},true);Object.assign(step,{q:[...draft],kind:controlMode});}pending=null;const r=controller.execute(step);if(!r.error){pending=clone(step);if(type==='move')introVisible=false;render();}report(r);}
-function addStep(type){if(controller.busy)return say('busy',{},true);const step={type,arm:selected};if(type==='move'){if(!draft||!validJoints(arm(),draft))return say('limits',{},true);Object.assign(step,{q:[...draft],kind:controlMode});}if(type==='handoff')return say('handoffSteps',{},true);if(report(controller.add(step))){persist();say('programAdded');}}
+function addStep(type){if(controller.busy)return say('busy',{},true);const step={type,arm:selected};if(type==='move'){if(!draft||!validJoints(arm(),draft))return say('limits',{},true);Object.assign(step,{q:[...draft],kind:controlMode});}if(type==='handoff')return say('handoffSteps',{},true);if(report(controller.add(step))){rememberProgram();say('programAdded');}}
 function setRecording(on){
   if(controller.busy)return say('busy',{},true);
   if(on===recording)return;
   if(on){pending=null;controller.program=[];introVisible=true;controller.reset();syncDraft();}
-  recording=on;persist();say(on?'recordOn':'recordOff');
+  recording=on;rememberProgram();say(on?'recordOn':'recordOff');
 }
 function startProgram(){if(controller.busy)return say('busy',{},true);pending=null;recording=false;if(report(controller.run())){introVisible=false;say('running',{step:1,total:controller.program.length,arm:controller.program[0].arm});}}
 function stop(){pending=null;recording=false;controller.stop();say('stopped');}
@@ -120,7 +120,7 @@ function render(){
   $('step-count').textContent=controller.program.length;
   const active=controller.running?{key:controller.paused?'paused':'running',vars:{step:controller.index+1,total:controller.program.length,arm:controller.program[controller.index]?.arm||''}}:message;
   $('feedback').textContent=t(active.key,{...active.vars,...(active.vars?.reason?{reason:t(active.vars.reason)}:{})});$('feedback').className=message.error&&!controller.running?'error':'';
-  $('command').placeholder=t('commandPlaceholder');$('command').setAttribute('aria-label',t('commandLabel'));$('save-state').textContent=t(saveFailed?'saveFailed':'savedLocally');
+  $('command').placeholder=t('commandPlaceholder');$('command').setAttribute('aria-label',t('commandLabel'));$('save-state').textContent=t('sessionOnly');
   view?.update(world,{language,selected,target:!world.failure&&draft&&validJoints(a,draft)?draft:null,targetPosition:world.failure?null:targetPosition,error:!!previewError,introVisible});
 }
 function renderProgram(){
@@ -128,14 +128,14 @@ function renderProgram(){
     const li=document.createElement('li');if(controller.running&&controller.index===i)li.className='current';if(controller.lastErrorIndex===i)li.className='step-error';const title=document.createElement('div');title.className='step-title';const index=document.createElement('span');index.textContent=i+1;const badge=document.createElement('span');badge.className='arm-badge'+(step.arm==='B'?' b':'');badge.textContent=t(step.arm==='A'?'armA':'armB');const name=document.createElement('strong');name.textContent=t(step.type);title.append(index,badge,name);li.append(title);
     if(step.q){const values=document.createElement('div');values.className='step-values';values.textContent=step.q.map((v,n)=>'J'+(n+1)+' '+v.toFixed(1)+'°').join(' · ');li.append(values);}
     const timing=controller.metrics.steps[i];if(timing){const time=document.createElement('small');time.className='step-duration';time.textContent=t('stepTime',{seconds:(timing.duration/1000).toFixed(2)});li.append(time);}
-    const actions=document.createElement('div');actions.className='step-actions';for(const [kind,label]of [['show',t('show')],['up','↑'],['down','↓'],['delete','×']]){const b=document.createElement('button');b.type='button';b.textContent=label;b.title=t(kind==='delete'?'remove':kind);b.setAttribute('aria-label',b.title+' '+(i+1));b.disabled=controller.busy||(kind==='up'&&i===0)||(kind==='down'&&i===controller.program.length-1)||(kind==='show'&&!step.q);b.onclick=()=>{if(kind==='show'){introVisible=false;selected=step.arm;draft=[...step.q];controlMode='joints';tab='controls';buildInputs();preview();}else{controller.edit(i,kind);persist();}};actions.append(b);}li.append(actions);return li;
+    const actions=document.createElement('div');actions.className='step-actions';for(const [kind,label]of [['show',t('show')],['up','↑'],['down','↓'],['delete','×']]){const b=document.createElement('button');b.type='button';b.textContent=label;b.title=t(kind==='delete'?'remove':kind);b.setAttribute('aria-label',b.title+' '+(i+1));b.disabled=controller.busy||(kind==='up'&&i===0)||(kind==='down'&&i===controller.program.length-1)||(kind==='show'&&!step.q);b.onclick=()=>{if(kind==='show'){introVisible=false;selected=step.arm;draft=[...step.q];controlMode='joints';tab='controls';buildInputs();preview();}else{controller.edit(i,kind);rememberProgram();}};actions.append(b);}li.append(actions);return li;
   }));if(!controller.program.length){const p=document.createElement('p');p.className='muted';p.textContent=t('emptyProgram');$('steps').append(p);}
 }
 async function command(raw){
   const s=raw.trim().toLowerCase(),aliases={'探索':'explore','自由探索':'explore','简单':'easy','中等':'medium','困难':'hard','帮助':'help','移动':'move','张开':'open','闭合':'close','交接':'handoff','运行':'run','暂停':'pause','停止':'stop','重置':'reset','程序':'program','控制':'controls','中文':'language zh','英语':'language en','录制 开':'record on','录制 关':'record off'};
   const input=aliases[s]||s;if(modes.includes(input))return selectMode(input);
   if(input==='help')return say('help');if(input==='stop')return stop();if(input==='pause')return controller.pause();if(input==='reset')return reset();if(input==='run')return startProgram();
-  if(input==='language zh'||input==='language en'){language=input.endsWith('zh')?'zh':'en';persist();render();return;}
+  if(input==='language zh'||input==='language en'){language=input.endsWith('zh')?'zh':'en';rememberProgram();render();return;}
   if(input==='record on'||input==='record off'){return setRecording(input==='record on');}
   if(input==='program'||input==='controls'){tab=input;render();return;}
   if(input==='handoff')return say('handoffSteps');
@@ -151,15 +151,17 @@ async function command(raw){
 }
 document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>selectMode(b.dataset.mode));document.querySelectorAll('[data-arm]').forEach(b=>b.onclick=()=>selectArm(b.dataset.arm));document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;render();});
 document.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>execute(b.dataset.action));
-$('language').onchange=()=>{language=$('language').value;persist();render();};$('move').onclick=()=>execute('move');$('add-move').onclick=()=>addStep('move');$('append').onclick=()=>addStep($('append-action').value);
+$('language').onchange=()=>{language=$('language').value;rememberProgram();render();};$('move').onclick=()=>execute('move');$('add-move').onclick=()=>addStep('move');$('append').onclick=()=>addStep($('append-action').value);
 $('control-mode').onclick=()=>{controlMode=controlMode==='xyz'?'joints':'xyz';if(!draft||!validJoints(arm(),draft))draft=[...arm().q];coordinateTarget=controlMode==='xyz'?pose(arm(),draft).tip:null;xyzReference=[...draft];xyzSeed=[...draft];buildInputs();preview();};
-$('record').onclick=()=>setRecording(!recording);$('stop').onclick=stop;$('reset').onclick=reset;$('restart').onclick=reset;$('home').onclick=()=>view.home();$('run').onclick=startProgram;$('pause').onclick=()=>controller.pause();$('clear').onclick=()=>{if(controller.busy)return;controller.program=[];controller.clearMetrics();recording=false;persist();say('clearDone');};
+$('record').onclick=()=>setRecording(!recording);$('stop').onclick=stop;$('reset').onclick=reset;$('restart').onclick=reset;$('home').onclick=()=>view.home();$('run').onclick=startProgram;$('pause').onclick=()=>controller.pause();$('clear').onclick=()=>{if(controller.busy)return;controller.program=[];controller.clearMetrics();recording=false;rememberProgram();say('clearDone');};
 $('next').onclick=()=>{if(!controller.complete)return say('replayRequired',{},true);controller.world.mode==='hard'?reset():selectMode(modes[modes.indexOf(controller.world.mode)+1]);};
 $('command-form').onsubmit=event=>{event.preventDefault();const value=$('command').value;$('command').value='';command(value);};
 $('export').onclick=()=>{const blob=new Blob([JSON.stringify({version:1,mode:controller.world.mode,steps:controller.program,replay:controller.metrics},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='robot-challenge-'+controller.world.mode+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);say('saved');};
-$('import').onclick=()=>$('file').click();$('file').onchange=async()=>{try{const file=$('file').files[0];if(!file)return;if(file.size>100000)throw Error();const data=JSON.parse(await file.text());data.steps=upgradeHandoffSteps(data.mode,data.steps);if(data.version!==1||!modes.includes(data.mode)||!validSteps(data.mode,data.steps)||controller.busy)throw Error();if(!selectMode(data.mode))return;controller.program=clone(data.steps);persist();tab='program';say('loaded');}catch{say('invalidFile',{},true);}finally{$('file').value='';}};
+$('import').onclick=()=>$('file').click();$('file').onchange=async()=>{try{const file=$('file').files[0];if(!file)return;if(file.size>100000)throw Error();const data=JSON.parse(await file.text());data.steps=upgradeHandoffSteps(data.mode,data.steps);if(data.version!==1||!modes.includes(data.mode)||!validSteps(data.mode,data.steps)||controller.busy)throw Error();if(!selectMode(data.mode))return;controller.program=clone(data.steps);rememberProgram();tab='program';say('loaded');}catch{say('invalidFile',{},true);}finally{$('file').value='';}};
 let fullHeight=innerHeight;function fit(){const h=visualViewport?.height||innerHeight;if(document.activeElement?.tagName!=='INPUT')fullHeight=innerHeight;document.documentElement.style.setProperty('--height',h+'px');document.body.classList.toggle('keyboard',document.activeElement?.tagName==='INPUT'&&h<fullHeight-100);}
 window.visualViewport?.addEventListener('resize',fit);window.addEventListener('resize',fit);document.addEventListener('focusin',fit);document.addEventListener('focusout',()=>setTimeout(fit,0));
-syncDraft();view=createChallengeScene($('scene'),language);render();fit();if(controller.program.length)say('loaded');
-let frame,last=0;function tick(now){const wasRunning=controller.running;controller.tick(Math.min(100,now-(last||now)));last=now;if(wasRunning&&!controller.running&&!controller.lastError){say(controller.world.mode==='explore'?'exploreReplayDone':controller.complete?'complete':'endIncomplete');persist();}frame=requestAnimationFrame(tick);}frame=requestAnimationFrame(tick);
-window.addEventListener('pagehide',()=>{pending=null;persist();cancelAnimationFrame(frame);view.dispose();});
+syncDraft();view=createChallengeScene($('scene'),language);render();fit();
+let frame,last=0;function tick(now){const wasRunning=controller.running;controller.tick(Math.min(100,now-(last||now)));last=now;if(wasRunning&&!controller.running&&!controller.lastError){say(controller.world.mode==='explore'?'exploreReplayDone':controller.complete?'complete':'endIncomplete');rememberProgram();}frame=requestAnimationFrame(tick);}frame=requestAnimationFrame(tick);
+window.addEventListener('pagehide',()=>{pending=null;cancelAnimationFrame(frame);view.dispose();});
+// Back/forward cache restores JS memory too, so re-enter through the fresh startup.
+window.addEventListener('pageshow',event=>{if(event.persisted)window.location.reload();});

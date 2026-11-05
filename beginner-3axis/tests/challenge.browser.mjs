@@ -8,6 +8,7 @@ try{
  page.on('pageerror',e=>errors.push(e.message));await page.goto(url);await page.locator('#joint-0').waitFor({state:'attached'});
  const send=async command=>{await page.locator('#command').fill(command);await page.locator('#command-form button').click();};
  assert.equal(await page.locator('canvas').count()>0,true);assert.equal(await page.getByText('Lessons',{exact:true}).count(),0);
+ await page.locator('[data-mode="easy"]').click();
  await page.locator('#record').click();assert.equal(await page.locator('#record').getAttribute('aria-pressed'),'true');
  const before=await page.locator('#tcp').textContent();await page.locator('#axis-x').fill('147');await page.locator('#axis-y').fill('-85');await page.locator('#axis-z').fill('80');assert.equal(await page.locator('#tcp').textContent(),before,'preview never moves actual arm');
  await page.locator('#move').click();await page.waitForFunction(()=>!document.querySelector('#move').disabled);assert.match(await page.locator('#tcp').textContent(),/147.0.*-85.0.*80.0/);
@@ -41,8 +42,8 @@ try{
  }
  await send('program');const count=await page.locator('#steps li').count();await page.locator('#run').click();await page.locator('#pause').click();const paused=await page.locator('#tcp').textContent();await page.waitForTimeout(250);assert.equal(await page.locator('#tcp').textContent(),paused);await page.locator('#stop').click();assert.equal(await page.locator('#steps li').count(),count);assert.equal(await page.locator('#completion').isVisible(),false);
  await page.locator('.program-files summary').click();const downloadPromise=page.waitForEvent('download');await page.locator('#export').click();const download=await downloadPromise;assert.equal(download.suggestedFilename(),'robot-challenge-hard.json');
- await page.reload();await send('program');assert.equal(await page.locator('#steps li').count(),count);assert.equal(await page.locator('#completion').isVisible(),false);
  await page.locator('#file').setInputFiles({name:'bad.json',mimeType:'application/json',buffer:Buffer.from('{"version":1,"mode":"hard","steps":[{"type":"move","arm":"B","q":[0,999,0,0,0,0],"kind":"joints"}]}')});await page.waitForFunction(()=>document.querySelector('#feedback').textContent.includes('not a valid'));assert.equal(await page.locator('#steps li').count(),count);
  await page.setViewportSize({width:390,height:844});await page.locator('#command').focus();await page.evaluate(()=>{Object.defineProperty(visualViewport,'height',{value:390,configurable:true});visualViewport.dispatchEvent(new Event('resize'));});assert.ok((await page.locator('#command-form').boundingBox()).y<350);
+ await page.reload();await page.locator('#axis-x').waitFor();assert.equal(await page.locator('[data-mode="explore"]').getAttribute('aria-pressed'),'true');assert.equal(await page.locator('#step-count').textContent(),'0');assert.equal(await page.locator('#completion').isVisible(),false);assert.equal(await page.locator('[data-mode="medium"]').isDisabled(),true);assert.equal(await page.locator('[data-mode="hard"]').isDisabled(),true);
  assert.deepEqual(errors,[]);console.log('Browser PASS: pause/stop, file export, reload, invalid import protection, keyboard viewport; no page errors.');
 }finally{await browser.close();}
