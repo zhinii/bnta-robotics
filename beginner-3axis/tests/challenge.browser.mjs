@@ -1,3 +1,4 @@
+import {operate,replay,record} from './challenge-browser-helpers.mjs';
 import assert from 'node:assert/strict';import {mkdir} from 'node:fs/promises';
 import {referenceProgram} from './challenge-fixtures.mjs';import {initialWorld,pose} from '../challenge-model.mjs';
 const {chromium}=await import(process.env.BNTA_PLAYWRIGHT_PATH||process.argv[2]||'playwright');
@@ -6,10 +7,10 @@ const browser=await chromium.launch({channel:'msedge',headless:true});
 try{
  const page=await browser.newPage({viewport:{width:1280,height:850},acceptDownloads:true}),errors=[];
  page.on('pageerror',e=>errors.push(e.message));await page.goto(url);await page.locator('#joint-0').waitFor({state:'attached'});
- const send=async command=>{await page.locator('#command').fill(command);await page.locator('#command-form button').click();};
+ const send=s=>operate(page,s);
  assert.equal(await page.locator('canvas').count()>0,true);assert.equal(await page.getByText('Lessons',{exact:true}).count(),0);
  await page.locator('[data-mode="easy"]').click();
- await page.locator('#record').click();assert.equal(await page.locator('#record').getAttribute('aria-pressed'),'true');
+ await record(page);assert.equal(await page.locator('#record').getAttribute('aria-pressed'),'true');
  const before=await page.locator('#tcp').textContent();await page.locator('#axis-x').fill('147');await page.locator('#axis-y').fill('-85');await page.locator('#axis-z').fill('80');assert.equal(await page.locator('#tcp').textContent(),before,'preview never moves actual arm');
  await page.locator('#move').click();await page.waitForFunction(()=>!document.querySelector('#move').disabled);assert.match(await page.locator('#tcp').textContent(),/147.0.*-85.0.*80.0/);
  await page.locator('[data-action="close"]').click();await page.waitForFunction(()=>!document.querySelector('#move').disabled);assert.match(await page.locator('#checks').textContent(),/✓ Pick up/);
@@ -26,24 +27,23 @@ try{
    }else await send('add '+step.type);
   }
   await send('program');assert.equal(await page.locator('#steps li').count(),route.length);assert.equal(await page.locator('#completion').isVisible(),false);
-  await page.locator('#run').click();await page.locator('#completion').waitFor({state:'visible',timeout:60000});
+  await replay(page);await page.locator('#completion').waitFor({state:'visible',timeout:60000});
   assert.match(await page.locator('#checks').textContent(),/✓ Place/);
   if(mode==='medium')assert.match(await page.locator('#checks').textContent(),/✓ Pass slot/);
   if(mode==='hard'){assert.match(await page.locator('#checks').textContent(),/✓ Transfer to B/);assert.equal(await page.locator('.arm-badge.b').count(),5);}
   await page.locator('#language').selectOption('zh');assert.match(await page.locator('#completion').textContent(),/挑战完成/);
   await send('控制');if(mode==='hard')await page.locator('[data-arm="B"]').click();
   for(const size of [{width:1280,height:850},{width:390,height:844},{width:320,height:568}]){
-   await page.setViewportSize(size);const b=await page.evaluate(()=>({width:document.documentElement.scrollWidth,bottom:document.querySelector('#command-form').getBoundingClientRect().bottom,scene:document.querySelector('#world').getBoundingClientRect().height}));
-   assert.ok(b.width<=size.width+1&&b.bottom<=size.height+1&&b.scene>=190,JSON.stringify(b));
-   assert.ok(await page.locator('#stop').isVisible());assert.ok(await page.locator('#command').isVisible());
+   await page.setViewportSize(size);const b=await page.evaluate(()=>({width:document.documentElement.scrollWidth,scene:document.querySelector('#world').getBoundingClientRect().height}));
+   assert.ok(b.width<=size.width+1&&b.scene>=190,JSON.stringify(b));
+   assert.ok(await page.locator('#stop').isVisible());assert.equal(await page.locator('#command').count(),0);
    if(out)await page.screenshot({path:out+'/'+mode+'-'+size.width+'.png'});
   }
   await page.locator('#language').selectOption('en');console.log(mode+' browser PASS: preview, authored program, actual completion, bilingual UI, desktop and two phone sizes');
  }
- await send('program');const count=await page.locator('#steps li').count();await page.locator('#run').click();await page.locator('#pause').click();const paused=await page.locator('#tcp').textContent();await page.waitForTimeout(250);assert.equal(await page.locator('#tcp').textContent(),paused);await page.locator('#stop').click();assert.equal(await page.locator('#steps li').count(),count);assert.equal(await page.locator('#completion').isVisible(),false);
- await page.locator('.program-files summary').click();const downloadPromise=page.waitForEvent('download');await page.locator('#export').click();const download=await downloadPromise;assert.equal(download.suggestedFilename(),'robot-challenge-hard.json');
+ await send('program');const count=await page.locator('#steps li').count();await replay(page);await page.locator('#pause').click();const paused=await page.locator('#tcp').textContent();await page.waitForTimeout(250);assert.equal(await page.locator('#tcp').textContent(),paused);await page.locator('#stop').click();assert.equal(await page.locator('#steps li').count(),count);assert.equal(await page.locator('#completion').isVisible(),false);
+ const downloadPromise=page.waitForEvent('download');await page.locator('#export').click();const download=await downloadPromise;assert.equal(download.suggestedFilename(),'robot-challenge-hard.json');
  await page.locator('#file').setInputFiles({name:'bad.json',mimeType:'application/json',buffer:Buffer.from('{"version":1,"mode":"hard","steps":[{"type":"move","arm":"B","q":[0,999,0,0,0,0],"kind":"joints"}]}')});await page.waitForFunction(()=>document.querySelector('#feedback').textContent.includes('not a valid'));assert.equal(await page.locator('#steps li').count(),count);
- await page.setViewportSize({width:390,height:844});await page.locator('#command').focus();await page.evaluate(()=>{Object.defineProperty(visualViewport,'height',{value:390,configurable:true});visualViewport.dispatchEvent(new Event('resize'));});assert.ok((await page.locator('#command-form').boundingBox()).y<350);
- await page.reload();await page.locator('#axis-x').waitFor();assert.equal(await page.locator('[data-mode="explore"]').getAttribute('aria-pressed'),'true');assert.equal(await page.locator('#step-count').textContent(),'0');assert.equal(await page.locator('#completion').isVisible(),false);assert.equal(await page.locator('[data-mode="medium"]').isDisabled(),true);assert.equal(await page.locator('[data-mode="hard"]').isDisabled(),true);
- assert.deepEqual(errors,[]);console.log('Browser PASS: pause/stop, file export, reload, invalid import protection, keyboard viewport; no page errors.');
+ await page.reload();await page.locator('#axis-x').waitFor({state:'attached'});assert.equal(await page.locator('[data-mode="explore"]').getAttribute('aria-pressed'),'true');assert.equal(await page.locator('#step-count').textContent(),'0');assert.equal(await page.locator('#completion').isVisible(),false);assert.equal(await page.locator('[data-mode="medium"]').isDisabled(),true);assert.equal(await page.locator('[data-mode="hard"]').isDisabled(),true);
+ assert.deepEqual(errors,[]);console.log('Browser PASS: pause/stop, file export, reload, invalid import protection, no Guide; no page errors.');
 }finally{await browser.close();}

@@ -1,6 +1,6 @@
-import { ChallengeController, initialWorld, armById, pose, limits, validJoints, solvePosition, atPose, collision, clone, gripPoint, upgradeHandoffSteps } from './challenge-model.mjs?v=explore-robots-1';
-import { createChallengeScene } from './challenge-scene.mjs?v=explore-robots-1';
-import { text, words } from './challenge-i18n.mjs?v=explore-robots-1';
+import { ChallengeController, initialWorld, armById, pose, limits, validJoints, solvePosition, atPose, collision, clone, gripPoint, upgradeHandoffSteps } from './challenge-model.mjs?v=ipad-layout-1';
+import { createChallengeScene } from './challenge-scene.mjs?v=ipad-layout-1';
+import { text, words } from './challenge-i18n.mjs?v=ipad-layout-1';
 import { CONFIG } from './model.mjs';
 import { ARM, toolReachFor } from './challenge-kinematics.mjs';
 const $=id=>document.getElementById(id),KEY='bnta:robot-challenges:v1',challenges=['easy','medium','hard'],modes=['explore',...challenges];
@@ -8,7 +8,7 @@ const $=id=>document.getElementById(id),KEY='bnta:robot-challenges:v1',challenge
 try{localStorage.removeItem(KEY);}catch{}
 let language='en',selected='A',tab='controls',controlMode='xyz',draft=null,previewError=null,view=null,controller=null,pending=null,lastProgramKey='',lastComplete=false;
 let message={key:'ready',vars:{},error:false},programs={explore3:[],explore6:[],easy:[],medium:[],hard:[]},recording=false,exploreAxes=6;
-let coordinateTarget=null,xyzReference=null,xyzSeed=null,introVisible=true;
+let coordinateTarget=null,xyzReference=null,xyzSeed=null,introVisible=true,taskOpen=false,expandedStep=null;
 // Only this UI's successful live replays award progress. Imported programs do not.
 const passed=new Set();
 const unlocked=mode=>mode==='explore'||mode==='easy'||passed.has(challenges[challenges.indexOf(mode)-1]);
@@ -33,8 +33,10 @@ function changed(){
   if(controller.lastError&&!controller.running){message=controller.lastErrorIndex===null?{key:controller.lastError,vars:{},error:true}:{key:'programError',vars:{step:controller.lastErrorIndex+1,reason:controller.lastError},error:true};}
   lastComplete=controller.complete;render();
 }
-function syncDraft(){draft=[...arm().q];coordinateTarget=null;xyzReference=[...draft];xyzSeed=[...draft];controlMode=arm().axes===3||controller.world.mode==='explore'?'xyz':'joints';buildInputs();preview();}
-function selectMode(mode,axes=exploreAxes){if(controller.busy){say('busy',{},true);return false;}if(!unlocked(mode)){say('locked',{},true);return false;}rememberProgram();pending=null;recording=false;selected='A';introVisible=true;if(mode==='explore')exploreAxes=axes;controller.selectMode(mode,axes);controller.program=clone(programs[programSlot(mode,axes)]);tab='controls';lastProgramKey='';syncDraft();say('ready');$('panel-scroll').scrollTop=0;rememberProgram();return true;}
+function syncDraft(){draft=[...arm().q];coordinateTarget=null;xyzReference=[...draft];xyzSeed=[...draft];controlMode=arm().axes===3?'xyz':'joints';buildInputs();preview();}
+function selectMode(mode,axes=exploreAxes){if(controller.busy){say('busy',{},true);return false;}if(!unlocked(mode)){say('locked',{},true);return false;}rememberProgram();pending=null;recording=false;selected='A';introVisible=true;taskOpen=false;expandedStep=null;if(mode==='explore')exploreAxes=axes;controller.selectMode(mode,axes);controller.program=clone(programs[programSlot(mode,axes)]);tab='controls';lastProgramKey='';syncDraft();say('ready');$('panel-scroll').scrollTop=0;rememberProgram();return true;}
+function selectTab(next){tab=next;render();$('panel-scroll').scrollTop=0;}
+function selectControlMode(next){controlMode=next;if(!draft||!validJoints(arm(),draft))draft=[...arm().q];coordinateTarget=next==='xyz'?pose(arm(),draft).tip:null;xyzReference=[...draft];xyzSeed=[...draft];buildInputs();preview();}
 function selectExploreRobot(axes){if(![3,6].includes(axes))return say('command',{},true);if(controller.world.mode==='explore'&&arm().axes===axes)return;if(selectMode('explore',axes))say('robotChanged',{axes});}
 function selectArm(id){if(!armById(controller.world,id))return say('command',{},true);selected=id;syncDraft();render();$('panel-scroll').scrollTop=0;}
 function buildInputs(){
@@ -54,20 +56,20 @@ function buildInputs(){
     row.append(label,slider,number);return row;}));
 }
 function syncXYZSlider(input,slider){const value=Number(input.value);if(!input.value.trim()||!Number.isFinite(value))return;slider.min=String(Math.min(Number(slider.dataset.min),value));slider.max=String(Math.max(Number(slider.dataset.max),value));slider.value=input.value;}
-function readXYZ(){const values=['x','y','z'].map(axis=>$('axis-'+axis).value);if(values.some(v=>!v.trim()||!Number.isFinite(Number(v)))){coordinateTarget=null;draft=null;previewError='numbers';render();return;}introVisible=false;coordinateTarget=values.map(Number);const r=solvePosition(arm(),coordinateTarget,xyzReference||arm().q,xyzSeed||arm().q);draft=r.q||null;if(r.q)xyzSeed=[...r.q];previewError=r.error||null;preview();}
-function readJoints(){coordinateTarget=null;xyzReference=null;xyzSeed=null;const values=arm().q.map((_,i)=>$('joint-'+i).value);draft=values.every(v=>v.trim()&&Number.isFinite(Number(v)))?values.map(Number):null;if(draft)introVisible=false;preview();}
+function readXYZ(){const values=['x','y','z'].map(axis=>$('axis-'+axis).value);if(values.some(v=>!v.trim()||!Number.isFinite(Number(v)))){coordinateTarget=null;draft=null;previewError='numbers';render();return;}introVisible=false;taskOpen=false;coordinateTarget=values.map(Number);const r=solvePosition(arm(),coordinateTarget,xyzReference||arm().q,xyzSeed||arm().q);draft=r.q||null;if(r.q)xyzSeed=[...r.q];previewError=r.error||null;preview();}
+function readJoints(){coordinateTarget=null;xyzReference=null;xyzSeed=null;const values=arm().q.map((_,i)=>$('joint-'+i).value);draft=values.every(v=>v.trim()&&Number.isFinite(Number(v)))?values.map(Number):null;if(draft)introVisible=false;taskOpen=false;preview();}
 function preview(){if(draft){previewError=validJoints(arm(),draft)?(controller.world.part.receiver?'handoffLocked':collision(atPose(controller.world,selected,draft))):'limits';}else previewError=previewError||'numbers';render();}
-function execute(type){if(controller.busy)return say('busy',{},true);const step={arm:selected,type};if(type==='move'){if(!draft||!validJoints(arm(),draft))return say(previewError||'numbers',{},true);Object.assign(step,{q:[...draft],kind:controlMode});}pending=null;const r=controller.execute(step);if(!r.error){pending=clone(step);if(type==='move')introVisible=false;render();}report(r);}
+function execute(type){if(controller.busy)return say('busy',{},true);const step={arm:selected,type};if(type==='move'){if(!draft||!validJoints(arm(),draft))return say(previewError||'numbers',{},true);Object.assign(step,{q:[...draft],kind:controlMode});}pending=null;const r=controller.execute(step);if(!r.error){pending=clone(step);if(type==='move')introVisible=false;taskOpen=false;render();}report(r);}
 function addStep(type){if(controller.busy)return say('busy',{},true);const step={type,arm:selected};if(type==='move'){if(!draft||!validJoints(arm(),draft))return say('limits',{},true);Object.assign(step,{q:[...draft],kind:controlMode});}if(type==='handoff')return say('handoffSteps',{},true);if(report(controller.add(step))){rememberProgram();say('programAdded');}}
 function setRecording(on){
   if(controller.busy)return say('busy',{},true);
   if(on===recording)return;
-  if(on){pending=null;controller.program=[];introVisible=true;controller.reset();syncDraft();}
-  recording=on;rememberProgram();say(on?'recordOn':'recordOff');
+  if(on){pending=null;controller.program=[];introVisible=true;taskOpen=false;controller.reset();syncDraft();}
+  recording=on;tab=on?'controls':'program';expandedStep=null;rememberProgram();say(on?'recordOn':'recordOff');
 }
-function startProgram(){if(controller.busy)return say('busy',{},true);pending=null;recording=false;if(report(controller.run())){introVisible=false;say('running',{step:1,total:controller.program.length,arm:controller.program[0].arm});}}
+function startProgram(){tab='program';if(controller.busy)return say('busy',{},true);pending=null;recording=false;if(report(controller.run())){introVisible=false;taskOpen=false;say('running',{step:1,total:controller.program.length,arm:controller.program[0].arm});}}
 function stop(){pending=null;recording=false;controller.stop();say('stopped');}
-function reset(){pending=null;recording=false;introVisible=true;controller.reset();syncDraft();say('resetDone');}
+function reset(){pending=null;recording=false;introVisible=true;taskOpen=false;controller.reset();syncDraft();say('resetDone');}
 function formatPosition(p){return p.map((v,i)=>['X','Y','Z'][i]+' '+v.toFixed(1)).join(' · ')+' mm';}
 function showCoordinates(id,key,p,armId){
   const label=t(key)+(controller.world.mode==='hard'?' · '+t(armId==='A'?'armA':'armB'):''),value=p?formatPosition(p):'X — · Y — · Z — mm',el=$(id),snapshot=label+'|'+value;
@@ -80,16 +82,15 @@ function render(){
   document.querySelectorAll('[data-mode]').forEach(b=>{b.setAttribute('aria-pressed',String(b.dataset.mode===world.mode));b.disabled=controller.busy||!unlocked(b.dataset.mode);b.title=t(unlocked(b.dataset.mode)?b.dataset.mode+'Name':'locked');});
   document.querySelectorAll('[data-arm]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.arm===selected)));
   document.querySelectorAll('[data-tab]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tab===tab)));
-  $('explore-robot').hidden=!exploring;$('explore-robot').value=String(exploreAxes);$('explore-robot').disabled=controller.busy;$('explore-robot').setAttribute('aria-label',t('exploreRobot'));$('explore-robot').title=t('robotSwitchHelp');
-  $('task-name').textContent=exploring?t('exploreActiveName',{axes:a.axes}):t(world.modeName||world.mode+'Name');$('task-description').textContent=t(world.mode+'Task');
-  // Introductory cards clear on the first adjustment; navigation coordinates stay pinned.
-  $('task-card').hidden=$('target-legend').hidden=document.querySelector('.model-note').hidden=!introVisible;
-  $('target-legend').hidden=!introVisible||exploring;$('checks').hidden=exploring;
+  $('explore-robot').hidden=!exploring;$('explore-robot').dataset.axes=String(exploreAxes);document.querySelectorAll('[data-robot-axes]').forEach(b=>{b.disabled=controller.busy;b.setAttribute('aria-pressed',String(Number(b.dataset.robotAxes)===exploreAxes));});$('explore-robot').setAttribute('aria-label',t('exploreRobot'));$('explore-robot').title=t('robotSwitchHelp');
+  $('task-name').textContent=t(world.mode);$('task-summary').textContent=t(world.mode+'Summary');$('task-description').textContent=t(world.mode+'Task');$('locations-title').textContent=t(exploring?'objectLocations':'taskLocations');
+  // Task information can be reopened without resetting the robot.
+  $('task-card').hidden=!taskOpen;$('task-toggle').setAttribute('aria-expanded',String(taskOpen));$('checks').hidden=exploring;
   $('failure').hidden=!world.failure;$('failure-reason').textContent=world.failure?t(world.failure):'';
   $('arm-picker').hidden=world.mode!=='hard';
   $('controls-panel').hidden=tab!=='controls';$('program-panel').hidden=tab!=='program';$('xyz-inputs').hidden=controlMode!=='xyz';$('joint-inputs').hidden=controlMode!=='joints';
-  $('controls-actions').hidden=tab!=='controls';
-  $('control-title').textContent=t(controlMode);$('control-mode').hidden=a.axes===3;$('control-mode').textContent=t(controlMode==='xyz'?'joints':'xyz');
+  $('controls-actions').hidden=tab!=='controls';$('coordinate-readout').hidden=tab!=='controls';$('playback-panel').hidden=tab!=='program';$('record-bar').hidden=tab!=='controls'&&!recording;$('show-program').hidden=tab==='program';
+  $('control-title').textContent=t(controlMode);$('control-mode').hidden=a.axes===3;$('control-mode').setAttribute('aria-label',t('movementType'));document.querySelectorAll('[data-control]').forEach(b=>{b.setAttribute('aria-pressed',String(b.dataset.control===controlMode));b.disabled=controller.busy;});
   const targetPosition=controlMode==='xyz'?coordinateTarget:draft&&validJoints(a,draft)?pose(a,draft).tip:null;
   const replayStep=controller.running?controller.program[controller.index]:null,displayArm=replayStep?armById(world,replayStep.arm):a;
   const displayedTarget=replayStep?pose(displayArm,replayStep.type==='move'?replayStep.q:displayArm.q).tip:targetPosition||(draft&&validJoints(a,draft)?pose(a,draft).tip:null);
@@ -97,7 +98,7 @@ function render(){
   $('target-tcp').classList.toggle('invalid',!controller.running&&!!previewError);
   document.querySelectorAll('[data-joint-name]').forEach(el=>el.textContent=words[language].jointNames[Number(el.dataset.jointName)]);
   document.querySelectorAll('#xyz-inputs input[type="range"]').forEach(el=>el.setAttribute('aria-label',t('coordinateSlider',{axis:el.dataset.axis})));
-  $('preview-state').textContent=t(world.failure?'restartRequired':previewError||'preview');$('preview-state').className=world.failure||previewError?'error':'';
+  $('preview-state').textContent=t(world.failure?'restartRequired':previewError||'previewShort');$('preview-state').className=world.failure||previewError?'error':'';
   for(const id of ['move','add-move'])$(id).disabled=controller.busy||(id==='move'&&!!world.failure)||!draft||!validJoints(a,draft);
   document.querySelectorAll('#xyz-inputs input,#joint-inputs input,[data-action="open"],[data-action="close"]').forEach(el=>el.disabled=controller.busy||!!world.failure);
   $('record').disabled=controller.busy;$('record').setAttribute('aria-pressed',String(recording));$('record').textContent=t(recording?'finishRecord':'record');$('record').title=t('recordHelp');
@@ -111,7 +112,7 @@ function render(){
   if(world.part.owner){const held=document.createElement('span');held.textContent=world.part.receiver?t('holdingBoth'):t('holding',{arm:t(world.part.owner==='A'?'armA':'armB')});$('checks').append(held);}
   const verified=controller.complete;$('completion').hidden=!verified;$('next').disabled=!verified;$('next').textContent=t(world.mode==='hard'?'again':'next');
   $('replay-prompt').hidden=!world.complete||verified||controller.busy;$('replay-prompt').textContent=t(controller.program.length?'replayRequired':'recordRequired');
-  $('target-legend').textContent=t(world.mode==='medium'?'targetLegendSlot':'targetLegend');
+  $('locations').setAttribute('aria-label',t(exploring?'objectLocations':'taskLocations'));
   const positionsKey=world.mode+':'+language+(exploring?JSON.stringify(world.parts.map(p=>[p.id,p.owner,...p.position.map(v=>v.toFixed(1))])):'');
   if($('task-positions').dataset.value!==positionsKey){
     $('task-positions').dataset.value=positionsKey;$('task-positions').classList.toggle('exploring',exploring);
@@ -123,48 +124,34 @@ function render(){
   $('step-count').textContent=controller.program.length;
   const active=controller.running?{key:controller.paused?'paused':'running',vars:{step:controller.index+1,total:controller.program.length,arm:controller.program[controller.index]?.arm||''}}:message;
   $('feedback').textContent=t(active.key,{...active.vars,...(active.vars?.reason?{reason:t(active.vars.reason)}:{})});$('feedback').className=message.error&&!controller.running?'error':'';
-  $('command').placeholder=t('commandPlaceholder');$('command').setAttribute('aria-label',t('commandLabel'));$('save-state').textContent=t('sessionOnly');
+  $('save-state').textContent=t('sessionOnly');
   view?.update(world,{language,selected,target:!world.failure&&draft&&validJoints(a,draft)?draft:null,targetPosition:world.failure?null:targetPosition,error:!!previewError,introVisible});
 }
 function renderProgram(){
   $('steps').replaceChildren(...controller.program.map((step,i)=>{
-    const li=document.createElement('li');if(controller.running&&controller.index===i)li.className='current';if(controller.lastErrorIndex===i)li.className='step-error';const title=document.createElement('div');title.className='step-title';const index=document.createElement('span');index.textContent=i+1;const badge=document.createElement('span');badge.className='arm-badge'+(step.arm==='B'?' b':'');badge.textContent=t(step.arm==='A'?'armA':'armB');const name=document.createElement('strong');name.textContent=t(step.type);title.append(index,badge,name);li.append(title);
-    if(step.q){const values=document.createElement('div');values.className='step-values';values.textContent=step.q.map((v,n)=>'J'+(n+1)+' '+v.toFixed(1)+'°').join(' · ');li.append(values);}
-    const timing=controller.metrics.steps[i];if(timing){const time=document.createElement('small');time.className='step-duration';time.textContent=t('stepTime',{seconds:(timing.duration/1000).toFixed(2)});li.append(time);}
-    const actions=document.createElement('div');actions.className='step-actions';for(const [kind,label]of [['show',t('show')],['up','↑'],['down','↓'],['delete','×']]){const b=document.createElement('button');b.type='button';b.textContent=label;b.title=t(kind==='delete'?'remove':kind);b.setAttribute('aria-label',b.title+' '+(i+1));b.disabled=controller.busy||(kind==='up'&&i===0)||(kind==='down'&&i===controller.program.length-1)||(kind==='show'&&!step.q);b.onclick=()=>{if(kind==='show'){introVisible=false;selected=step.arm;draft=[...step.q];controlMode='joints';tab='controls';buildInputs();preview();}else{controller.edit(i,kind);rememberProgram();}};actions.append(b);}li.append(actions);return li;
-  }));if(!controller.program.length){const p=document.createElement('p');p.className='muted';p.textContent=t('emptyProgram');$('steps').append(p);}
+    const li=document.createElement('li');if(controller.running&&controller.index===i)li.className='current';if(controller.lastErrorIndex===i)li.className='step-error';
+    const title=document.createElement('div');title.className='step-title';const index=document.createElement('span');index.className='step-number';index.textContent=i+1;
+    const badge=document.createElement('span');badge.className='arm-badge'+(step.arm==='B'?' b':'');badge.textContent=step.arm;badge.title=t(step.arm==='A'?'armA':'armB');
+    const name=document.createElement('strong');name.textContent=t(step.type);title.append(index,badge,name);
+    const timing=controller.metrics.steps[i];if(timing){const time=document.createElement('small');time.className='step-duration';time.textContent=(timing.duration/1000).toFixed(2)+' s';time.title=t('stepTime',{seconds:(timing.duration/1000).toFixed(2)});title.append(time);}
+    const more=document.createElement('button');more.className='step-menu';more.textContent='⋯';more.setAttribute('aria-label',t('stepOptions',{n:i+1}));more.setAttribute('aria-expanded',String(expandedStep===i));more.setAttribute('aria-controls','step-details-'+i);more.onclick=()=>{expandedStep=expandedStep===i?null:i;renderProgram();};title.append(more);li.append(title);
+    const details=document.createElement('div');details.id='step-details-'+i;details.className='step-details';details.hidden=expandedStep!==i;
+    if(step.q){const values=document.createElement('div');values.className='step-values';values.textContent=step.q.map((v,n)=>'J'+(n+1)+' '+v.toFixed(1)+'°').join(' · ');details.append(values);}
+    const actions=document.createElement('div');actions.className='step-actions';for(const [kind,label]of [['show',t('show')],['up','↑'],['down','↓'],['delete','×']]){const b=document.createElement('button');b.type='button';b.textContent=label;b.title=t(kind==='delete'?'remove':kind);b.setAttribute('aria-label',b.title+' '+(i+1));b.disabled=controller.busy||(kind==='up'&&i===0)||(kind==='down'&&i===controller.program.length-1)||(kind==='show'&&!step.q);b.onclick=()=>{if(kind==='show'){introVisible=false;taskOpen=false;selected=step.arm;draft=[...step.q];controlMode=arm().axes===3||step.kind==='xyz'?'xyz':'joints';coordinateTarget=controlMode==='xyz'?pose(arm(),draft).tip:null;xyzReference=[...draft];xyzSeed=[...draft];tab='controls';buildInputs();preview();}else{expandedStep=null;controller.edit(i,kind);rememberProgram();}};actions.append(b);}details.append(actions);li.append(details);return li;
+  }));if(!controller.program.length){const p=document.createElement('p');p.className='empty-program';p.textContent=t('emptyProgram');$('steps').append(p);}
 }
-async function command(raw){
-  const s=raw.trim().toLowerCase(),aliases={'探索':'explore','自由探索':'explore','简单':'easy','中等':'medium','困难':'hard','帮助':'help','移动':'move','张开':'open','闭合':'close','交接':'handoff','运行':'run','暂停':'pause','停止':'stop','重置':'reset','程序':'program','控制':'controls','中文':'language zh','英语':'language en','录制 开':'record on','录制 关':'record off'};
-  const robotMatch=s.match(/^(?:robot|机器人)\s*(3|6)(?:\s*(?:axes?|轴))?$/);if(robotMatch)return selectExploreRobot(Number(robotMatch[1]));if(s==='三轴'||s==='六轴')return selectExploreRobot(s==='三轴'?3:6);
-  const input=aliases[s]||s;if(modes.includes(input))return selectMode(input);
-  if(input==='help')return say('help');if(input==='stop')return stop();if(input==='pause')return controller.pause();if(input==='reset')return reset();if(input==='run')return startProgram();
-  if(input==='language zh'||input==='language en'){language=input.endsWith('zh')?'zh':'en';rememberProgram();render();return;}
-  if(input==='record on'||input==='record off'){return setRecording(input==='record on');}
-  if(input==='program'||input==='controls'){tab=input;render();return;}
-  if(input==='handoff')return say('handoffSteps');
-  if(['move','open','close'].includes(input))return execute(input);
-  const armMatch=input.match(/^(?:arm|机械臂)\s*([ab])$/);if(armMatch)return selectArm(armMatch[1].toUpperCase());
-  const addMatch=input.match(/^(?:add|添加)\s*(move|open|close|handoff|移动|张开|闭合|交接)$/);if(addMatch)return addStep(aliases[addMatch[1]]||addMatch[1]);
-  const movement=input.match(/^(target|move|joints|目标|移动|关节)\s+(.+)$/);
-  if(movement){if(controller.busy)return say('busy',{},true);const values=movement[2].split(/[\s,，]+/).map(Number);if(!values.every(Number.isFinite))return say('numbers',{},true);
-    if(['joints','关节'].includes(movement[1])){if(values.length!==arm().axes)return say('numbers',{},true);introVisible=false;coordinateTarget=null;xyzReference=null;xyzSeed=null;draft=values;controlMode='joints';if(validJoints(arm(),draft))buildInputs();preview();}
-    else{if(values.length!==3)return say('numbers',{},true);introVisible=false;const reference=controlMode==='xyz'&&xyzReference?xyzReference:draft&&validJoints(arm(),draft)?draft:arm().q;const r=solvePosition(arm(),values,reference,controlMode==='xyz'?(xyzSeed||reference):reference);xyzReference=[...reference];if(r.q)xyzSeed=[...r.q];draft=r.q||null;coordinateTarget=values;controlMode='xyz';previewError=r.error||null;buildInputs();preview();if(r.error)return say(r.error,{},true);if(['move','移动'].includes(movement[1]))execute('move');}return;
-  }
-  say('command',{},true);
-}
-document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>selectMode(b.dataset.mode));document.querySelectorAll('[data-arm]').forEach(b=>b.onclick=()=>selectArm(b.dataset.arm));document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;render();});
+document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>selectMode(b.dataset.mode));document.querySelectorAll('[data-arm]').forEach(b=>b.onclick=()=>selectArm(b.dataset.arm));document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>selectTab(b.dataset.tab));
 document.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>execute(b.dataset.action));
-$('explore-robot').onchange=()=>selectExploreRobot(Number($('explore-robot').value));
+document.querySelectorAll('[data-robot-axes]').forEach(b=>b.onclick=()=>selectExploreRobot(Number(b.dataset.robotAxes)));
+$('task-toggle').onclick=()=>{taskOpen=!taskOpen;render();};$('show-program').onclick=()=>selectTab('program');
 $('language').onchange=()=>{language=$('language').value;rememberProgram();render();};$('move').onclick=()=>execute('move');$('add-move').onclick=()=>addStep('move');$('append').onclick=()=>addStep($('append-action').value);
-$('control-mode').onclick=()=>{controlMode=controlMode==='xyz'?'joints':'xyz';if(!draft||!validJoints(arm(),draft))draft=[...arm().q];coordinateTarget=controlMode==='xyz'?pose(arm(),draft).tip:null;xyzReference=[...draft];xyzSeed=[...draft];buildInputs();preview();};
+document.querySelectorAll('[data-control]').forEach(b=>b.onclick=()=>selectControlMode(b.dataset.control));
 $('record').onclick=()=>setRecording(!recording);$('stop').onclick=stop;$('reset').onclick=reset;$('restart').onclick=reset;$('home').onclick=()=>view.home();$('run').onclick=startProgram;$('pause').onclick=()=>controller.pause();$('clear').onclick=()=>{if(controller.busy)return;controller.program=[];controller.clearMetrics();recording=false;rememberProgram();say('clearDone');};
 $('next').onclick=()=>{if(!controller.complete)return say('replayRequired',{},true);controller.world.mode==='hard'?reset():selectMode(modes[modes.indexOf(controller.world.mode)+1]);};
-$('command-form').onsubmit=event=>{event.preventDefault();const value=$('command').value;$('command').value='';command(value);};
 $('export').onclick=()=>{const blob=new Blob([JSON.stringify({version:1,mode:controller.world.mode,...(controller.world.mode==='explore'?{axes:arm().axes}:{}),steps:controller.program,replay:controller.metrics},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='robot-challenge-'+controller.world.mode+(controller.world.mode==='explore'?'-'+arm().axes+'axis':'')+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);say('saved');};
 $('import').onclick=()=>$('file').click();$('file').onchange=async()=>{try{const file=$('file').files[0];if(!file)return;if(file.size>100000)throw Error();const data=JSON.parse(await file.text());const axes=data.axes??6;if(data.mode==='explore'&&![3,6].includes(axes))throw Error();data.steps=upgradeHandoffSteps(data.mode,data.steps);if(data.version!==1||!modes.includes(data.mode)||!validSteps(data.mode,data.steps,axes)||controller.busy)throw Error();if(!selectMode(data.mode,axes))return;controller.program=clone(data.steps);rememberProgram();tab='program';say('loaded');}catch{say('invalidFile',{},true);}finally{$('file').value='';}};
-let fullHeight=innerHeight;function fit(){const h=visualViewport?.height||innerHeight;if(document.activeElement?.tagName!=='INPUT')fullHeight=innerHeight;document.documentElement.style.setProperty('--height',h+'px');document.body.classList.toggle('keyboard',document.activeElement?.tagName==='INPUT'&&h<fullHeight-100);}
-window.visualViewport?.addEventListener('resize',fit);window.addEventListener('resize',fit);document.addEventListener('focusin',fit);document.addEventListener('focusout',()=>setTimeout(fit,0));
+function fit(){document.documentElement.style.setProperty('--height',(window.visualViewport?.height||innerHeight)+'px');}
+window.visualViewport?.addEventListener('resize',fit);window.addEventListener('resize',fit);
 syncDraft();view=createChallengeScene($('scene'),language);render();fit();
 let frame,last=0;function tick(now){const wasRunning=controller.running;controller.tick(Math.min(100,now-(last||now)));last=now;if(wasRunning&&!controller.running&&!controller.lastError){say(controller.world.mode==='explore'?'exploreReplayDone':controller.complete?'complete':'endIncomplete');rememberProgram();}frame=requestAnimationFrame(tick);}frame=requestAnimationFrame(tick);
 window.addEventListener('pagehide',()=>{pending=null;cancelAnimationFrame(frame);view.dispose();});

@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from './vendor/three/examples/jsm/controls/OrbitControls.js';
-import { pose, atPose, gripperParts } from './challenge-model.mjs?v=explore-robots-1';
-import { text } from './challenge-i18n.mjs?v=explore-robots-1';
-import { createFairinoArm, updateFairinoArm } from './fairino-arm.mjs?v=explore-robots-1';
+import { pose, atPose, gripperParts } from './challenge-model.mjs?v=ipad-layout-1';
+import { text } from './challenge-i18n.mjs?v=ipad-layout-1';
+import { createFairinoArm, updateFairinoArm } from './fairino-arm.mjs?v=ipad-layout-1';
 const vec=p=>new THREE.Vector3(...p),Y=new THREE.Vector3(0,1,0);
 function material(color,ghost=false){return new THREE.MeshStandardMaterial({color,roughness:.45,metalness:.15,transparent:ghost,opacity:ghost?.3:1,depthWrite:!ghost,wireframe:ghost});}
 function orient(mesh,a,b){const d=vec(b).sub(vec(a));mesh.position.copy(vec(a).add(vec(b)).multiplyScalar(.5));mesh.scale.set(1,d.length(),1);mesh.quaternion.setFromUnitVectors(Y,d.normalize());}
@@ -15,6 +15,9 @@ export function armGraph(arm,ghost=false){
 export function updateArm(graph,arm,q=arm.q){updateFairinoArm(graph,pose(arm,q),arm);}
 function release(group){group.traverse(o=>{o.geometry?.dispose();if(o.material){for(const m of Array.isArray(o.material)?o.material:[o.material]){m.map?.dispose();m.dispose();}}});group.clear();}
 function label(message,color='#314b65',background='#ffffffed'){const canvas=document.createElement('canvas');canvas.width=512;canvas.height=96;const c=canvas.getContext('2d');c.fillStyle=background;c.beginPath();c.roundRect(0,0,512,96,20);c.fill();c.font='700 34px system-ui';c.textAlign='center';c.textBaseline='middle';c.fillStyle=color;c.fillText(message,256,48,490);const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,depthTest:false,toneMapped:false}));sprite.scale.set(115,22,1);return sprite;}
+function pin(message,color='#286cae'){
+ const canvas=document.createElement('canvas');canvas.width=canvas.height=96;const c=canvas.getContext('2d');c.fillStyle=color;c.strokeStyle='white';c.lineWidth=5;c.beginPath();c.arc(48,48,42,0,Math.PI*2);c.fill();c.stroke();c.fillStyle='white';c.font='700 42px system-ui';c.textAlign='center';c.textBaseline='middle';c.fillText(String(message),48,48);const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,depthTest:false,toneMapped:false}));sprite.scale.set(19,19,1);return sprite;
+}
 function line(group,a,b,color,radius=1.5){const mesh=new THREE.Mesh(new THREE.CylinderGeometry(radius,radius,1,8),new THREE.MeshBasicMaterial({color}));orient(mesh,a,b);group.add(mesh);return mesh;}
 export function createChallengeScene(host,language='en'){
   let renderer;try{renderer=new THREE.WebGLRenderer({antialias:true});}catch{host.textContent=text(language,'webgl');return {update(){},home(){},dispose(){},available:false};}
@@ -29,7 +32,7 @@ export function createChallengeScene(host,language='en'){
   function home(){const hard=mode==='hard',medium=mode==='medium',exploring=mode==='explore'&&armKey==='6';controls.target.set(hard?0:medium?180:115,0,exploring?130:medium?140:105);camera.position.set(hard?530:exploring?560:medium?-420:390,hard?-650:exploring?-540:medium?-360:-340,hard?420:exploring?380:medium?350:280);controls.update();}
   function build(world,language){
     release(worldGroup);release(labels);release(introLabels);arms=[];ghosts=[];mode=world.mode;armKey=world.arms.map(a=>a.axes).join(',');lang=language;
-    for(const arm of world.arms){const graph=armGraph(arm),ghost=armGraph(arm,true);worldGroup.add(graph.group,ghost.group);arms.push(graph);ghosts.push(ghost);const tag=label(text(language,arm.id==='A'?'armA':'armB'),arm.id==='A'?'#96601c':'#215f9b');tag.position.copy(vec(arm.base));tag.position.z=25;introLabels.add(tag);}
+    for(const arm of world.arms){const graph=armGraph(arm),ghost=armGraph(arm,true);worldGroup.add(graph.group,ghost.group);arms.push(graph);ghosts.push(ghost);if(world.mode==='hard'){const tag=pin(arm.id,arm.id==='A'?'#99601d':'#215fad');tag.position.copy(vec(arm.base));tag.position.z=25;worldGroup.add(tag);}}
     for(const [i,p] of (world.mode==='explore'?[]:[world.source,world.destination]).entries()){
       const color=i?'#16885b':'#e78617',tilted=i&&world.mode==='medium',top=p[2]-(tilted?38:12);
       const pillar=new THREE.Mesh(new THREE.CylinderGeometry(12,20,top,20),material('#a5b8c6'));pillar.rotation.x=Math.PI/2;pillar.position.set(p[0],p[1],top/2);pillar.castShadow=true;pillar.receiveShadow=true;worldGroup.add(pillar);
@@ -39,16 +42,16 @@ export function createChallengeScene(host,language='en'){
       const mark=world.mode==='hard'?[p[0]+(i?42:-42),p[1],p[2]]:p;
       const halo=new THREE.Mesh(new THREE.TorusGeometry(11,1.4,8,32),new THREE.MeshBasicMaterial({color,depthTest:false}));halo.position.copy(vec(mark));worldGroup.add(halo);
       for(const end of [[8,0,0],[0,8,0]])line(worldGroup,mark.map((v,j)=>v-end[j]),mark.map((v,j)=>v+end[j]),color,.6);
-      const tag=label(text(language,i?'placeMark':'pickupMark'),'#ffffff',color);if(world.mode==='medium')tag.scale.set(150,28,1);tag.position.set(p[0],p[1],p[2]+65);introLabels.add(tag);line(introLabels,[p[0],p[1],p[2]+14],[p[0],p[1],p[2]+52],color,1);
+      const tag=pin(i+1,color);tag.position.set(p[0],p[1],p[2]+34);worldGroup.add(tag);
       if(i){const goal=new THREE.Mesh(new THREE.BoxGeometry(...world.part.size),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.13,depthWrite:false}));goal.position.copy(vec(p));rotation(goal,world.destinationRotation);worldGroup.add(goal);const outline=new THREE.LineSegments(new THREE.EdgesGeometry(goal.geometry),new THREE.LineBasicMaterial({color,transparent:true,opacity:.8}));outline.position.copy(goal.position);outline.quaternion.copy(goal.quaternion);worldGroup.add(outline);}
     }
     for(const box of world.obstacles){
       if(!box.polygon){const mesh=new THREE.Mesh(new THREE.BoxGeometry(...box.max.map((v,i)=>v-box.min[i])),material('#7c94a8'));mesh.position.copy(vec(box.max.map((v,i)=>(v+box.min[i])/2)));worldGroup.add(mesh);}
     }
     if(world.wall){const shape=new THREE.Shape([[-200,0],[200,0],[200,540],[-200,540]].map(p=>new THREE.Vector2(...p)));shape.holes.push(new THREE.Path([...world.wall.opening].reverse().map(p=>new THREE.Vector2(...p))));const mat=material('#68859d');mat.transparent=true;mat.opacity=.24;mat.depthWrite=false;const mesh=new THREE.Mesh(new THREE.ExtrudeGeometry(shape,{depth:12,bevelEnabled:false}),mat);mesh.setRotationFromMatrix(new THREE.Matrix4().set(0,0,1,0,1,0,0,0,0,1,0,0,0,0,0,1));mesh.position.x=world.wall.planeX-6;worldGroup.add(mesh);}
-    if(world.wall){const wall=world.wall;for(const x of [wall.planeX-6,wall.planeX+6])for(let i=0;i<4;i++){const a=wall.opening[i],b=wall.opening[(i+1)%4];line(worldGroup,[x,a[0],a[1]],[x,b[0],b[1]],'#d79a26',2.2);}for(const y of [-200,200])line(worldGroup,[wall.planeX,y,0],[wall.planeX,y,540],'#68859d',2);line(worldGroup,[wall.planeX,-200,540],[wall.planeX,200,540],'#68859d',2);const tag=label(text(language,'slotMark'),'#785200','#fff0c7');tag.position.set(wall.planeX,0,280);introLabels.add(tag);}
-    if(world.mode==='hard')for(const [i,x]of [-42,42].entries()){const mark=new THREE.Mesh(new THREE.TorusGeometry(12,1.5,8,24),material(i?'#5b98db':'#dca442'));mark.position.set(x,0,160);worldGroup.add(mark);const tag=label(text(language,i?'transferB':'transferA'));tag.position.set(x,0,123);introLabels.add(tag);}
-    partLabels=[];parts=(world.parts||[world.part]).map(p=>{const mesh=new THREE.Mesh(new THREE.BoxGeometry(...p.size),material(p.color||'#edab39'));mesh.castShadow=true;mesh.receiveShadow=true;worldGroup.add(mesh);if(world.mode==='explore'){const tag=label(text(language,'block',{n:p.id}));tag.scale.set(65,15,1);introLabels.add(tag);partLabels.push(tag);}return mesh;});
+    if(world.wall){const wall=world.wall;for(const x of [wall.planeX-6,wall.planeX+6])for(let i=0;i<4;i++){const a=wall.opening[i],b=wall.opening[(i+1)%4];line(worldGroup,[x,a[0],a[1]],[x,b[0],b[1]],'#d79a26',2.2);}for(const y of [-200,200])line(worldGroup,[wall.planeX,y,0],[wall.planeX,y,540],'#68859d',2);line(worldGroup,[wall.planeX,-200,540],[wall.planeX,200,540],'#68859d',2);const tag=pin('30°','#a67b17');tag.scale.set(25,25,1);tag.position.set(wall.planeX,0,235);worldGroup.add(tag);}
+    if(world.mode==='hard')for(const [i,x]of [-42,42].entries()){const mark=new THREE.Mesh(new THREE.TorusGeometry(12,1.5,8,24),material(i?'#5b98db':'#dca442'));mark.position.set(x,0,160);worldGroup.add(mark);const tag=pin(i?'B':'A',i?'#215fad':'#99601d');tag.scale.set(14,14,1);tag.position.set(x,0,136);worldGroup.add(tag);}
+    partLabels=[];parts=(world.parts||[world.part]).map(p=>{const mesh=new THREE.Mesh(new THREE.BoxGeometry(...p.size),material(p.color||'#edab39'));mesh.castShadow=true;mesh.receiveShadow=true;worldGroup.add(mesh);if(world.mode==='explore'){const tag=pin(p.id,p.color);worldGroup.add(tag);partLabels.push(tag);}return mesh;});
     ghostPart=new THREE.Mesh(new THREE.BoxGeometry(...world.part.size),material('#3c9ae2',true));worldGroup.add(ghostPart);
     // The requested XYZ point stays visible even when no reachable arm pose exists.
     targetMarker=new THREE.Group();targetMarker.name='coordinate-target';targetMarker.renderOrder=20;
@@ -61,7 +64,7 @@ export function createChallengeScene(host,language='en'){
   }
   function update(world,{language='en',selected='A',target=null,targetPosition=null,error=false,introVisible=true}={}){
     lastWorld=world;if(world.mode!==mode||world.arms.map(a=>a.axes).join(',')!==armKey||language!==lang)build(world,language);
-    introLabels.visible=labels.visible=targetLabel.visible=introVisible;
+    introLabels.visible=labels.visible=introVisible;targetLabel.visible=false;
     renderer.domElement.setAttribute('aria-label',text(language,'sceneLabel'));
     const changed=target&&world.arms.find(a=>a.id===selected).q.some((v,i)=>Math.abs(v-target[i])>.01);
     targetMarker.visible=targetLine.visible=Array.isArray(targetPosition)&&targetPosition.length===3&&targetPosition.every(Number.isFinite);
