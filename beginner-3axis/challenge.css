@@ -39,3 +39,6 @@ body.keyboard .levels{display:none}body.keyboard main{grid-template-columns:minm
 @media(max-width:760px){.levels small{display:none}.levels button{min-width:0}}
 
 @media(max-width:760px) and (max-height:680px){#controls-actions button{font-size:10px;padding:3px;white-space:nowrap}#panel-scroll{padding:3px 8px}}
+
+#explore-robot{font-size:12px;padding:5px 7px;min-width:0;max-width:128px;background:#fffffff0}.scene-tools{align-items:center}
+@media(max-width:760px){#explore-robot{font-size:11px;max-width:110px;min-height:36px;padding:4px}}

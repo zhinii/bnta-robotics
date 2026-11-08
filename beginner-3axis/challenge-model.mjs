@@ -40,9 +40,10 @@ export function validJoints(arm,q) {
 const makeArm=(id,axes,base=[0,0,0],yaw=0)=>({id,axes,base,yaw,q:axes===3?CONFIG.home.map(v=>v/rad):homeFor(6),closed:false});
 // Six-axis start poses are solved once from a downward-facing tool.
 function down(arm,p) { const local=transform(rotationFromEuler([0,0,-arm.yaw]),sub(p,arm.base)); const r=ikTool(local,arm.q,'nearest',[0,0,-arm.yaw]); if(!r.q)throw Error('Start pose: '+r.error); arm.q=r.q; }
-export function initialWorld(mode='easy') {
+export function initialWorld(mode='easy',exploreAxes=6) {
   if(!['explore','easy','medium','hard'].includes(mode))throw Error('mode');
-  const arms=[makeArm('A',mode==='easy'?3:6,mode==='hard'?[-220,0,0]:[0,0,0])];
+  if(mode==='explore'&&![3,6].includes(exploreAxes))throw Error('axes');
+  const arms=[makeArm('A',mode==='explore'?exploreAxes:mode==='easy'?3:6,mode==='hard'?[-220,0,0]:[0,0,0])];
   if(mode==='hard')arms.push(makeArm('B',6,[220,0,0],180));
   let source=[147,-85,80],destination=[147,85,80],size=[14,14,14],obstacles=[];
   if(mode==='medium') {
@@ -54,7 +55,7 @@ export function initialWorld(mode='easy') {
   const world={version:1,mode,arms,source,destination,destinationRotation:mode==='medium'?rotationFromEuler([-90,-30,90]):[...I],obstacles,wall:mode==='medium'?slottedWall():null,part:{position:[...source],rotation:[...I],size,owner:null,receiver:null,offset:null,relativeRotation:null},
     evidence:{picked:false,gate:false,slotEntry:false,handoff:false,delivered:false,jointMove:false},complete:false,failure:null};
   if(mode==='explore'){
-    down(arms[0],[170,-90,130]);
+    if(exploreAxes===6)down(arms[0],[170,-90,130]);
     world.parts=[[150,-70,16],[210,0,16],[150,70,16]].map((position,i)=>({...clone(world.part),id:i+1,position,size:[24,18,32],color:['#edab39','#549ed5','#a27bce'][i]}));
     world.part=world.parts[0];
   }
@@ -247,8 +248,8 @@ export function applyAction(world,step) {
   }
   const error=collision(next);return error?{error}:{end:success(next),duration:150};
 }
-export function validateSequence(mode,steps) {
-  let world=initialWorld(mode);if(!Array.isArray(steps)||steps.length>100)return {error:'program'};
+export function validateSequence(mode,steps,exploreAxes=6) {
+  let world=initialWorld(mode,exploreAxes);if(!Array.isArray(steps)||steps.length>100)return {error:'program'};
   for(let i=0;i<steps.length;i++){const r=applyAction(world,steps[i]);if(r.error)return {error:r.error,index:i};if(r.failure)return {failure:r.failure,index:i,end:r.end};world=r.end;}
   return {end:world};
 }
@@ -258,17 +259,17 @@ export function upgradeHandoffSteps(mode,steps){
   return steps.flatMap(s=>mode==='hard'&&s?.type==='handoff'&&s.arm==='A'?[{type:'close',arm:'B'},{type:'open',arm:'A'}]:[clone(s)]);
 }
 export class ChallengeController {
-  constructor(mode='easy',onChange=()=>{}) {this.world=initialWorld(mode);this.onChange=onChange;this.program=[];this.operation=null;this.running=false;this.paused=false;this.index=-1;this.lastError=null;this.lastErrorIndex=null;this.clearMetrics();}
+  constructor(mode='easy',onChange=()=>{},exploreAxes=6) {this.world=initialWorld(mode,exploreAxes);this.onChange=onChange;this.program=[];this.operation=null;this.running=false;this.paused=false;this.index=-1;this.lastError=null;this.lastErrorIndex=null;this.clearMetrics();}
   clearMetrics(){this.verifiedProgram=null;this.lastError=this.world?.failure||null;this.lastErrorIndex=null;this.metrics={elapsed:0,moves:0,actions:0,steps:[],status:this.world?.failure?'timerFailed':'timerReady'};}
   get complete(){return !this.busy&&!this.lastError&&this.world.complete&&this.metrics.status==='timerComplete'&&this.verifiedProgram===JSON.stringify(this.program);}
   emit(){this.onChange(this);}
   get busy(){return !!this.operation||this.running;}
-  reset(){this.stop();this.world=initialWorld(this.world.mode);this.lastError=null;this.lastErrorIndex=null;this.clearMetrics();this.emit();}
-  selectMode(mode){this.stop();this.world=initialWorld(mode);this.program=[];this.lastError=null;this.lastErrorIndex=null;this.clearMetrics();this.emit();}
+  reset(){this.stop();this.world=initialWorld(this.world.mode,this.world.arms[0].axes);this.lastError=null;this.lastErrorIndex=null;this.clearMetrics();this.emit();}
+  selectMode(mode,exploreAxes=6){this.stop();this.world=initialWorld(mode,exploreAxes);this.program=[];this.lastError=null;this.lastErrorIndex=null;this.clearMetrics();this.emit();}
   execute(step){if(this.busy)return {error:'busy'};const r=applyAction(this.world,step);if(r.error){this.lastError=r.error;this.lastErrorIndex=null;this.emit();return r;}this.clearMetrics();this.operation={...r,elapsed:0};if(r.start)this.world=clone(r.start);this.emit();return {ok:true};}
   add(step){if(this.busy)return {error:'busy'};if(this.program.length>=100)return {error:'program'};this.program.push(clone(step));this.clearMetrics();this.emit();return {ok:true};}
   edit(index,action){if(this.busy)return false;if(action==='delete')this.program.splice(index,1);else{const target=index+(action==='up'?-1:1);if(!this.program[target])return false;[this.program[index],this.program[target]]=[this.program[target],this.program[index]];}this.clearMetrics();this.emit();return true;}
-  run(){if(this.busy)return {error:'busy'};if(!this.program.length)return {error:'empty'};this.clearMetrics();const checked=validateSequence(this.world.mode,this.program);if(checked.error){this.lastError=checked.error;this.lastErrorIndex=checked.index;this.metrics.status='timerInvalid';this.emit();return checked;}this.world=initialWorld(this.world.mode);this.lastError=null;this.lastErrorIndex=null;this.running=true;this.paused=false;this.metrics.status='timerRunning';this.index=0;this.startStep();this.emit();return {ok:true};}
+  run(){if(this.busy)return {error:'busy'};if(!this.program.length)return {error:'empty'};this.clearMetrics();const checked=validateSequence(this.world.mode,this.program,this.world.arms[0].axes);if(checked.error){this.lastError=checked.error;this.lastErrorIndex=checked.index;this.metrics.status='timerInvalid';this.emit();return checked;}this.world=initialWorld(this.world.mode,this.world.arms[0].axes);this.lastError=null;this.lastErrorIndex=null;this.running=true;this.paused=false;this.metrics.status='timerRunning';this.index=0;this.startStep();this.emit();return {ok:true};}
   startStep(){if(this.index>=this.program.length){this.running=false;this.operation=null;this.metrics.status=this.world.mode==='explore'?'timerFinished':this.world.complete?'timerComplete':'timerIncomplete';this.verifiedProgram=this.world.complete?JSON.stringify(this.program):null;return;}const r=applyAction(this.world,this.program[this.index]);if(r.error){this.lastError=r.error;this.lastErrorIndex=this.index;this.stop();this.metrics.status='timerInvalid';return;}this.operation={...r,elapsed:0};if(r.start)this.world=clone(r.start);}
   tick(dt){if(!this.operation||this.paused||!Number.isFinite(dt))return;const op=this.operation,used=Math.max(0,Math.min(dt,100,op.duration-op.elapsed));op.elapsed+=used;if(this.running)this.metrics.elapsed+=used;const ratio=Math.min(1,op.elapsed/op.duration);
     if(op.samples?.length)this.world=clone(op.samples[Math.min(op.samples.length-1,Math.floor(ratio*op.samples.length))]);

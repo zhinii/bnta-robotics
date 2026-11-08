@@ -1,11 +1,14 @@
 import {initialWorld,applyAction,solvePosition} from '../challenge-model.mjs';
 import {ikTool,transform,rotationFromEuler} from '../challenge-kinematics.mjs';
 // Test-only reference routes, solved against the real model; never loaded by the app.
-export function referenceProgram(mode){
- let w=initialWorld(mode);const steps=[];
+export function referenceProgram(mode,exploreAxes=6){
+ let w=initialWorld(mode,exploreAxes);const steps=[];
  const act=s=>{const r=applyAction(w,s);if(r.error)throw Error(mode+': '+s.type+': '+r.error);w=r.end;steps.push(s);};
  const move=(id,p,yaw=0)=>{const a=w.arms.find(a=>a.id===id);const orientation=Array.isArray(yaw)?yaw:[0,0,yaw-a.yaw];const r=a.axes===3?solvePosition(a,p):ikTool(transform(rotationFromEuler([0,0,-a.yaw]),p.map((v,i)=>v-a.base[i])),a.q,'nearest',orientation);if(!r.q)throw Error(r.error);act({type:'move',arm:id,q:r.q,kind:a.axes===3?'xyz':'joints'});};
- if(mode==='explore'){
+ if(mode==='explore'&&exploreAxes===3){
+  move('A',[150,-70,80]);move('A',[150,-70,24]);act({type:'close',arm:'A'});move('A',[150,-70,80]);move('A',[200,-70,80]);act({type:'open',arm:'A'});
+ }
+ if(mode==='explore'&&exploreAxes===6){
   move('A',[150,-70,100]);move('A',[150,-70,16]);act({type:'close',arm:'A'});move('A',[150,-70,100]);move('A',[230,-70,100]);act({type:'open',arm:'A'});
   move('A',[210,0,100]);move('A',[210,0,16]);act({type:'close',arm:'A'});move('A',[210,0,100]);move('A',[150,0,100]);act({type:'open',arm:'A'});
   move('A',[230,-70,100]);move('A',[230,-70,16]);act({type:'close',arm:'A'});move('A',[230,-70,100]);act({type:'open',arm:'A'});

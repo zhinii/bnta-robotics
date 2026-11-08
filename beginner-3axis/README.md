@@ -6,14 +6,14 @@ The default `beginner-3axis/` entry is a bilingual challenge-only robot workspac
 
 | Difficulty | Robot | Task |
 |---|---|---|
-| Explore | Six joints | Free play with three blocks. Pick up, move, put down and pick up again, with no objective or completion gate. |
+| Explore | Three or six joints | Free play with three blocks. Pick up, move, put down and pick up again, with no objective or completion gate. |
 | Easy | Three positioning joints | Pick up the part and place it using shared-world X/Y/Z coordinates. |
 | Medium | Six joints | Grip the long part, tilt it through the closed 30° slot in a tall wall, and release in the matching destination cradle. |
 | Hard | Two six-joint arms | A picks up the part, both arms align at the transfer marks, B closes its gripper, A opens its gripper, then B moves and places it. |
 
 Six-axis tasks open with J1–J6 sliders and numerical angle fields. An XYZ helper preserves the tool's current orientation; wrist rotation remains necessary to fit the medium task. Typing XYZ coordinates or moving their sliders immediately displays a target cross and a ghost arm when a reachable pose exists. XYZ keeps the wrist attitude selected in the joint preview. An unreachable target remains marked in red with a bilingual explanation; it never silently disappears or enables Move. Preview does not move an arm, record a step or change who holds the part.
 
-Explore is always unlocked. It starts with XYZ controls and offers the same joint controls and pose preview. Blocks settle onto the work surface or another block when released, remain at their new positions, and can be picked up again. Their current coordinates stay visible. There are no task stands, success/failure targets or forced restarts. Collision and joint-limit feedback still apply; Record/Replay and portable program files are optional. Explore replay finishes normally without awarding challenge progress. Reset restores the three blocks while keeping the program.
+Explore is always unlocked. The robot selector beside Reset view switches between the original three-axis and six-axis models; six-axis remains the default. Switching resets the scene and keeps separate programs for each robot during this visit. Save/Open files include the robot axes; older Explore files open with six axes. Chat accepts `robot 3` / `robot 6` or `机器人 3` / `机器人 6`. It starts with XYZ controls and offers the same joint controls and pose preview. Blocks settle onto the work surface or another block when released, remain at their new positions, and can be picked up again. Their current coordinates stay visible. There are no task stands, success/failure targets or forced restarts. Collision and joint-limit feedback still apply; Record/Replay and portable program files are optional. Explore replay finishes normally without awarding challenge progress. Reset restores the three blocks while keeping the program.
 
 ## Simple programming
 
@@ -37,6 +37,7 @@ English and Chinese interface strings, task instructions, commands and errors ar
 
 From this directory, run `python server/serve.py --port 4223`, then open `http://127.0.0.1:4223/beginner-3axis/`. `challenge.html` is an identical preview entry. Do not open through `file://`.
 
+- `node tests/challenge-explore-robots.browser.mjs`: robot switching, three-axis capture/replay, independent programs, typed file validation, fresh reload and EN/ZH visual review across iPad orientations.
 - `node tests/challenge-explore.browser.mjs`: unlocked free play, all three blocks, regripping, recording/replay, independent session programs, import/export, reset/reload and bilingual tablet layouts. Uses `BNTA_PREVIEW_URL` and `BNTA_PLAYWRIGHT_PATH`.
 - `npm run test:challenges`: pure model, contact geometry, finger closing sweeps, failure/restart, ownership, replay and bilingual checks.
 - `node tests/challenge-handoff.browser.mjs`: real angled pickup, recorded drops, missing grips/releases, bilingual restart and successful replay. Uses `BNTA_PREVIEW_URL` and `BNTA_PLAYWRIGHT_PATH`.

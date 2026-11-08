@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from './vendor/three/examples/jsm/controls/OrbitControls.js';
-import { pose, atPose, gripperParts } from './challenge-model.mjs?v=explore-1';
-import { text } from './challenge-i18n.mjs?v=explore-1';
-import { createFairinoArm, updateFairinoArm } from './fairino-arm.mjs?v=explore-1';
+import { pose, atPose, gripperParts } from './challenge-model.mjs?v=explore-robots-1';
+import { text } from './challenge-i18n.mjs?v=explore-robots-1';
+import { createFairinoArm, updateFairinoArm } from './fairino-arm.mjs?v=explore-robots-1';
 const vec=p=>new THREE.Vector3(...p),Y=new THREE.Vector3(0,1,0);
 function material(color,ghost=false){return new THREE.MeshStandardMaterial({color,roughness:.45,metalness:.15,transparent:ghost,opacity:ghost?.3:1,depthWrite:!ghost,wireframe:ghost});}
 function orient(mesh,a,b){const d=vec(b).sub(vec(a));mesh.position.copy(vec(a).add(vec(b)).multiplyScalar(.5));mesh.scale.set(1,d.length(),1);mesh.quaternion.setFromUnitVectors(Y,d.normalize());}
@@ -24,11 +24,11 @@ export function createChallengeScene(host,language='en'){
   const ground=new THREE.Mesh(new THREE.PlaneGeometry(1600,1400),material('#e3eaf0'));ground.position.z=-1;ground.receiveShadow=true;scene.add(ground);
   const grid=new THREE.GridHelper(1100,22,'#acbecd','#d4dfe7');grid.rotation.x=Math.PI/2;grid.position.z=.1;scene.add(grid);
   const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.minDistance=150;controls.maxDistance=1800;controls.maxPolarAngle=Math.PI*.49;
-  let worldGroup=new THREE.Group(),labels=new THREE.Group(),introLabels=new THREE.Group(),arms=[],ghosts=[],parts=[],partLabels=[],ghostPart,targetMarker,targetLine,targetLabel,mode='',lang='',lastWorld=null;
+  let worldGroup=new THREE.Group(),labels=new THREE.Group(),introLabels=new THREE.Group(),arms=[],ghosts=[],parts=[],partLabels=[],ghostPart,targetMarker,targetLine,targetLabel,mode='',armKey='',lang='',lastWorld=null;
   scene.add(worldGroup,labels,introLabels);
-  function home(){const hard=mode==='hard',medium=mode==='medium',exploring=mode==='explore';controls.target.set(hard?0:medium?180:115,0,exploring?130:medium?140:105);camera.position.set(hard?530:exploring?560:medium?-420:390,hard?-650:exploring?-540:medium?-360:-340,hard?420:exploring?380:medium?350:280);controls.update();}
+  function home(){const hard=mode==='hard',medium=mode==='medium',exploring=mode==='explore'&&armKey==='6';controls.target.set(hard?0:medium?180:115,0,exploring?130:medium?140:105);camera.position.set(hard?530:exploring?560:medium?-420:390,hard?-650:exploring?-540:medium?-360:-340,hard?420:exploring?380:medium?350:280);controls.update();}
   function build(world,language){
-    release(worldGroup);release(labels);release(introLabels);arms=[];ghosts=[];mode=world.mode;lang=language;
+    release(worldGroup);release(labels);release(introLabels);arms=[];ghosts=[];mode=world.mode;armKey=world.arms.map(a=>a.axes).join(',');lang=language;
     for(const arm of world.arms){const graph=armGraph(arm),ghost=armGraph(arm,true);worldGroup.add(graph.group,ghost.group);arms.push(graph);ghosts.push(ghost);const tag=label(text(language,arm.id==='A'?'armA':'armB'),arm.id==='A'?'#96601c':'#215f9b');tag.position.copy(vec(arm.base));tag.position.z=25;introLabels.add(tag);}
     for(const [i,p] of (world.mode==='explore'?[]:[world.source,world.destination]).entries()){
       const color=i?'#16885b':'#e78617',tilted=i&&world.mode==='medium',top=p[2]-(tilted?38:12);
@@ -60,7 +60,7 @@ export function createChallengeScene(host,language='en'){
     home();
   }
   function update(world,{language='en',selected='A',target=null,targetPosition=null,error=false,introVisible=true}={}){
-    lastWorld=world;if(world.mode!==mode||language!==lang)build(world,language);
+    lastWorld=world;if(world.mode!==mode||world.arms.map(a=>a.axes).join(',')!==armKey||language!==lang)build(world,language);
     introLabels.visible=labels.visible=targetLabel.visible=introVisible;
     renderer.domElement.setAttribute('aria-label',text(language,'sceneLabel'));
     const changed=target&&world.arms.find(a=>a.id===selected).q.some((v,i)=>Math.abs(v-target[i])>.01);

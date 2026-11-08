@@ -30,3 +30,19 @@ test('an empty close is harmless, and stopping a release leaves the block on a s
  const c=new ChallengeController('explore');assert.equal(c.execute({type:'close',arm:'A'}).ok,true);advance(c);assert.equal(c.world.part.owner,null);assert.equal(c.world.failure,null);
  c.world=pickFirst();assert.equal(c.execute({type:'open',arm:'A'}).ok,true);c.tick(20);c.stop();assert.equal(c.world.failure,null);assert.equal(c.world.part.owner,null);assert.ok(Math.abs(bounds(c.world.part.position,c.world.part.rotation,c.world.part.size).min[2])<.001);
 });
+
+
+test('three-axis Explore picks all blocks, carries/releases, and retains its robot through reset/replay',()=>{
+ for(const part of initialWorld('explore',3).parts){
+  const w=initialWorld('explore',3),q=solvePosition(w.arms[0],part.position.map((v,i)=>v+(i===2?8:0))).q;
+  const r=applyAction(atPose(w,'A',q),{type:'close',arm:'A'});assert.ok(r.end,r.error);assert.equal(r.end.part.id,part.id);assert.equal(r.end.part.owner,'A');
+ }
+ const c=new ChallengeController('explore',()=>{},3),route=referenceProgram('explore',3);
+ for(const step of route){assert.equal(c.execute(step).ok,true);advance(c);c.add(step);}
+ const placed=structuredClone(c.world.parts);assert.ok(placed[0].position[0]>195);assert.equal(placed[0].owner,null);
+ assert.equal(validateSequence('explore',route,3).error,undefined);assert.equal(c.run().ok,true);advance(c);
+ assert.deepEqual(c.world.parts,placed);assert.equal(c.world.arms[0].axes,3);assert.equal(c.metrics.status,'timerFinished');assert.equal(c.complete,false);
+ c.reset();assert.equal(c.world.arms[0].axes,3);assert.deepEqual(c.world.parts,initialWorld('explore',3).parts);assert.equal(c.program.length,route.length);
+ c.selectMode('explore',6);assert.equal(c.world.arms[0].axes,6);assert.equal(c.program.length,0);assert.equal(c.metrics.elapsed,0);
+ assert.equal(validateSequence('explore',route,6).error,'limits');assert.throws(()=>initialWorld('explore',4),/axes/);
+});
