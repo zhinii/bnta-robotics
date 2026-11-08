@@ -13,8 +13,8 @@ export function referenceProgram(mode,exploreAxes=6){
   move('A',[210,0,100]);move('A',[210,0,16]);act({type:'close',arm:'A'});move('A',[210,0,100]);move('A',[150,0,100]);act({type:'open',arm:'A'});
   move('A',[230,-70,100]);move('A',[230,-70,16]);act({type:'close',arm:'A'});move('A',[230,-70,100]);act({type:'open',arm:'A'});
  }
- if(mode==='easy'){move('A',w.source);act({type:'close',arm:'A'});move('A',[147,-85,120]);move('A',[147,85,120]);move('A',w.destination);act({type:'open',arm:'A'});}
+ if(mode==='easy'){move('A',[147,-85,130]);move('A',w.source);act({type:'close',arm:'A'});move('A',[147,-85,120]);move('A',[147,85,120]);move('A',w.destination);act({type:'open',arm:'A'});}
  if(mode==='medium'){move('A',w.source);act({type:'close',arm:'A'});move('A',[110,-100,180]);move('A',[110,-80,180],[-90,-30,90]);move('A',[170,0,180],[-90,-30,90]);move('A',[240,0,180],[-90,-30,90]);move('A',[310,0,180],[-90,-30,90]);move('A',w.destination,[-90,-30,90]);act({type:'open',arm:'A'});}
- if(mode==='hard'){move('A',[-132,-130,100]);act({type:'close',arm:'A'});move('A',[-132,-130,160]);move('A',[-42,0,160]);move('B',[42,0,160]);act({type:'close',arm:'B'});act({type:'open',arm:'A'});move('A',[-140,-150,170]);move('B',[142,130,160]);move('B',[142,130,100]);act({type:'open',arm:'B'});}
+ if(mode==='hard'){move('A',[-132,-130,100]);act({type:'close',arm:'A'});move('A',[-132,-130,160]);move('A',[-42,0,160]);move('B',[42,0,195]);move('B',[42,0,160]);act({type:'close',arm:'B'});act({type:'open',arm:'A'});move('A',[-42,0,195]);move('B',[142,130,160]);move('B',[142,130,100]);act({type:'open',arm:'B'});}
  return steps;
 }

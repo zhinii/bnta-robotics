@@ -27,6 +27,8 @@ All challenges reuse the white/orange FAIRINO-inspired robot geometry from the m
 
 Manual placement is practice, never a challenge pass. Completion requires replay from the initial scene, every recorded step finishing, and all physical task conditions being met. Paused, stopped, incomplete or failed playback cannot pass. Editing, importing or restarting clears the current verified result. Each successful replay unlocks the next difficulty; earned unlocks last for the current visit only.
 
+Both three- and six-axis robots check every solid gripper member against all blocks, including held parts. The open space between the fingers remains usable for pickup; surface contact is allowed but penetration is not. Opening and closing check the full finger travel, including Explore releases. Movement checks intermediate poses, so a clear destination cannot bypass a collision along the route. Rejected motion leaves the robot, objects and recording unchanged; replay applies the same checks. Approach with open jaws and add a clearance waypoint when needed. Saved routes that previously passed through a block now report a collision instead.
+
 The iPad layout follows the reviewed no-Guide mockup. Navigation, language and Stop share the top bar. The scene header contains the Explore robot selector and a Task info disclosure; instructions can be reopened without resetting. Small numbered scene pins match the object/location strip below the scene. The original FAIRINO models are unchanged.
 
 Controls separates Robot now and Planned position from editable XYZ/joint inputs. All six 44-pixel joint inputs fit at 1024×768 landscape and 768×1024 portrait, including Hard's separate Controlling Arm A/B selector. The Move now / Add program step buttons, Gripper group and Record footer have distinct roles. Previewing never moves the robot. Phone layouts use page scrolling instead of clipping controls into a fixed-height panel.
@@ -49,6 +51,7 @@ From this directory, run `python server/serve.py --port 4223`, then open `http:/
 - `npm run test:browser -- <Playwright-module-path>`: actual Edge walkthrough of all three tasks, responsive layouts, pause/stop, export, reload and file validation. `BNTA_PREVIEW_URL` can select another preview; `BNTA_SCREENSHOTS` selects the evidence directory.
 - `node tests/challenge-xyz.browser.mjs`: typed coordinate and slider previews, unreachable target feedback, recovery, recording only on Move, and preserving a draft wrist pose. Uses `BNTA_PLAYWRIGHT_PATH`.
 - `node tests/challenge-layout.browser.mjs`: no Guide, six visible joints on four iPad sizes, task disclosure, compact program menus, file/results placement and separate arm selection.
+- `node tests/challenge-collision.browser.mjs`: blocked gripper penetration on both robots, bilingual previews/errors, unchanged state/recording, replay rejection and valid pickup/release.
 - `npm run test:ipad`: actual touch-browser recording/replay through all three tasks, progression gates, bilingual iPad portrait/landscape, edits/import/stopped replay. Set `BNTA_PLAYWRIGHT_PATH` if Playwright is outside this package.
 - `npm test`: model tests including the preserved earlier modules.
 

@@ -96,6 +96,14 @@ export function graspContact(arm,part){
   return jawContact(pose(arm),part);
 }
 function segmentShape(a,b,shape,pad=0){const r=transpose(shape.rotation),local=p=>transform(r,sub(p,shape.position));return segmentBox(local(a),local(b),{min:shape.size.map(v=>-v/2),max:shape.size.map(v=>v/2)},pad);}
+// The visible link ends at its joint, unlike a capsule that extends a full radius
+// past that end and falsely blocks small parts near the three-axis tool.
+function linkShape({a,b,radius}){
+ const length=distance(a,b);if(length<1e-8)return null;
+ const z=sub(b,a).map(v=>v/length),helper=Math.abs(z[2])<.9?[0,0,1]:[0,1,0];
+ const cross=(u,v)=>[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]],raw=cross(helper,z),x=raw.map(v=>v/Math.hypot(...raw)),y=cross(z,x);
+ return {position:a.map((v,i)=>(v+b[i])/2),rotation:[x[0],y[0],z[0],x[1],y[1],z[1],x[2],y[2],z[2]],size:[radius*2,radius*2,length]};
+}
 export function armSegments(arm){
  const p=pose(arm);
  return p.points.slice(1).map((b,i)=>({a:p.points[i],b,radius:i===0?33:i===p.points.length-2?13:Math.max(9,18-(i-1)*2)}));
@@ -118,11 +126,11 @@ export function collision(world) {
       if(jointBounds(arm).some(j=>hitsBox(boundsShape(j),box)))return 'obstacle';
       if(gripperParts(arm).some(g=>hitsBox(g,box)))return 'obstacle';
     }
-    // Fingers may touch the graspable part during approach. The palm and links cannot
-    // pass through a loose part or the part carried by the other robot.
-    for(const part of world.parts||[world.part])if(arm.axes===6&&part.owner!==arm.id){
-      for(let i=1;i<segments.length-1;i++)if(segmentShape(segments[i].a,segments[i].b,part,segments[i].radius))return 'partCollision';
-      if(gripperParts(arm).slice(0,3).some(g=>boxesIntersect(g,part)))return 'partCollision';
+    // Surface contact is allowed; solid fingers, palm and links cannot penetrate
+    // a block. This includes both robot types, held parts and the receiving arm.
+    for(const part of world.parts||[world.part]){
+      if(part.owner!==arm.id)for(let i=1;i<segments.length-1;i++){const link=linkShape(segments[i]);if(link&&boxesIntersect(link,part))return 'partCollision';}
+      if(gripperParts(arm).some(g=>boxesIntersect(g,part)))return 'partCollision';
     }
   }
   if(world.part.owner) {
@@ -137,6 +145,12 @@ export function collision(world) {
     for(const ga of gripperParts(world.arms[0]))for(const gb of gripperParts(world.arms[1]))if(boxesIntersect(ga,gb))return 'armCollision';
   }
   return null;
+}
+function gripperSweep(world,id,target){
+ const trial=clone(world),arm=armById(trial,id),start=arm.closed?(arm.jawY||[-10,10]):[-26,26];arm.closed=true;
+ const count=Math.max(1,Math.ceil(Math.max(...target.map((y,i)=>Math.abs(y-start[i])))/.5));
+ for(let i=0;i<=count;i++){arm.jawY=target.map((y,j)=>start[j]+(y-start[j])*i/count);const hit=collision(trial);if(hit)return hit;}
+ return null;
 }
 export function planMove(world,id,q,kind='joints') {
   if(world.failure)return {error:'restartRequired'};
@@ -222,6 +236,7 @@ export function applyAction(world,step) {
   } else if(step.type==='handoff') {
     return {error:'handoffSteps'};
   } else if(step.type==='open') {
+    const hit=gripperSweep(world,arm.id,[-26,26]);if(hit)return {error:hit};
     if(next.mode==='explore'&&next.part.owner===arm.id)return putDown(next,arm.id);
     if(next.part.receiver===arm.id){
       // B can let go again without disturbing A's grip or completing a handoff.
@@ -242,9 +257,9 @@ export function applyAction(world,step) {
     arm.closed=false;arm.jawY=null;
   } else return {error:'command'};
   if(step.type==='close'){
-    // Check the fingers throughout their travel, not just at the closed pose.
-    const target=arm.jawY||[-10,10],trial=clone(next),moving=armById(trial,arm.id);
-    for(let i=0;i<=24;i++){moving.jawY=target.map((y,j)=>[-26,26][j]+(y-[-26,26][j])*i/24);const hit=collision(trial);if(hit)return {error:hit};}
+    // Test against the still-unmoved world before assigning ownership. Opening
+    // uses the same sweep, including Explore's release-and-settle path.
+    const hit=gripperSweep(world,arm.id,arm.jawY||[-10,10]);if(hit)return {error:hit};
   }
   const error=collision(next);return error?{error}:{end:success(next),duration:150};
 }

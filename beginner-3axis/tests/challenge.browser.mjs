@@ -12,9 +12,9 @@ try{
  await page.locator('[data-mode="easy"]').click();
  await record(page);assert.equal(await page.locator('#record').getAttribute('aria-pressed'),'true');
  const before=await page.locator('#tcp').textContent();await page.locator('#axis-x').fill('147');await page.locator('#axis-y').fill('-85');await page.locator('#axis-z').fill('80');assert.equal(await page.locator('#tcp').textContent(),before,'preview never moves actual arm');
- await page.locator('#move').click();await page.waitForFunction(()=>!document.querySelector('#move').disabled);assert.match(await page.locator('#tcp').textContent(),/147.0.*-85.0.*80.0/);
+ await page.locator('#move').click();assert.match(await page.locator('#feedback').textContent(),/Collision/);assert.equal(await page.locator('#tcp').textContent(),before);await send('target 147 -85 130');await send('move');await page.waitForFunction(()=>!document.querySelector('#move').disabled);await send('target 147 -85 80');await send('move');await page.waitForFunction(()=>!document.querySelector('#move').disabled);assert.match(await page.locator('#tcp').textContent(),/147.0.*-85.0.*80.0/);
  await page.locator('[data-action="close"]').click();await page.waitForFunction(()=>!document.querySelector('#move').disabled);assert.match(await page.locator('#checks').textContent(),/✓ Pick up/);
- await send('program');assert.equal(await page.locator('#steps li').count(),2);await page.locator('#clear').click();await page.locator('#reset').click();
+ await send('program');assert.equal(await page.locator('#steps li').count(),3);await page.locator('#clear').click();await page.locator('#reset').click();
  for(const mode of ['easy','medium','hard']){
   await page.locator(`[data-mode="${mode}"]`).click();const route=referenceProgram(mode),world=initialWorld(mode);
   assert.equal(await page.locator('#joint-inputs .joint').count(),mode==='easy'?3:6);
@@ -30,7 +30,7 @@ try{
   await replay(page);await page.locator('#completion').waitFor({state:'visible',timeout:60000});
   assert.match(await page.locator('#checks').textContent(),/✓ Place/);
   if(mode==='medium')assert.match(await page.locator('#checks').textContent(),/✓ Pass slot/);
-  if(mode==='hard'){assert.match(await page.locator('#checks').textContent(),/✓ Transfer to B/);assert.equal(await page.locator('.arm-badge.b').count(),5);}
+  if(mode==='hard'){assert.match(await page.locator('#checks').textContent(),/✓ Transfer to B/);assert.equal(await page.locator('.arm-badge.b').count(),6);}
   await page.locator('#language').selectOption('zh');assert.match(await page.locator('#completion').textContent(),/挑战完成/);
   await send('控制');if(mode==='hard')await page.locator('[data-arm="B"]').click();
   for(const size of [{width:1280,height:850},{width:390,height:844},{width:320,height:568}]){

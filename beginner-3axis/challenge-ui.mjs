@@ -1,6 +1,6 @@
-import { ChallengeController, initialWorld, armById, pose, limits, validJoints, solvePosition, atPose, collision, clone, gripPoint, upgradeHandoffSteps } from './challenge-model.mjs?v=ipad-layout-1';
-import { createChallengeScene } from './challenge-scene.mjs?v=ipad-layout-1';
-import { text, words } from './challenge-i18n.mjs?v=ipad-layout-1';
+import { ChallengeController, initialWorld, armById, pose, limits, validJoints, solvePosition, atPose, collision, clone, gripPoint, upgradeHandoffSteps } from './challenge-model.mjs?v=gripper-collisions-1';
+import { createChallengeScene } from './challenge-scene.mjs?v=gripper-collisions-1';
+import { text, words } from './challenge-i18n.mjs?v=gripper-collisions-1';
 import { CONFIG } from './model.mjs';
 import { ARM, toolReachFor } from './challenge-kinematics.mjs';
 const $=id=>document.getElementById(id),KEY='bnta:robot-challenges:v1',challenges=['easy','medium','hard'],modes=['explore',...challenges];

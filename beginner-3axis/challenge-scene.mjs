@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from './vendor/three/examples/jsm/controls/OrbitControls.js';
-import { pose, atPose, gripperParts } from './challenge-model.mjs?v=ipad-layout-1';
-import { text } from './challenge-i18n.mjs?v=ipad-layout-1';
-import { createFairinoArm, updateFairinoArm } from './fairino-arm.mjs?v=ipad-layout-1';
+import { pose, atPose, gripperParts } from './challenge-model.mjs?v=gripper-collisions-1';
+import { text } from './challenge-i18n.mjs?v=gripper-collisions-1';
+import { createFairinoArm, updateFairinoArm } from './fairino-arm.mjs?v=gripper-collisions-1';
 const vec=p=>new THREE.Vector3(...p),Y=new THREE.Vector3(0,1,0);
 function material(color,ghost=false){return new THREE.MeshStandardMaterial({color,roughness:.45,metalness:.15,transparent:ghost,opacity:ghost?.3:1,depthWrite:!ghost,wireframe:ghost});}
 function orient(mesh,a,b){const d=vec(b).sub(vec(a));mesh.position.copy(vec(a).add(vec(b)).multiplyScalar(.5));mesh.scale.set(1,d.length(),1);mesh.quaternion.setFromUnitVectors(Y,d.normalize());}

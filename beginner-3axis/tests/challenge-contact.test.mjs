@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {initialWorld,pose,applyAction,collision,graspContact,bounds,ChallengeController,gripperParts} from '../challenge-model.mjs';
+import {initialWorld,pose,applyAction,collision,graspContact,bounds,ChallengeController,gripperParts,solvePosition,atPose} from '../challenge-model.mjs';
 import {ikTool,transform,rotationFromEuler} from '../challenge-kinematics.mjs';
 import {boxesIntersect} from '../challenge-contact.mjs';
 import {referenceProgram} from './challenge-fixtures.mjs';
@@ -42,14 +42,14 @@ test('handoff accepts an offset, angled B grip and transfers without snapping th
  assert.equal(released.end.part.owner,'B');assert.deepEqual(released.end.part.position,part.position);assert.deepEqual(released.end.part.rotation,part.rotation);
 });
 test('placement accepts an offset on the stand, while unsupported release fails',()=>{
- const route=referenceProgram('hard'),w=through(route,10);w.part.position[0]+=10;w.part.position[1]+=7;w.part.position[2]+=4;
+ const route=referenceProgram('hard');let w=through(route,11);const q=solvePosition(w.arms[1],[152,137,104]).q;assert.ok(q);w=applyAction(w,{type:'move',arm:'B',q,kind:'xyz'}).end;assert.ok(w);
  const r=applyAction(w,{type:'open',arm:'B'});assert.ok(r.end,r.error);assert.equal(r.end.complete,true);assert.equal(r.end.part.position[0],w.part.position[0]);assert.equal(r.end.part.position[1],w.part.position[1]);assert.ok(Math.abs(bounds(r.end.part.position,r.end.part.rotation,r.end.part.size).min[2]-93)<.001);
- const unsupported=through(route,7);assert.equal(applyAction(unsupported,{type:'open',arm:'B'}).failure,'partDropped');
+ const unsupported=through(route,8);assert.equal(applyAction(unsupported,{type:'open',arm:'B'}).failure,'partDropped');
 });
 test('a missing receiver grip replays up to the drop, with visible falling motion and no completion',()=>{
- const c=new ChallengeController('hard'),route=referenceProgram('hard');c.program=[...route.slice(0,5),route[6],...route.slice(7)];
+ const c=new ChallengeController('hard'),route=referenceProgram('hard');c.program=[...route.slice(0,6),route[7],...route.slice(8)];
  assert.equal(c.run().ok,true);while(!c.world.failure)c.tick(100);const height=c.world.part.position[2];c.tick(100);assert.ok(c.world.part.position[2]<height);
- advance(c);assert.equal(c.world.failure,'partDropped');assert.equal(c.complete,false);assert.equal(c.metrics.actions,5);assert.equal(c.lastErrorIndex,5);
+ advance(c);assert.equal(c.world.failure,'partDropped');assert.equal(c.complete,false);assert.equal(c.metrics.actions,6);assert.equal(c.lastErrorIndex,6);
  assert.equal(c.execute(route[0]).error,'restartRequired');assert.equal(c.execute({type:'close',arm:'A'}).error,'restartRequired');
  c.reset();assert.equal(c.world.failure,null);assert.equal(c.world.part.position[2],100);
 });
@@ -63,3 +63,28 @@ test('stop cannot rescue a falling part; reset and replay start a new attempt',(
 test('a missed B close is recorded as an empty grip and the later A release drops the part',()=>{
  const c=new ChallengeController('hard'),route=referenceProgram('hard');c.program=[...route.slice(0,4),{type:'close',arm:'B'},{type:'open',arm:'A'}];assert.equal(c.run().ok,true);advance(c);assert.equal(c.world.failure,'partDropped');assert.equal(c.lastErrorIndex,5);assert.equal(c.metrics.actions,5);assert.equal(c.complete,false);
 });
+
+for(const axes of [3,6]){
+ const blockAt=(arm,offset,size=[8,8,8])=>{const p=pose(arm),d=transform(p.rotation,offset);return {position:p.tip.map((v,i)=>v+d[i]),rotation:p.rotation,size,owner:null};};
+ test(axes+'-axis: every solid gripper member blocks penetration, but the open gap stays usable',()=>{
+  for(const offset of [[0,0,38],[0,0,32],[0,0,23],[0,-26,3],[0,26,3]]){
+   const w=initialWorld('explore',axes);w.parts=[blockAt(w.arms[0],offset)];w.part=w.parts[0];assert.equal(collision(w),'partCollision');
+  }
+  const w=initialWorld('explore',axes);w.parts=[blockAt(w.arms[0],[0,0,3],[12,18,14])];w.part=w.parts[0];
+  assert.equal(collision(w),null);const closed=applyAction(w,{type:'close',arm:'A'});assert.ok(closed.end,closed.error);assert.equal(closed.end.part.owner,'A');assert.equal(collision(closed.end),null);
+ });
+ test(axes+'-axis: opening and closing cannot sweep through a neighbouring block',()=>{
+  for(const type of ['open','close']){
+   const w=initialWorld('explore',axes);w.arms[0].closed=type==='open';
+   const block=blockAt(w.arms[0],[0,18,3],[8,2,8]);w.parts.push(block);
+   assert.equal(collision(w),null);const end=structuredClone(w);end.arms[0].closed=type==='close';assert.equal(collision(end),null);
+   const before=structuredClone(w);assert.equal(applyAction(w,{type,arm:'A'}).error,'partCollision');assert.deepEqual(w,before);
+  }
+ });
+ test(axes+'-axis: a clear endpoint cannot tunnel a finger through a block along the route',()=>{
+  const w=initialWorld('explore',axes),home=[...w.arms[0].q],target=[...home];w.parts=[blockAt(w.arms[0],[0,26,3])];w.part=w.parts[0];
+  w.arms[0].q[0]-=30;target[0]+=30;assert.equal(collision(w),null);assert.equal(collision(atPose(w,'A',target)),null);
+  const c=new ChallengeController('explore',()=>{},axes);c.world=w;const before=structuredClone(w);
+  assert.equal(c.execute({type:'move',arm:'A',q:target}).error,'partCollision');assert.deepEqual(c.world,before);assert.equal(c.busy,false);assert.equal(c.metrics.actions,0);
+ });
+}

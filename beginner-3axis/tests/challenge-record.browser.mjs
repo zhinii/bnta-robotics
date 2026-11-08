@@ -31,15 +31,15 @@ try{
  await page.waitForTimeout(350);assert.equal(await page.locator('#replay-time').textContent(),paused);
  await page.locator('#pause').click();await page.waitForFunction(()=>!document.querySelector('#run').disabled);
  assert.equal(await page.locator('#replay-time').textContent(),(duration/1000).toFixed(2)+' s');
- assert.equal(await page.locator('#replay-moves').textContent(),'4 / 4');
- assert.equal(await page.locator('#replay-actions').textContent(),'6 / 6');
+ assert.equal(await page.locator('#replay-moves').textContent(),'5 / 5');
+ assert.equal(await page.locator('#replay-actions').textContent(),'7 / 7');
  assert.equal(await page.locator('#timer-status').getAttribute('data-status'),'timerComplete');
- assert.equal(await page.locator('.step-duration').count(),6);
+ assert.equal(await page.locator('.step-duration').count(),7);
  await page.locator('#language').selectOption('zh');assert.match(await recordButton.textContent(),/录制/);assert.match(await page.locator('#timer-status').textContent(),/有效成绩/);
  await page.locator('#language').selectOption('en');
  if(process.argv[3]){await mkdir(process.argv[3],{recursive:true});await page.screenshot({path:process.argv[3]+'/replay-result.png'});}
  await record(page);assert.equal(await page.locator('#step-count').textContent(),'0');assert.equal(await page.locator('#replay-time').textContent(),'0.00 s');
- await send('target 147 -85 80');await send('move');await page.locator('#stop').click();assert.equal(await page.locator('#step-count').textContent(),'0','interrupted movement is not a completed recorded move');
+ await send('target 147 -85 130');await send('move');await page.locator('#stop').click();assert.equal(await page.locator('#step-count').textContent(),'0','interrupted movement is not a completed recorded move');
  await enterChallenge(page,'hard');
  for(const mode of ['easy','medium','hard']){
   await page.locator(`[data-mode="${mode}"]`).click();await page.setViewportSize({width:1280,height:850});
