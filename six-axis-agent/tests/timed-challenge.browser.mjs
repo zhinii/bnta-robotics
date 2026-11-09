@@ -25,6 +25,7 @@ try{
   let providerCalls=0;
   const routes={
     'connection_check':[],
+    'Move the pen 10 mm to the right.':[{type:'shift',object:'pen',direction:'right',distance:10,unit:'mm'}],
     'Put the red book flat on the left side of the shelf.':[{type:'transfer',object:'book',target:'shelf-left'}],
     'Put the blue notebook flat on the right side of the shelf.':[{type:'transfer',object:'notebook',target:'shelf-right'}],
   };
@@ -53,6 +54,7 @@ try{
   await page.goto('http://127.0.0.1:'+server.address().port+'/six-axis-agent/');
   await page.waitForFunction(()=>!!window.robotLabSnapshot);
   assert.equal(await $('render-error').isVisible(),false);
+  assert.equal(await $('ruler-note').isVisible(),false);
   assert.equal(await page.locator('#timed-goals').count(),0);
   assert.equal(await page.locator('#target-key,.target-number').count(),0);
   assert.equal(await $('timed-start').isEnabled(),false);
@@ -66,9 +68,15 @@ try{
   await page.locator('[data-level="easy"]').click();
   await $('send').click();await waitIdle();assert.equal((await snapshot()).connected,true);
   const start=(await snapshot()).scene;
+  await $('view-toggle').click();
+  assert.equal(await $('ruler-note').innerText(),'Each tick is 10 mm');
+  await send('Move the pen 10 mm to the right.');
+  const pen=scene=>scene.objects.find(object=>object.id==='pen');
+  assert.deepEqual(pen((await snapshot()).scene).position,[pen(start).position[0]+10,...pen(start).position.slice(1)]);
   await send('Rotate joint 1 30 degrees clockwise');assert.notDeepEqual((await snapshot()).scene.joints,start.joints);
   await $('timed-start').click();
   assert.deepEqual((await snapshot()).scene,start);
+  assert.equal(await $('ruler-note').isVisible(),false);
   assert.equal(await $('reset').isEnabled(),false);
   await $('prompt').fill('Put the red book flat on the left side of the shelf.');await $('send').click();
   await page.waitForFunction(()=>document.activeElement.id==='preview-heading');
@@ -113,6 +121,9 @@ try{
   assert.equal(await $('view-toggle').getAttribute('aria-pressed'),'true');
   assert.equal(await $('view-toggle').innerText(),'3D view');
   if(output)await page.screenshot({path:path.join(output,'tablet-replay-result.png'),fullPage:true});
+  await page.setViewportSize({width:390,height:844});
+  await $('scene-stage').scrollIntoViewIfNeeded();
+  if(output)await $('scene-stage').screenshot({path:path.join(output,'phone-rulers.png')});
 
   await page.locator('[data-level="hard"]').click();
   await $('timed-start').click();
@@ -138,6 +149,8 @@ try{
   assert.equal(partialReplay.timed.moves,1);
   assert.deepEqual(partialReplay.scene.joints,partial.scene.joints);
   await $('language').click();await page.setViewportSize({width:390,height:844});
+  await $('view-toggle').click();
+  assert.equal(await $('ruler-note').innerText(),'每小格 10 毫米');
   assert.match(await page.locator('[data-level="hard"][aria-pressed="true"]').innerText(),/困难/);
   assert.match(await $('timed-status').innerText(),/对照参考图/);
   await openReference('hard');
@@ -148,5 +161,5 @@ try{
   await page.reload();await page.waitForFunction(()=>!!window.robotLabSnapshot);
   assert.equal((await snapshot()).timed.moves,0);
   assert.deepEqual(errors,[]);
-  console.log('PASS: three finished references, bilingual clues, phone movement approval, timed reset, manual finish, offline replay, top view and partial stop replay.');
+  console.log('PASS: 10 mm shift and bilingual ruler legend, three finished references, phone movement approval, timed reset, manual finish, offline replay and partial stop replay.');
 }finally{await browser?.close();server.close();}

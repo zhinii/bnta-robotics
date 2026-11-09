@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from '../beginner-3axis/vendor/three/examples/jsm/controls/OrbitControls.js';
-import { fk, toolPose } from './kinematics.mjs?v=desk-references-20261109-1';
-import { CATALOG, DESK, graspWidth } from './world.mjs?v=desk-references-20261109-1';
-import {objectGeometry,gripperGeometry,armGeometry,LINK_RADII,JOINT_RADII,JOINT_LENGTHS,CAP_RADII,CAP_OFFSETS} from './shapes.mjs?v=desk-references-20261109-1';
+import { fk, toolPose } from './kinematics.mjs?v=desk-rulers-20261109-1';
+import { CATALOG, DESK, graspWidth } from './world.mjs?v=desk-rulers-20261109-1';
+import {objectGeometry,gripperGeometry,armGeometry,LINK_RADII,JOINT_RADII,JOINT_LENGTHS,CAP_RADII,CAP_OFFSETS} from './shapes.mjs?v=desk-rulers-20261109-1';
 
 export function createScene(container) {
   const scene=new THREE.Scene(); scene.background=new THREE.Color('#eeeee7');
@@ -92,11 +92,38 @@ export function createScene(container) {
   const chair=new THREE.Group();deskFurniture.add(chair);chair.position.set(250,-340,-240);chair.rotation.z=-Math.PI/2;
   box(chair,[185,190,22],'#81948b');box(chair,[20,190,220],'#81948b',[90,0,100]);
   for(const x of [-70,70])for(const y of [-70,70])box(chair,[15,15,135],'#5d7167',[x,y,-78]);
-  function decal(parent,width,height,z,draw){
-    const canvas=document.createElement('canvas');canvas.width=256;canvas.height=512;const ctx=canvas.getContext('2d');draw(ctx);
+  function decal(parent,width,height,z,draw,pixels=[256,512]){
+    const canvas=document.createElement('canvas');[canvas.width,canvas.height]=pixels;const ctx=canvas.getContext('2d');draw(ctx);
     const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
     const face=mesh(new THREE.PlaneGeometry(width,height),new THREE.MeshBasicMaterial({map:texture,transparent:true}),parent);face.position.z=z;
+    return face;
   }
+  function edgeRuler(parent,length,x,front,z,labelEvery){
+    const depth=26,pixelsPerMm=4,baseline=depth-2;
+    // Canvas coordinates below are millimetres, matching the plane and the planner.
+    const ruler=decal(parent,length,depth,z,ctx=>{
+      ctx.scale(pixelsPerMm,pixelsPerMm);
+      ctx.fillStyle='#ede9d9';ctx.fillRect(0,0,length,depth);
+      ctx.strokeStyle=ctx.fillStyle='#344a40';
+      ctx.font='600 16px sans-serif';ctx.textBaseline='alphabetic';
+      ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(0,baseline);ctx.lineTo(length,baseline);ctx.stroke();
+      for(let mm=0;mm<=length;mm+=10){
+        const labelled=mm%labelEvery===0;
+        const tickLength=labelled?10:mm%50===0?8:6;
+        ctx.lineWidth=labelled?2.4:2;
+        ctx.beginPath();ctx.moveTo(mm,baseline-tickLength);ctx.lineTo(mm,baseline);ctx.stroke();
+        if(labelled){
+          ctx.textAlign=mm<14?'left':mm>length-18?'right':'center';
+          ctx.fillText(String(mm),Math.min(length-2,Math.max(2,mm)),12);
+        }
+      }
+    },[length*pixelsPerMm,depth*pixelsPerMm]);
+    ruler.position.set(x,front+depth/2,z);
+    ruler.material.toneMapped=false;
+    ruler.castShadow=false;ruler.receiveShadow=false;
+  }
+  edgeRuler(deskFurniture,DESK.max[0]-DESK.min[0],(DESK.min[0]+DESK.max[0])/2,DESK.min[1]+1,.3,100);
   function schoolObject(id){
     if(CATALOG[id].container)return furniture(CATALOG[id]);
     const group=new THREE.Group(),item=CATALOG[id],c=item.color;station.add(group);
@@ -112,7 +139,10 @@ export function createScene(container) {
     const g=new THREE.Group();station.add(g);const [w,l,h]=object.size;
     if(object.id==='wall')return g; // The room wall is already rendered in room coordinates.
     for(const part of objectGeometry(object))partMesh(part,g);
-    if(object.id==='organizer')for(const x of [170,220])box(g,[1,l-16,.3],'#ac8b65',[x-object.position[0],0,h/2+.2]);
+    if(object.id==='organizer'){
+      for(const x of [170,220])box(g,[1,l-16,.3],'#ac8b65',[x-object.position[0],0,h/2+.2]);
+      edgeRuler(g,w,0,-l/2+1,h/2+.4,50);
+    }
     return g;
   }
   const ghosts=new THREE.Group();station.add(ghosts);

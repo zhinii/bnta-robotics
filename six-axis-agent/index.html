@@ -5,10 +5,10 @@
   <meta name="theme-color" content="#f5f4f0">
   <meta name="description" content="Guide a six-axis robot to arrange objects on a desk, then replay your recorded moves. A robotics activity from Beijing New Talent Academy.">
   <title>BNTA Robot Lab — Six Axis</title>
-  <link rel="stylesheet" href="./style.css?v=desk-references-20261109-1">
+  <link rel="stylesheet" href="./style.css?v=desk-rulers-20261109-1">
   <script type="importmap">{"imports":{"three":"../beginner-3axis/vendor/three/build/three.module.js"}}</script>
 </head>
-<body data-version="desk-references-20261109-1">
+<body data-version="desk-rulers-20261109-1">
   <header><div class="brand"><img class="brand-mark" src="./bnta-tree.png" alt="BNTA tree"><b>BNTA Robot Lab</b></div>
     <div class="header-actions"><span id="connection-state" class="status" role="status">Not connected</span><button id="language" aria-label="Switch to Chinese">中文</button></div>
   </header>
@@ -38,6 +38,7 @@
           <button id="reset" class="reset-button" type="button" title="Reset scene" aria-label="Reset scene"><span aria-hidden="true">↺</span> <span data-i18n="resetShort">Reset</span></button>
           <button id="stop" type="button" hidden>Stop</button>
         </div>
+        <span id="ruler-note" data-i18n="rulerNote" hidden>Each tick is 10 mm</span>
       </div>
       <div id="preview-panel" hidden role="group" aria-labelledby="preview-heading">
         <h2 id="preview-heading" tabindex="-1"></h2>
@@ -81,6 +82,6 @@
     <ul id="reference-clues"></ul>
   </dialog>
   <footer><span>Beijing New Talent Academy <span class="footer-cn">/ 北京市新英才学校</span></span></footer>
-  <script type="module" src="./main.mjs?v=desk-references-20261109-1"></script>
+  <script type="module" src="./main.mjs?v=desk-rulers-20261109-1"></script>
 </body>
 </html>

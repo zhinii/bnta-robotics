@@ -11,7 +11,7 @@ export const words={
   timedStopped:'Replay stopped. Your recording is kept.',
   timedRecordingLabel:'Recording',timedReplayingLabel:'Replaying',timedCompleteLabel:'Replay complete',
   referenceOpen:'Reference & clues',referenceLevel:'{level} · Finished desk',referenceTitle:'{level} reference',referenceClose:'Close',referenceClues:'Clues',
-  referenceDirection:'Left and right are from the chair, facing the shelf.',
+  referenceDirection:'Left and right are from the chair, facing the shelf. Each ruler tick is 10 mm.',
   references:{
     easy:{
       alt:'Finished desk with the red book lying flat on the left of the shelf and the blue notebook lying flat on the right.',
@@ -30,6 +30,7 @@ export const words={
   },
   promptPlacement:'Put the red book on the left side of the shelf…',promptPrecision:'Move the holder 20 mm to the right…',
   viewTop:'Top view',viewPerspective:'3D view',previewReviewTitle:'Review movement',previewBlockedTitle:'Movement preview',
+  rulerNote:'Each tick is 10 mm',
   looking:'Checking the scene…',sceneImageUsed:'Scene image used',visionUnavailable:'This connection couldn’t use the scene image, so I’m using the exact object positions.',posture_spine:'resting on its bound spine',
   cantConnect:'Can’t connect',connectionRetry:'Check your connection and press Connect to retry.',
   hostedConnection:'Connect to the robot',hostedKeyNote:'The connection is managed for you. Press Connect to begin.',
@@ -90,7 +91,7 @@ export const words={
   timedStopped:'回放已停止，录制仍保留。',
   timedRecordingLabel:'录制中',timedReplayingLabel:'回放中',timedCompleteLabel:'回放结束',
   referenceOpen:'参考图和线索',referenceLevel:'{level} · 完成后的桌面',referenceTitle:'{level}挑战参考图',referenceClose:'关闭',referenceClues:'线索',
-  referenceDirection:'坐在椅子上，面向搁板，以这个方向区分左右。',
+  referenceDirection:'坐在椅子上，面向搁板，以这个方向区分左右。尺子上每小格为 10 毫米。',
   references:{
     easy:{
       alt:'完成后的桌面。红书平放在搁板左侧，蓝色笔记本平放在右侧。',
@@ -109,6 +110,7 @@ export const words={
   },
   promptPlacement:'把红书放在搁板左侧…',promptPrecision:'把笔筒向右移 20 毫米…',
   viewTop:'俯视图',viewPerspective:'三维视图',previewReviewTitle:'检查动作',previewBlockedTitle:'动作预览',
+  rulerNote:'每小格 10 毫米',
   looking:'正在查看场景…',sceneImageUsed:'已使用场景图片',visionUnavailable:'此连接暂时无法使用场景图片，我会使用物品的准确位置。',posture_spine:'书脊朝下放置',
   cantConnect:'无法连接',connectionRetry:'请检查网络连接，然后点击连接重试。',
   hostedConnection:'连接机械臂',hostedKeyNote:'连接已配置。点击连接即可开始。',

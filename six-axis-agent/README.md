@@ -8,6 +8,8 @@ For school hosting with a server-held Alibaba key entered through SSH, follow [S
 
 Choose a difficulty and open **Reference & clues** below the scene to see the finished desk. Connect, then press **Start attempt** to reset the desk and record the movements you approve and run. You can reopen the reference during the attempt. Use **Top view** to check spacing and alignment.
 
+The rulers on the front edges of the desk and shelf show 10 mm per tick. In **Top view**, compare the spacing with the objects or try “Move the pen 10 mm to the right.”
+
 - **Easy:** lay both books flat, one on each side of the shelf.
 - **Medium:** stand the red book on its short edge and put the pen inside the holder.
 - **Hard:** put the notebook on its spine, flip the red book, and make measured shifts and a quarter turn with the stationery.

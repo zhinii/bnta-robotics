@@ -1,11 +1,11 @@
-import { initialState, snapshot, applyStep, CATALOG, objectPosture, restingFace, objectLocation, previewSteps, inHolder, footprint, graspWidth } from './world.mjs?v=desk-references-20261109-1';
-import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=desk-references-20261109-1';
-import { createScene } from './scene.mjs?v=desk-references-20261109-1';
-import { createSpeech } from './speech.mjs?v=desk-references-20261109-1';
-import { words, challenges } from './i18n.mjs?v=desk-references-20261109-1';
-import { createTimedChallenge, formatChallengeTime } from './timed-challenge.mjs?v=desk-references-20261109-1';
-import { precisionCommand } from './precision-command.mjs?v=desk-references-20261109-1';
-import deployment from './deployment.mjs?v=desk-references-20261109-1';
+import { initialState, snapshot, applyStep, CATALOG, objectPosture, restingFace, objectLocation, previewSteps, inHolder, footprint, graspWidth } from './world.mjs?v=desk-rulers-20261109-1';
+import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=desk-rulers-20261109-1';
+import { createScene } from './scene.mjs?v=desk-rulers-20261109-1';
+import { createSpeech } from './speech.mjs?v=desk-rulers-20261109-1';
+import { words, challenges } from './i18n.mjs?v=desk-rulers-20261109-1';
+import { createTimedChallenge, formatChallengeTime } from './timed-challenge.mjs?v=desk-rulers-20261109-1';
+import { precisionCommand } from './precision-command.mjs?v=desk-rulers-20261109-1';
+import deployment from './deployment.mjs?v=desk-rulers-20261109-1';
 const serverMode=deployment?.mode==='school',hostedMode=deployment?.mode==='hosted',managedConnection=serverMode||hostedMode;
 
 const $=id=>document.getElementById(id);
@@ -109,6 +109,7 @@ function refresh(){
   $('reset').title=t('reset');$('reset').setAttribute('aria-label',t('reset'));
   $('reset').hidden=busy;$('reset').disabled=timed.recording||timed.replaying;
   $('view-toggle').disabled=!view;$('view-toggle').textContent=t(view?.topView?'viewPerspective':'viewTop');$('view-toggle').setAttribute('aria-pressed',String(!!view?.topView));
+  $('ruler-note').hidden=!view?.topView;
   $('api-key').placeholder=managedConnection?'':t('keyPlaceholder');$('prompt').placeholder=t(timed.level==='hard'?'promptPrecision':'promptPlacement');$('prompt').setAttribute('aria-label',t('messageLabel'));
   $('api-key').hidden=!!connection||managedConnection;$('prompt').hidden=!connection;$('connection-options').hidden=!!connection||managedConnection;
   $('input-label').textContent=t(connection?'messageLabel':'keyLabel');$('input-label').htmlFor=connection?'prompt':'api-key';
@@ -171,7 +172,7 @@ function prepare(actions){
     return Promise.resolve({plan:{steps:undo.at(-1)},undoing:true});
   }
   return new Promise((resolve,reject)=>{
-    const planner=new Worker(new URL('./planner-worker.mjs?v=desk-references-20261109-1',import.meta.url),{type:'module'});worker=planner;
+    const planner=new Worker(new URL('./planner-worker.mjs?v=desk-rulers-20261109-1',import.meta.url),{type:'module'});worker=planner;
     const finish=()=>{clearTimeout(timer);planner.terminate();if(worker===planner){worker=null;workerReject=null;}};
     const timer=setTimeout(()=>{finish();reject(Error('planningTimeout'));},45000);
     workerReject=error=>{finish();reject(error);};
