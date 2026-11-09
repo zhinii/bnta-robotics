@@ -1,4 +1,4 @@
-import { validateActions } from './world.mjs?v=freedom-20261022-2';
+import { validateActions } from './world.mjs?v=desk-targets-20261109-1';
 
 export const DEFAULTS = { base: 'https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1', model: 'qwen3.8-flash' };
 export const RELAY = 'https://s52xzsn2ztf64.kimi.site/api/chat';

@@ -1,9 +1,11 @@
-import { initialState, snapshot, applyStep, CATALOG, objectPosture, restingFace, objectLocation, previewSteps, inHolder, footprint, graspWidth } from './world.mjs?v=freedom-20261022-2';
-import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=freedom-20261022-2';
-import { createScene } from './scene.mjs?v=freedom-20261022-2';
-import { createSpeech } from './speech.mjs?v=freedom-20261022-2';
-import { words, challenges } from './i18n.mjs?v=freedom-20261022-2';
-import deployment from './deployment.mjs?v=freedom-20261022-2';
+import { initialState, snapshot, applyStep, CATALOG, objectPosture, restingFace, objectLocation, previewSteps, inHolder, footprint, graspWidth } from './world.mjs?v=desk-targets-20261109-1';
+import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=desk-targets-20261109-1';
+import { createScene } from './scene.mjs?v=desk-targets-20261109-1';
+import { createSpeech } from './speech.mjs?v=desk-targets-20261109-1';
+import { words, challenges } from './i18n.mjs?v=desk-targets-20261109-1';
+import { createTimedChallenge, deskTargets, formatChallengeTime } from './timed-challenge.mjs?v=desk-targets-20261109-1';
+import { precisionCommand } from './precision-command.mjs?v=desk-targets-20261109-1';
+import deployment from './deployment.mjs?v=desk-targets-20261109-1';
 const serverMode=deployment?.mode==='school',hostedMode=deployment?.mode==='hosted',managedConnection=serverMode||hostedMode;
 
 const $=id=>document.getElementById(id);
@@ -14,9 +16,11 @@ let language='en';try{language=localStorage.getItem('six-axis-language')==='zh'?
 let connectionFailed=false;
 let state=initialState(0,'desk'),connection=null,busy=false,epoch=0,abort=null,history=[],activity='',view=null,undo=[],worker=null,workerReject=null,challengeIndex=0;
 let previewData=null,previewResolve=null,settling=null;
+const timed=createTimedChallenge();
+let capture=null;
 const t=(key,vars={})=>Object.entries(vars).reduce((s,[k,v])=>s.replaceAll('{'+k+'}',v),words[language][key]||key);
 const name=id=>CATALOG[id]?.[language==='zh'?'zh':'name']||state.obstacles.find(o=>o.id===id)?.[language==='zh'?'zh':'name']||({table:'桌面','robot arm':'机械臂','robot base':'机械臂底座','tall divider':'高挡板','low divider':'矮挡板'}[id]&&language==='zh'?{table:'桌面','robot arm':'机械臂','robot base':'机械臂底座','tall divider':'高挡板','low divider':'矮挡板'}[id]:id)||(language==='zh'?'物品':'item');
-const perception=()=>({...snapshot(state),canUndo:undo.length>0});
+const perception=()=>({...snapshot(state),canUndo:undo.length>0,placementTargets:deskTargets[timed.level].map(({id,xy,support},i)=>({number:i+1,object:id,position:xy,surface:support}))});
 const compactLayout=matchMedia('(max-width:900px)');
 compactLayout.addEventListener('change',event=>{
   if(event.matches&&[$('prompt'),$('api-key')].includes(document.activeElement))document.activeElement.blur();
@@ -53,12 +57,55 @@ function render(){
   const items=state.objects.map(o=>({id:o.id,color:o.color,location:o.id===state.held?'inventoryHeld':inHolder(state,o)?'inventoryHolder':onShelf(o)?'inventoryShelf':objectLocation(state,o).location==='floor'?'inventoryFloor':''}));
   const key=JSON.stringify([language,items]);if(key!==inventoryKey){inventoryKey=key;$('inventory-items').replaceChildren(...items.map(o=>{const li=document.createElement('li'),dot=document.createElement('i'),text=document.createElement('span');dot.style.background=o.color;dot.setAttribute('aria-hidden','true');text.textContent=name(o.id)+(o.location?' · '+t(o.location):'');li.append(dot,text);return li;}));}
 }
+function renderTimedClocks(run=timed.summary()){
+  const playback=run.replaying,active=playback||run.recording,summary=playback?run.replayMs:run.attemptMs;
+  for(const [id,value] of [['timed-attempt',formatChallengeTime(run.attemptMs)],['timed-playback',formatChallengeTime(run.replayMs)],
+    ['timed-summary',active?t(playback?'timedReplayingLabel':'timedRecordingLabel')+' · '+formatChallengeTime(summary):run.replayComplete?t('timedCompleteLabel'):'']]){
+    const el=$(id);if(el.textContent!==value)el.textContent=value;
+  }
+  $('timed-summary').hidden=!active&&!run.replayComplete;
+}
+function renderTimed(){
+  const run=timed.summary(),targets=deskTargets[run.level];
+  const levels=document.querySelector('.timed-levels');levels.setAttribute('aria-label',t('timedDifficulty'));
+  for(const button of levels.querySelectorAll('button')){
+    button.setAttribute('aria-pressed',String(button.dataset.level===run.level));button.disabled=busy||run.recording||run.replaying;
+  }
+  $('timed-start').hidden=run.recording||run.replaying;$('timed-start').disabled=busy||!connection||!view;
+  $('timed-start').textContent=t(run.attemptMs===null?'timedStart':'timedNew');
+  $('timed-start').dataset.secondary=String(run.moves>0);
+  $('timed-finish').hidden=!run.recording;$('timed-finish').disabled=busy;
+  $('timed-replay').hidden=run.recording||run.replaying||!run.moves;
+  $('timed-replay').disabled=busy||!view;
+  $('timed-replay').textContent=t(run.replayComplete?'timedAgain':'timedReplay');
+  $('timed-clocks').hidden=run.attemptMs===null||run.recording;
+  const list=$('target-key'),listKey=language+':'+run.level;
+  if(list.dataset.key!==listKey){
+    list.dataset.key=listKey;
+    const title=t(run.level==='hard'?'targetSpotsMm':'targetSpots');
+    $('target-title').textContent=title;list.setAttribute('aria-label',title);
+    list.replaceChildren(...targets.map(({id,xy,space},i)=>{
+      const li=document.createElement('li'),number=document.createElement('span'),label=document.createElement('span'),location=document.createElement('span');
+      number.className='target-number';number.style.setProperty('--target-color',CATALOG[id].color);number.textContent=String(i+1);
+      label.textContent=name(id);location.className='target-coordinates';
+      location.textContent=space?t({'shelf-left':'targetLeft','shelf-middle':'targetMiddle','shelf-right':'targetRight'}[space]):'X '+xy[0]+' · Y '+xy[1];
+      li.append(number,label,location);return li;
+    }));
+  }
+  view?.setTargets(targets);
+  const statusKey=run.replaying?'timedPlaying':run.recording?'timedRecording':run.replayStopped?'timedStopped':run.replayComplete?'timedComplete':run.attemptMs!==null?(run.moves?'timedSaved':'timedEmpty'):connection?'timedReady':'timedConnect';
+  const status=$('timed-status'),label=t(statusKey,{count:run.moves});
+  if(status.textContent!==label)status.textContent=label;
+  renderTimedClocks(run);
+}
 function refresh(){
   document.documentElement.lang=language;
   document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=t(el.dataset.i18n));
   $('language').textContent=language==='en'?'中文':'English';$('language').setAttribute('aria-label',language==='en'?'Switch to Chinese':'切换至英文');
   $('reset').title=t('reset');$('reset').setAttribute('aria-label',t('reset'));
-  $('api-key').placeholder=managedConnection?'':t('keyPlaceholder');$('prompt').placeholder=t('promptPlaceholder');$('prompt').setAttribute('aria-label',t('messageLabel'));
+  $('reset').hidden=busy;$('reset').disabled=timed.recording||timed.replaying;
+  $('view-toggle').disabled=!view;$('view-toggle').textContent=t(view?.topView?'viewPerspective':'viewTop');$('view-toggle').setAttribute('aria-pressed',String(!!view?.topView));
+  $('api-key').placeholder=managedConnection?'':t('keyPlaceholder');$('prompt').placeholder=t(timed.level==='hard'?'promptPrecision':'promptPlacement');$('prompt').setAttribute('aria-label',t('messageLabel'));
   $('api-key').hidden=!!connection||managedConnection;$('prompt').hidden=!connection;$('connection-options').hidden=!!connection||managedConnection;
   $('input-label').textContent=t(connection?'messageLabel':'keyLabel');$('input-label').htmlFor=connection?'prompt':'api-key';
   $('input-label').classList.toggle('sr-only',!!connection);
@@ -66,24 +113,41 @@ function refresh(){
   if(managedConnection){$('input-label').textContent=t(connection?'messageLabel':hostedMode?'hostedConnection':'schoolConnection');$('key-note').textContent=t(hostedMode?'hostedKeyNote':'schoolKeyNote');$('reconnect').textContent=t('schoolReconnect');}
   $('suggestions').hidden=!connection||busy;$('mic').hidden=!connection||busy;$('speech-note').hidden=!connection||!speech.active;
   $('mic').title=t(speech.active?'micStop':'mic');$('mic').setAttribute('aria-label',t(speech.active?'micStop':'mic'));$('mic').setAttribute('aria-pressed',String(speech.active));
-  $('send').textContent=t(connection?'send':'connect');$('send').hidden=busy;$('send').disabled=speech.active;$('stop').hidden=!busy;
+  $('composer').hidden=timed.replaying;
+  $('send').textContent=t(connection?'send':'connect');$('send').disabled=busy||speech.active;
+  $('stop').hidden=!busy||previewData?.kind==='ready';$('stop').textContent=t(timed.replaying?'timedStop':'stop');
   $('api-key').disabled=busy||!!connection;$('prompt').disabled=busy;$('base-url').disabled=busy;$('model').disabled=busy;
   const connectionLabel=connection?'online':activity==='connecting'?'connecting':connectionFailed?'cantConnect':'offline';
   $('connection-state').textContent=t(connectionLabel);
   if(managedConnection&&!connection){$('input-label').textContent=t(activity==='connecting'?'connecting':connectionFailed?'cantConnect':'hostedConnection');$('key-note').textContent=t(connectionFailed?'connectionRetry':hostedMode?'hostedKeyNote':'schoolKeyNote');}$('connection-state').classList.toggle('online',!!connection);
   $('activity').textContent=activity&&activity!=='connecting'&&!previewData?t(activity):'';
   $('preview-panel').hidden=!previewData;
-  if(previewData){$('preview-panel').dataset.kind=previewData.kind;$('preview-run').hidden=previewData.kind!=='ready';$('preview-dismiss').textContent=t(previewData.kind==='ready'?'previewCancel':'previewDismiss');$('preview-description').textContent=t(previewData.kind==='ready'?'previewReady':previewData.kind==='collision'?'previewCollision':previewData.kind==='reach'?'previewReach':'previewPlacement',{object:previewData.blocker?name(previewData.blocker):t('collisionSurface')});}
+  if(previewData){$('preview-panel').dataset.kind=previewData.kind;$('preview-heading').textContent=t(previewData.kind==='ready'?'previewReviewTitle':'previewBlockedTitle');$('preview-run').hidden=previewData.kind!=='ready';$('preview-dismiss').textContent=t(previewData.kind==='ready'?'previewCancel':'previewDismiss');$('preview-description').textContent=t(previewData.kind==='ready'?'previewReady':previewData.kind==='collision'?'previewCollision':previewData.kind==='reach'?'previewReach':'previewPlacement',{object:previewData.blocker?name(previewData.blocker):t('collisionSurface')});}
   document.querySelectorAll('.message[data-key]').forEach(el=>{const vars=JSON.parse(el.dataset.vars);if(vars.objectId)vars.object=name(vars.objectId);el.querySelector('.body').textContent=t(el.dataset.key,vars);});
   document.querySelectorAll('.message').forEach(el=>el.querySelector('.who').textContent=t(el.classList.contains('user')?'you':el.classList.contains('system')?'system':'robot')+(el.dataset.image?' · '+t('sceneImageUsed'):''));
-  view?.language(language);render();
+  view?.language(language);render();renderTimed();
 }
 function status(key){activity=key;refresh();}
 function clearPreview(){previewData=null;view?.clearPreview();}
-function showPreview(data){previewData=data;view?.preview(data);refresh();}
+function showStage(){if(compactLayout.matches)$('scene-stage').scrollIntoView({block:'start',behavior:'auto'});}
+function showPreview(data){
+  previewData=data;view?.preview(data);refresh();
+  requestAnimationFrame(()=>{if(previewData===data){showStage();$('preview-heading').focus({preventScroll:true});}});
+}
 function review(steps){showPreview(previewSteps(state,steps));status('previewWaiting');return new Promise(resolve=>{previewResolve=resolve;});}
+function commitStep(step){
+  applyStep(state,step);
+  if(capture){capture.steps.push(structuredClone(step));capture.partial=null;}
+}
+function finishCapture(){
+  if(!capture)return;
+  if(capture.partial)capture.steps.push(capture.partial);
+  timed.append(capture.steps);capture=null;
+}
 function cancel(announce=true){
-  if(settling){applyStep(state,settling);settling=null;render();}
+  if(settling){commitStep(settling);settling=null;render();}
+  finishCapture();
+  if(timed.replaying)timed.endReplay({stopped:true});
   const reviewing=!!previewResolve;previewResolve?.(false);previewResolve=null;clearPreview();
   epoch++;abort?.abort();abort=null;worker?.terminate();worker=null;workerReject?.(Error('cancelled'));workerReject=null;speech.abort();
   const wasBusy=busy;busy=false;activity='';
@@ -103,7 +167,7 @@ function prepare(actions){
     return Promise.resolve({plan:{steps:undo.at(-1)},undoing:true});
   }
   return new Promise((resolve,reject)=>{
-    const planner=new Worker(new URL('./planner-worker.mjs?v=freedom-20261022-2',import.meta.url),{type:'module'});worker=planner;
+    const planner=new Worker(new URL('./planner-worker.mjs?v=desk-targets-20261109-1',import.meta.url),{type:'module'});worker=planner;
     const finish=()=>{clearTimeout(timer);planner.terminate();if(worker===planner){worker=null;workerReject=null;}};
     const timer=setTimeout(()=>{finish();reject(Error('planningTimeout'));},45000);
     workerReject=error=>{finish();reject(error);};
@@ -120,7 +184,7 @@ async function animate(steps,id){
       const falling=(step.positions||[step]).map(item=>({...item,object:state.objects.find(o=>o.id===item.object)}));
       for(const item of falling)item.from=[...item.object.position];settling=step;
       await new Promise((resolve,reject)=>{let start;
-        function frame(now){if(id!==epoch)return reject(Error('cancelled'));start??=now;const u=Math.min(1,(now-start)/(step.seconds*1000));for(const item of falling)item.object.position=item.from.map((v,i)=>v+(item.position[i]-v)*u*u);render();if(u===1){applyStep(state,step);settling=null;resolve();}else requestAnimationFrame(frame);}requestAnimationFrame(frame);
+        function frame(now){if(id!==epoch)return reject(Error('cancelled'));start??=now;const u=Math.min(1,(now-start)/(step.seconds*1000));for(const item of falling)item.object.position=item.from.map((v,i)=>v+(item.position[i]-v)*u*u);render();if(u===1){commitStep(step);settling=null;resolve();}else requestAnimationFrame(frame);}requestAnimationFrame(frame);
       });continue;
     }
     if(step.type==='preshape'){
@@ -128,22 +192,24 @@ async function animate(steps,id){
       await new Promise((resolve,reject)=>{let previous=null,elapsed=0;function frame(now){
         if(id!==epoch)return reject(Error('cancelled'));
         if(previous!==null)elapsed+=Math.min(50,now-previous);previous=now;
-        const u=Math.min(1,elapsed/((step.seconds||.08)*1000));applyStep(state,{...step,width:from+(step.width-from)*u});render();
+        const u=Math.min(1,elapsed/((step.seconds||.08)*1000)),sample={...step,width:from+(step.width-from)*u,seconds:elapsed/1000};
+        if(u===1)commitStep(step);else{applyStep(state,sample);if(capture&&elapsed>0)capture.partial=sample;}render();
         if(u===1)resolve();else requestAnimationFrame(frame);
       }requestAnimationFrame(frame);});continue;
     }
-    if(step.type!=='move'){applyStep(state,step);render();continue;}
+    if(step.type!=='move'){commitStep(step);render();continue;}
     const moves=[step];while(steps[index+1]?.type==='move')moves.push(steps[++index]);
     await new Promise((resolve,reject)=>{let segment=0,elapsed=0,previous=null,from=[...state.q],fromRpy=[...state.rpy];
       function frame(now){
         if(id!==epoch)return reject(Error('cancelled'));
         if(previous!==null)elapsed+=Math.min(50,now-previous);previous=now;
         while(segment<moves.length&&elapsed>=moves[segment].seconds*1000){
-          const end=moves[segment];elapsed-=end.seconds*1000;applyStep(state,end);segment++;from=[...state.q];fromRpy=[...state.rpy];
+          const end=moves[segment];elapsed-=end.seconds*1000;commitStep(end);segment++;from=[...state.q];fromRpy=[...state.rpy];
         }
         if(segment===moves.length){render();resolve();return;}
         const target=moves[segment],u=Math.min(1,elapsed/(target.seconds*1000));
-        applyStep(state,{type:'move',q:from.map((v,i)=>v+(target.q[i]-v)*u),rpy:fromRpy.map((v,i)=>v+(target.rpy[i]-v)*u)});render();requestAnimationFrame(frame);
+        const sample={type:'move',q:from.map((v,i)=>v+(target.q[i]-v)*u),rpy:fromRpy.map((v,i)=>v+(target.rpy[i]-v)*u),seconds:elapsed/1000};
+        applyStep(state,sample);if(capture&&elapsed>0)capture.partial=sample;render();requestAnimationFrame(frame);
       }requestAnimationFrame(frame);
     });
   }
@@ -182,10 +248,11 @@ async function connect(){
 async function send(question){
   if(busy||!question.trim())return;if(!connection){say('needConnection');return;}if(!view){say('sceneUnavailable',{},'assistant',true);return;}
   speech.abort();clearPreview();const id=++epoch;busy=true;add('user',question);$('prompt').value='';status('thinking');
+  const explicit=precisionCommand(question,state.q,language,deskTargets[timed.level]);
   let feedback,response,prepared,intention;
   try{
     for(let attempt=0;attempt<2;attempt++){
-      response=await request(question,id,feedback);if(id!==epoch)return;
+      response=explicit||await request(question,id,feedback);if(id!==epoch)return;
       if(response.imageStatus==='unavailable')say('visionUnavailable');
       if(!response.actions.length)break;
       status('planning');
@@ -199,7 +266,9 @@ async function send(question){
     intention=add('assistant',response.reply,{image:usedImage});remember('assistant',response.reply);
     if(!await review(prepared.plan.steps)){if(id===epoch){say('previewCancelled');remember('assistant',t('previewCancelled'));}return;}if(id!==epoch)return;status('moving');
     const touched=new Set([state.held,...prepared.plan.steps.filter(step=>step.type==='grip').map(step=>step.object)]);
+    if(timed.recording)capture={steps:[],partial:null};
     await animate(prepared.plan.steps,id);if(id!==epoch)return;
+    finishCapture();
     if(prepared.undoing)undo.pop();else if(prepared.inverse){undo.push(prepared.inverse);undo=undo.slice(-8);}else undo=[];
     const last=response.actions.at(-1),key=state.held?(last.type==='pick'?'pickDone':'holdDone'):last.type==='restore'?'restoreDone':last.type==='undo'?'undoDone':['dance','wave','bow','circle','bob'].includes(last.type)?'danceDone':'done';
     const vars=state.held?{object:name(state.held),objectId:state.held}:{};
@@ -215,16 +284,40 @@ async function send(question){
     intention?.remove();add('assistant',completion,{image:usedImage});
     remember('assistant',completion+'\nExecuted actions: '+JSON.stringify(response.actions)+'\nActual scene: '+JSON.stringify(perception()));
   }catch(error){if(id===epoch){remember('user',question);remember('assistant','Execution did not complete: '+reportError(error)+'\nUnexecuted request: '+JSON.stringify(response?.actions||[])+'\nActual scene: '+JSON.stringify(perception()));}}
-  finally{if(id===epoch){busy=false;activity='';refresh();focusInput($('prompt'));}}
+  finally{if(id===epoch){finishCapture();busy=false;activity='';refresh();focusInput($('prompt'));}}
 }
+function startTimed(){
+  if(busy||!connection||!view||timed.recording||timed.replaying)return;
+  speech.abort();clearPreview();
+  state=initialState(0,'desk');undo=[];history=[];$('prompt').value='';view.resetView();
+  timed.start(state);archiveExchange();say('resetDone',{},'system');refresh();$('timed-status').focus({preventScroll:true});
+}
+async function replayTimed(){
+  if(timed.replaying){cancel(false);return;}
+  if(busy||!view)return;
+  const run=timed.beginReplay();if(!run)return;
+  speech.abort();clearPreview();state=run.scene;undo=[];history=[];view.resetView();
+  const id=++epoch;busy=true;status('');showStage();$('stop').focus({preventScroll:true});
+  try{await animate(run.steps,id);if(id===epoch)timed.endReplay();}
+  catch(error){if(id===epoch){timed.endReplay({stopped:true});reportError(error);}}
+  finally{if(id===epoch){busy=false;activity='';refresh();}}
+}
+document.querySelectorAll('[data-level]').forEach(button=>button.addEventListener('click',()=>{
+  if(!busy&&timed.select(button.dataset.level)){clearPreview();refresh();}
+}));
+$('view-toggle').addEventListener('click',()=>{if(view){view.setTopView(!view.topView);refresh();}});
+$('timed-start').addEventListener('click',startTimed);
+$('timed-finish').addEventListener('click',()=>{if(!busy){timed.finish();refresh();$('timed-status').focus({preventScroll:true});}});
+$('timed-replay').addEventListener('click',()=>void replayTimed());
+setInterval(()=>{if(timed.recording||timed.replaying)renderTimedClocks();},100);
 function submitMessage(){if(!busy&&!speech.active){if(connection)void send($('prompt').value.trim());else void connect();}}
 $('send').addEventListener('click',submitMessage);
 for(const id of ['prompt','api-key'])$(id).addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();submitMessage();}});
 $('stop').addEventListener('click',()=>cancel());
-$('preview-run').addEventListener('click',()=>{const resolve=previewResolve;previewResolve=null;clearPreview();refresh();resolve?.(true);});
+$('preview-run').addEventListener('click',()=>{const resolve=previewResolve;previewResolve=null;clearPreview();refresh();$('stop').focus({preventScroll:true});resolve?.(true);});
 $('preview-dismiss').addEventListener('click',()=>{const resolve=previewResolve;previewResolve=null;clearPreview();refresh();resolve?.(false);});
 function arrange(seed,kit,message){cancel(false);state=initialState(seed,kit);undo=[];history=[];view?.resetView();say(message,{},'system');refresh();}
-$('reset').addEventListener('click',()=>arrange(state.seed,state.kit,'resetDone'));
+$('reset').addEventListener('click',()=>{if(!timed.recording&&!timed.replaying)arrange(state.seed,state.kit,'resetDone');});
 $('language').addEventListener('click',()=>{speech.abort();if(busy)cancel();language=language==='en'?'zh':'en';try{localStorage.setItem('six-axis-language',language);}catch{}refresh();});
 $('reconnect').addEventListener('click',()=>{cancel(false);connection=null;$('api-key').value='';say(managedConnection?(hostedMode?'hostedKeyNote':'schoolKeyNote'):'change');refresh();focusInput(managedConnection?$('send'):$('api-key'));});
 $('mic').addEventListener('click',()=>speech.start($('prompt').value));
@@ -233,4 +326,4 @@ document.querySelectorAll('[data-command]').forEach(button=>button.addEventListe
 try{const saved=JSON.parse(localStorage.getItem('six-axis-settings'));if(saved){$('base-url').value=saved.base||DEFAULTS.base;$('model').value=saved.model||DEFAULTS.model;}}catch{}
 try{view=createScene($('scene'));}catch(error){$('render-error').hidden=false;$('render-error').textContent=t('webgl');}
 say('welcome');refresh();
-Object.defineProperty(window,'robotLabSnapshot',{value:()=>structuredClone({scene:perception(),busy,connected:!!connection,language,listening:speech.active})});
+Object.defineProperty(window,'robotLabSnapshot',{value:()=>structuredClone({scene:perception(),busy,connected:!!connection,language,listening:speech.active,timed:timed.summary()})});

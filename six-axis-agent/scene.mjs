@@ -1,12 +1,13 @@
 import * as THREE from 'three';
 import { OrbitControls } from '../beginner-3axis/vendor/three/examples/jsm/controls/OrbitControls.js';
-import { fk, toolPose } from './kinematics.mjs?v=freedom-20261022-2';
-import { CATALOG, DESK, graspWidth } from './world.mjs?v=freedom-20261022-2';
-import {objectGeometry,gripperGeometry,armGeometry,LINK_RADII,JOINT_RADII,JOINT_LENGTHS,CAP_RADII,CAP_OFFSETS} from './shapes.mjs?v=freedom-20261022-2';
+import { fk, toolPose } from './kinematics.mjs?v=desk-targets-20261109-1';
+import { CATALOG, DESK, graspWidth } from './world.mjs?v=desk-targets-20261109-1';
+import {objectGeometry,gripperGeometry,armGeometry,LINK_RADII,JOINT_RADII,JOINT_LENGTHS,CAP_RADII,CAP_OFFSETS} from './shapes.mjs?v=desk-targets-20261109-1';
 
 export function createScene(container) {
   const scene=new THREE.Scene(); scene.background=new THREE.Color('#eeeee7');
   const station=new THREE.Group();scene.add(station);
+  const placementMarkers=new THREE.Group();station.add(placementMarkers);
   const camera=new THREE.PerspectiveCamera(34,1,1,2500); camera.up.set(0,0,1);
   camera.position.set(400,-750,580);
   const renderer=new THREE.WebGLRenderer({antialias:true});
@@ -23,6 +24,32 @@ export function createScene(container) {
   const mat=(color,metalness=.15)=>new THREE.MeshStandardMaterial({color,roughness:.42,metalness});
   const materials={shell:mat('#e8e9e3'),dark:mat('#35463d',.5),accent:mat('#4d715a'),metal:mat('#7f8a81',.65)};
   const v=p=>new THREE.Vector3(...p);
+  let currentTargets=null,topView=false,savedView=null;
+  function setTargets(targets){
+    if(targets===currentTargets)return;
+    currentTargets=targets;
+    placementMarkers.traverse(object=>{
+      object.geometry?.dispose();
+      object.material?.map?.dispose();
+      object.material?.dispose();
+    });
+    placementMarkers.clear();
+    for(const [i,{id,xy,z}] of targets.entries()){
+      const color=CATALOG[id].color,material=new THREE.MeshBasicMaterial({color,side:THREE.DoubleSide});
+      const outline=new THREE.Mesh(new THREE.RingGeometry(9,12,40),material);
+      outline.position.set(...xy,z+.35);placementMarkers.add(outline);
+      const dot=new THREE.Mesh(new THREE.CircleGeometry(2,20),new THREE.MeshBasicMaterial({color,side:THREE.DoubleSide}));
+      dot.position.set(...xy,z+.38);placementMarkers.add(dot);
+      const canvas=document.createElement('canvas');canvas.width=canvas.height=96;
+      const context=canvas.getContext('2d');
+      context.beginPath();context.arc(48,48,40,0,Math.PI*2);
+      context.fillStyle='#fffefa';context.fill();context.strokeStyle=color;context.lineWidth=9;context.stroke();
+      context.fillStyle='#203b30';context.font='bold 54px sans-serif';context.textAlign='center';context.textBaseline='middle';context.fillText(String(i+1),48,51);
+      const map=new THREE.CanvasTexture(canvas);map.colorSpace=THREE.SRGBColorSpace;
+      const badge=new THREE.Sprite(new THREE.SpriteMaterial({map,transparent:true,depthTest:false,depthWrite:false,sizeAttenuation:false}));
+      badge.position.set(...xy,z+16);badge.scale.set(.036,.036,1);badge.renderOrder=12;placementMarkers.add(badge);
+    }
+  }
   function mesh(geometry,material,parent=station) { const m=new THREE.Mesh(geometry,material); m.castShadow=true;m.receiveShadow=true;parent.add(m);return m; }
   const floor=mesh(new THREE.PlaneGeometry(3000,3000),mat('#c6ac8c',0),scene); floor.position.z=-390;
   const table=mesh(new THREE.BoxGeometry(800,800,12),mat('#ded4bf',.05)); table.position.set(0,0,-7);
@@ -172,7 +199,28 @@ export function createScene(container) {
       obstacles.get(object.id).position.copy(v(object.position));
     }
   }
-  function resize(){const {width,height}=container.getBoundingClientRect();renderer.setSize(width,height);camera.aspect=width/height;camera.fov=width<600?38:36;camera.updateProjectionMatrix();}
+  function fitTop(){
+    station.updateMatrixWorld(true);
+    const center=station.localToWorld(v([(DESK.min[0]+DESK.max[0])/2,(DESK.min[1]+DESK.max[1])/2,0]));
+    const span=Math.max((DESK.max[0]-DESK.min[0]+50)/camera.aspect,DESK.max[1]-DESK.min[1]+50);
+    const distance=span/(2*Math.tan(THREE.MathUtils.degToRad(camera.fov/2)))+90;
+    controls.target.copy(center);camera.position.copy(center).add(v([.01,0,distance]));
+    controls.update();
+  }
+  function setTopView(enabled){
+    if(enabled===topView)return;
+    if(enabled){
+      savedView={position:camera.position.clone(),target:controls.target.clone()};
+      topView=true;camera.up.set(-1,0,0);controls.enableRotate=false;fitTop();
+    }else{
+      topView=false;camera.up.set(0,0,1);controls.enableRotate=true;
+      camera.position.copy(savedView.position);controls.target.copy(savedView.target);controls.update();
+    }
+  }
+  function resetView(){
+    setTopView(false);camera.position.set(400,-750,580);controls.target.set(-205,-60,150);controls.update();
+  }
+  function resize(){const {width,height}=container.getBoundingClientRect();if(!width||!height)return;renderer.setSize(width,height);camera.aspect=width/height;camera.fov=width<600?38:36;camera.updateProjectionMatrix();if(topView)fitTop();}
   new ResizeObserver(resize).observe(container);resize();
   renderer.setAnimationLoop(()=>{
     controls.update();camera.updateMatrixWorld();station.updateMatrixWorld(true);
@@ -182,11 +230,11 @@ export function createScene(container) {
     // Read only the simulated scene, never the surrounding page or a camera.
     const image=document.createElement('canvas'),scale=Math.min(1,512/Math.max(renderer.domElement.width,renderer.domElement.height));
     image.width=Math.max(1,Math.round(renderer.domElement.width*scale));image.height=Math.max(1,Math.round(renderer.domElement.height*scale));
-    const wasVisible=ghosts.visible;ghosts.visible=false;
+    const wasVisible=ghosts.visible,markersVisible=placementMarkers.visible;ghosts.visible=false;placementMarkers.visible=false;
     try{controls.update();camera.updateMatrixWorld();station.updateMatrixWorld(true);renderer.render(scene,camera);image.getContext('2d').drawImage(renderer.domElement,0,0,image.width,image.height);}
-    finally{ghosts.visible=wasVisible;}
+    finally{ghosts.visible=wasVisible;placementMarkers.visible=markersVisible;}
     const data=image.toDataURL('image/jpeg',.6),frame={width:image.width,height:image.height,objects:[...objects].filter(([,m])=>m.visible).map(([id,m])=>{const p=m.getWorldPosition(new THREE.Vector3()).project(camera);return {id,pixel:[Math.round((p.x+1)*image.width/2),Math.round((1-p.y)*image.height/2)],inFrame:Math.abs(p.x)<=1&&Math.abs(p.y)<=1&&Math.abs(p.z)<=1};})};
     return data.length<=64000?{data,width:image.width,height:image.height,frame}:null;
   }
-  return {update,preview,clearPreview,capture,language:()=>{},resetView:()=>{camera.position.set(400,-750,580);controls.target.set(-205,-60,150);}};
+  return {update,preview,clearPreview,capture,setTargets,setTopView,get topView(){return topView;},language:()=>{},resetView};
 }

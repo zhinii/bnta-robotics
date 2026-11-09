@@ -2,11 +2,23 @@
 
 [Open the simulator](https://zhinii.github.io/bnta-robotics/six-axis-agent/)
 
-For school hosting with a server-held Alibaba key entered through SSH, follow [School server deployment](server/SCHOOL-SERVER.md). The package needs only Python 3.9 or newer and runs separately on port 8082.
+For school hosting with a server-held Alibaba key entered through SSH, follow [School server deployment](server/SCHOOL-SERVER.md). The package needs only Python 3.9 or newer and serves the simulator and connection together on a configurable port.
+
+## Timed desk challenges
+
+Connect, choose a difficulty, then press **Start attempt**. This resets the desk and records the movements you approve and run. Use the numbered spots in the scene and the placement key below it. **Top view** makes it easier to compare the objects and their spots.
+
+- **Easy:** two shelf spots for the red book and blue notebook.
+- **Medium:** three shelf spots for the books and pen.
+- **Hard:** five specific locations on the desk and shelf. The key shows X/Y in millimetres.
+
+For example, say “Put the red book at spot 1” or “Place the red book at X 154 Y 152” on Hard. These direct commands also work in Chinese, and all movements still pass the motion and collision checks.
+
+Press **Finish recording** when the arrangement looks right. **Replay** resets the same starting scene and times the recorded movements separately from the attempt, without contacting the AI. Students compare the objects with their marked spots; there is no score or required final arm pose. Recordings stay in the tab until reload.
 
 On phones and narrow tablets, the scene comes first, followed by the command input and the current exchange. Connection status appears once in the page header. Earlier messages and command ideas expand on demand. The compact inventory stays open on every screen size, with equal 8 px side padding. Replies do not automatically focus the phone keyboard or scroll the page to the input.
 
-Visual or ambiguous requests can include one JPEG of the simulated scene, with a maximum edge of 512 px. Ordinary named-object commands and locally measured space questions send no image. The capture excludes chat, API keys, other tabs and device cameras; it includes no rejected preview ghosts. Object IDs and projected image positions accompany the existing exact geometry. Hosted and school backends use `qwen3.7-plus` for image requests (configurable with `ALIBABA_VISION_MODEL` or school `--vision-model`) while routine requests retain `qwen3.8-flash`. If the account cannot use that vision model, the request falls back once to geometry and the page stops trying images for that connection. “Scene image used” identifies replies that actually received one. Images add input tokens and processing time, so they are selective rather than sent continuously. The language prompt is shorter; execution still validates reach, grips, support and collisions.
+Visual or ambiguous requests can include one JPEG of the simulated scene, with a maximum edge of 512 px. Ordinary named-object commands and locally measured space questions send no image. The capture excludes chat, API keys, other tabs and device cameras; it includes no rejected preview ghosts. Object IDs and projected image positions accompany the existing exact geometry. The school backend and original Alibaba relay use `qwen3.7-plus` for image requests (configurable with `ALIBABA_VISION_MODEL` or school `--vision-model`) while routine requests retain `qwen3.8-flash`. If the account cannot use that vision model, the request falls back once to geometry and the page stops trying images for that connection. “Scene image used” identifies replies that actually received one. Images add input tokens and processing time, so they are selective rather than sent continuously. The language prompt is shorter; execution still validates reach, grips, support and collisions.
 
 A conversational classroom activity set in an ordinary student dorm room: **This room is messy. Use your AI-controlled robot to organize the desk.** The robot is clamped to a short end of the desk, with its long edge against a plain wall. The laptop faces the chair and the low organizer follows the wall-side long edge. Five movable items are available: a red book, blue notebook, blue pen, yellow pencil and square pen holder. The fixed laptop and lamp are obstacles. The organizer has left, middle and right spaces; a movable open pen cup accepts the writing tools. The user chooses where things belong, including stacks and side-by-side arrangements. The room includes a bed, wardrobe, pinboard, drawer unit, chair and rug; the window has been removed. A compact corner card contains the Reset button. A bottom-left inventory replaces floating object labels. The original three-axis application is preserved.
 
@@ -17,7 +29,7 @@ The pen holder is an open square box with four 3 mm walls and a 4 mm floor. Its 
 
 After placing an item on the shelf, the assistant asks whether that spot works or whether you would like it elsewhere. A conversational “yes” leaves it in place.
 
-Press **Connect** to use the shared Alibaba connection. The GitHub frontend sends commands to the existing ChatGPT Site relay. Its `ALIBABA_API_KEY` is held in Sites secret storage, is never sent to the browser, and does not enter this repository. The relay fixes the provider, model and robot instructions and bounds body size, response tokens and time. Per-worker limits allow three simultaneous calls, 12 requests per client per minute and 60 overall per minute; these are not a distributed billing cap. The Alibaba account quota remains the spending boundary. The separate school package uses its own same-origin Python backend and server-held key.
+Press **Connect** to use the managed connection. The GitHub frontend uses the hosted relay configured in `agent.mjs`, currently a Kimi Sites endpoint. The browser sends no saved key. The separate school package uses its own same-origin Python backend and server-held Alibaba key.
 
 
 Every checked task first shows green destination outlines and a dashed gripper path. Choose **Run movement** to execute or **Cancel movement** to leave the scene and undo history unchanged. Rejected collisions show a red ghost of the actual rejected candidate pose and an outline of the blocking object. Amber marks unsupported placements or unreachable targets; it does not claim a collision. A rejected candidate is not proof that every possible route is blocked. Previews use copied state and can be dismissed or replaced by a new command.
@@ -112,6 +124,7 @@ Run:
 ~~~sh
 node --test six-axis-agent/tests/*.test.mjs
 node six-axis-agent/tests/browser.mjs
+node six-axis-agent/tests/timed-challenge.browser.mjs
 ~~~
 
 The browser test requires Playwright and Microsoft Edge, and starts its own local static server. Set BNTA_PLAYWRIGHT_PATH to an installed Playwright module URL, BNTA_SCREENSHOTS to capture desktop/mobile images, or BNTA_PREVIEW_URL to test a deployed frontend.

@@ -3,23 +3,55 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#f5f4f0">
-  <meta name="description" content="This room is messy. Tell an AI-controlled robot how to organize a dorm room desk. A conversational robotics activity from Beijing New Talent Academy.">
+  <meta name="description" content="Guide a six-axis robot to arrange objects on a desk, then replay your recorded moves. A robotics activity from Beijing New Talent Academy.">
   <title>BNTA Robot Lab — Six Axis</title>
-  <link rel="stylesheet" href="./style.css?v=freedom-20261022-2">
+  <link rel="stylesheet" href="./style.css?v=desk-targets-20261109-1">
   <script type="importmap">{"imports":{"three":"../beginner-3axis/vendor/three/build/three.module.js"}}</script>
 </head>
-<body data-version="freedom-20261022-2">
+<body data-version="desk-targets-20261109-1">
   <header><div class="brand"><img class="brand-mark" src="./bnta-tree.png" alt="BNTA tree"><b>BNTA Robot Lab</b></div>
     <div class="header-actions"><span id="connection-state" class="status" role="status">Not connected</span><button id="language" aria-label="Switch to Chinese">中文</button></div>
   </header>
   <main>
+    <section id="timed-challenge" class="challenge-panel" aria-labelledby="challenge-title">
+      <h1 id="challenge-title" data-i18n="timedTitle">Timed desk challenge</h1>
+      <div class="timed-levels" role="group" aria-label="Difficulty">
+        <button type="button" data-level="easy" data-i18n="timedEasy" aria-pressed="true">Easy</button>
+        <button type="button" data-level="medium" data-i18n="timedMedium" aria-pressed="false">Medium</button>
+        <button type="button" data-level="hard" data-i18n="timedHard" aria-pressed="false">Hard</button>
+      </div>
+      <p id="timed-status" class="timed-status" tabindex="-1" role="status"></p>
+      <div class="timed-actions">
+        <div class="timed-buttons">
+          <button id="timed-start" type="button" disabled>Start attempt</button>
+          <button id="timed-finish" type="button" data-i18n="timedFinish" hidden>Finish recording</button>
+          <button id="timed-replay" type="button" hidden>Replay</button>
+        </div>
+      </div>
+    </section>
     <section class="workspace" aria-label="Robot workspace">
-      <div class="scene-heading"><div><span class="eyebrow" data-i18n="workspace">YOUR DORM ROOM DESK</span><h1 data-i18n="headline">This room is messy.</h1><p class="scene-mission" data-i18n="mission">Use your AI-controlled robot to organize the desk.</p></div>
-        <button id="reset" class="reset-button" title="Reset scene" aria-label="Reset scene"><span aria-hidden="true">↺</span> <span data-i18n="resetShort">Reset</span></button></div>
-      <div id="scene"><div id="render-error" hidden></div></div>
-      <aside id="inventory" aria-label="Desk inventory"><h3 data-i18n="inventory">On the desk</h3><ul id="inventory-items"></ul><p data-i18n="inventoryHomes">Homes: shelf · pen holder</p><p data-i18n="inventoryFixed">Fixed: laptop · lamp</p><span id="scene-state" role="status">Ready for a job</span></aside>
-      <div class="scene-bottom"><span class="orbit-hint" data-i18n="orbit">Drag to orbit · Scroll to zoom</span></div>
-      <span class="simulation-note" data-i18n="simulation">6-axis kinematic simulation</span>
+      <div id="scene-stage" class="scene-stage">
+        <div id="scene"><div id="render-error" hidden></div></div>
+        <div class="scene-toolbar">
+          <span id="timed-summary" class="timed-summary" hidden></span>
+          <button id="view-toggle" type="button" aria-pressed="false">Top view</button>
+          <button id="reset" class="reset-button" type="button" title="Reset scene" aria-label="Reset scene"><span aria-hidden="true">↺</span> <span data-i18n="resetShort">Reset</span></button>
+          <button id="stop" type="button" hidden>Stop</button>
+        </div>
+      </div>
+      <div id="preview-panel" hidden role="group" aria-labelledby="preview-heading">
+        <h2 id="preview-heading" tabindex="-1"></h2>
+        <p id="preview-description"></p>
+        <div><button id="preview-run" type="button" data-i18n="previewRun">Run movement</button><button id="preview-dismiss" type="button" data-i18n="previewDismiss">Dismiss preview</button></div>
+      </div>
+      <div class="target-strip">
+        <strong id="target-title">Placement spots</strong>
+        <ul id="target-key" aria-label="Placement spots"></ul>
+      </div>
+      <dl id="timed-clocks" class="timed-clocks" hidden>
+        <div><dt data-i18n="timedAttempt">Your attempt</dt><dd id="timed-attempt">—</dd></div>
+        <div><dt data-i18n="timedPlayback">Robot playback</dt><dd id="timed-playback">—</dd></div>
+      </dl>
     </section>
     <section class="conversation" aria-label="Robot conversation">
       <div id="composer" role="group">
@@ -27,17 +59,17 @@
         <input id="api-key" hidden type="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore placeholder="Paste your Alibaba API key" maxlength="512">
         <textarea id="prompt" rows="2" maxlength="1600" aria-label="Message the robot" placeholder="Tell the robot what to do…" hidden></textarea>
         <details id="connection-options" hidden><summary data-i18n="settings">Connection settings</summary><label for="base-url">API base URL</label><input id="base-url" type="url" value="https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1"><label for="model">Model</label><input id="model" value="qwen3.8-flash" spellcheck="false"></details>
-        <div class="composer-bottom"><button type="button" id="reconnect" hidden data-i18n="reconnect">Change connection</button><span id="key-note" data-i18n="hostedKeyNote">Press Connect to begin.</span><button id="mic" type="button" hidden aria-label="Dictate a command" aria-pressed="false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8"/></svg></button><button id="send" type="button" data-i18n="connect">Connect ↗</button><button id="stop" type="button" hidden data-i18n="stop">■ Stop</button></div>
+        <div class="composer-bottom"><button type="button" id="reconnect" hidden data-i18n="reconnect">Change connection</button><span id="key-note" data-i18n="hostedKeyNote">Press Connect to begin.</span><button id="mic" type="button" hidden aria-label="Dictate a command" aria-pressed="false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8"/></svg></button><button id="send" type="button" data-i18n="connect">Connect ↗</button></div>
         <p id="speech-note" hidden data-i18n="speechNote">Dictation uses your browser’s speech service. Review before sending.</p>
       </div>
       <div id="activity" role="status"></div>
-      <div id="preview-panel" hidden role="group" aria-label="Movement preview"><p id="preview-description" role="status"></p><div><button id="preview-run" type="button" data-i18n="previewRun">Run movement</button><button id="preview-dismiss" type="button" data-i18n="previewDismiss">Dismiss preview</button></div></div>
       <div id="messages" role="log" aria-live="polite" aria-relevant="additions text"></div>
       <details id="earlier-messages" hidden><summary data-i18n="earlierMessages">Earlier messages</summary><div id="message-history"></div></details>
       <details id="suggestions" hidden><summary data-i18n="ideas">Command ideas</summary><div><button id="challenge" data-i18n="challenge">Try a challenge</button><button data-command="ask" data-i18n="suggestAsk">What can you do?</button></div></details>
+      <details id="inventory"><summary data-i18n="inventory">On the desk</summary><ul id="inventory-items"></ul><span id="scene-state" role="status"></span></details>
     </section>
   </main>
   <footer><span>Beijing New Talent Academy <span class="footer-cn">/ 北京市新英才学校</span></span></footer>
-  <script type="module" src="./main.mjs?v=freedom-20261022-2"></script>
+  <script type="module" src="./main.mjs?v=desk-targets-20261109-1"></script>
 </body>
 </html>
