@@ -6,15 +6,15 @@ For school hosting with a server-held Alibaba key entered through SSH, follow [S
 
 ## Timed desk challenges
 
-Connect, choose a difficulty, then press **Start attempt**. This resets the desk and records the movements you approve and run. Use the numbered spots in the scene and the placement key below it. **Top view** makes it easier to compare the objects and their spots.
+Choose a difficulty and open **Reference & clues** below the scene to see the finished desk. Connect, then press **Start attempt** to reset the desk and record the movements you approve and run. You can reopen the reference during the attempt. Use **Top view** to check spacing and alignment.
 
-- **Easy:** two shelf spots for the red book and blue notebook.
-- **Medium:** three shelf spots for the books and pen.
-- **Hard:** five specific locations on the desk and shelf. The key shows X/Y in millimetres.
+- **Easy:** lay both books flat, one on each side of the shelf.
+- **Medium:** stand the red book on its short edge and put the pen inside the holder.
+- **Hard:** put the notebook on its spine, flip the red book, and make measured shifts and a quarter turn with the stationery.
 
-For example, say “Put the red book at spot 1” or “Place the red book at X 154 Y 152” on Hard. These direct commands also work in Chinese, and all movements still pass the motion and collision checks.
+For example, say “Put the red book on the left side of the shelf” or “Move the holder 20 mm to the right.” The clues are available in English and Chinese. All movements pass the motion and collision checks.
 
-Press **Finish recording** when the arrangement looks right. **Replay** resets the same starting scene and times the recorded movements separately from the attempt, without contacting the AI. Students compare the objects with their marked spots; there is no score or required final arm pose. Recordings stay in the tab until reload.
+Press **Finish attempt** when the desk matches the reference. **Replay** resets the same starting scene and times the recorded movements separately from the attempt, without contacting the AI. Students compare the final arrangement visually. Recordings stay in the tab until reload.
 
 On phones and narrow tablets, the scene comes first, followed by the command input and the current exchange. Connection status appears once in the page header. Earlier messages and command ideas expand on demand. The compact inventory stays open on every screen size, with equal 8 px side padding. Replies do not automatically focus the phone keyboard or scroll the page to the input.
 

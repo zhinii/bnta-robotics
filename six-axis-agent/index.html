@@ -5,10 +5,10 @@
   <meta name="theme-color" content="#f5f4f0">
   <meta name="description" content="Guide a six-axis robot to arrange objects on a desk, then replay your recorded moves. A robotics activity from Beijing New Talent Academy.">
   <title>BNTA Robot Lab — Six Axis</title>
-  <link rel="stylesheet" href="./style.css?v=desk-targets-20261109-1">
+  <link rel="stylesheet" href="./style.css?v=desk-references-20261109-1">
   <script type="importmap">{"imports":{"three":"../beginner-3axis/vendor/three/build/three.module.js"}}</script>
 </head>
-<body data-version="desk-targets-20261109-1">
+<body data-version="desk-references-20261109-1">
   <header><div class="brand"><img class="brand-mark" src="./bnta-tree.png" alt="BNTA tree"><b>BNTA Robot Lab</b></div>
     <div class="header-actions"><span id="connection-state" class="status" role="status">Not connected</span><button id="language" aria-label="Switch to Chinese">中文</button></div>
   </header>
@@ -24,7 +24,7 @@
       <div class="timed-actions">
         <div class="timed-buttons">
           <button id="timed-start" type="button" disabled>Start attempt</button>
-          <button id="timed-finish" type="button" data-i18n="timedFinish" hidden>Finish recording</button>
+          <button id="timed-finish" type="button" data-i18n="timedFinish" hidden>Finish attempt</button>
           <button id="timed-replay" type="button" hidden>Replay</button>
         </div>
       </div>
@@ -44,10 +44,11 @@
         <p id="preview-description"></p>
         <div><button id="preview-run" type="button" data-i18n="previewRun">Run movement</button><button id="preview-dismiss" type="button" data-i18n="previewDismiss">Dismiss preview</button></div>
       </div>
-      <div class="target-strip">
-        <strong id="target-title">Placement spots</strong>
-        <ul id="target-key" aria-label="Placement spots"></ul>
-      </div>
+      <button id="reference-open" class="reference-open" type="button" aria-haspopup="dialog">
+        <img id="reference-thumb" alt="" width="80" height="54">
+        <span><strong data-i18n="referenceOpen">Reference &amp; clues</strong><small id="reference-level"></small></span>
+        <span class="reference-arrow" aria-hidden="true">↗</span>
+      </button>
       <dl id="timed-clocks" class="timed-clocks" hidden>
         <div><dt data-i18n="timedAttempt">Your attempt</dt><dd id="timed-attempt">—</dd></div>
         <div><dt data-i18n="timedPlayback">Robot playback</dt><dd id="timed-playback">—</dd></div>
@@ -69,7 +70,17 @@
       <details id="inventory"><summary data-i18n="inventory">On the desk</summary><ul id="inventory-items"></ul><span id="scene-state" role="status"></span></details>
     </section>
   </main>
+  <dialog id="reference-dialog" aria-labelledby="reference-title">
+    <div class="reference-heading">
+      <h2 id="reference-title"></h2>
+      <form method="dialog"><button data-i18n="referenceClose" autofocus>Close</button></form>
+    </div>
+    <img id="reference-image" width="1000" height="680" alt="">
+    <p class="reference-direction" data-i18n="referenceDirection">Left and right are from the chair, facing the shelf.</p>
+    <h3 data-i18n="referenceClues">Clues</h3>
+    <ul id="reference-clues"></ul>
+  </dialog>
   <footer><span>Beijing New Talent Academy <span class="footer-cn">/ 北京市新英才学校</span></span></footer>
-  <script type="module" src="./main.mjs?v=desk-targets-20261109-1"></script>
+  <script type="module" src="./main.mjs?v=desk-references-20261109-1"></script>
 </body>
 </html>

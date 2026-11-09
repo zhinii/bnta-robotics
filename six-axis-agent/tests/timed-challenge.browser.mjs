@@ -25,13 +25,14 @@ try{
   let providerCalls=0;
   const routes={
     'connection_check':[],
-    'Put the red book flat on the left shelf spot.':[{type:'transfer',object:'book',target:'shelf-left'}],
-    'Put the blue notebook flat on the right shelf spot.':[{type:'transfer',object:'notebook',target:'shelf-right'}],
+    'Put the red book flat on the left side of the shelf.':[{type:'transfer',object:'book',target:'shelf-left'}],
+    'Put the blue notebook flat on the right side of the shelf.':[{type:'transfer',object:'notebook',target:'shelf-right'}],
   };
   await page.route(RELAY,async route=>{
     providerCalls++;
     const task=JSON.parse(route.request().postDataJSON().messages.at(-1).content);
     assert.ok(Object.hasOwn(routes,task.question),task.question);
+    assert.equal(task.scene.placementTargets,undefined);
     assert.equal(route.request().headers().authorization,undefined);
     await route.fulfill({json:{choices:[{message:{content:JSON.stringify({reply:'Ready.',actions:routes[task.question]})}}]}});
   });
@@ -41,19 +42,35 @@ try{
   const send=async(command,button='preview-run')=>{
     await $('prompt').fill(command);await $('send').click();await $(button).click({timeout:45000});await waitIdle();
   };
+  const openReference=async(level)=>{
+    await $('reference-open').click();
+    await page.waitForFunction(level=>{
+      const img=document.getElementById('reference-image');
+      return img.src.includes('reference-'+level+'.png')&&img.complete&&img.naturalWidth===1000;
+    },level);
+    assert.equal(await $('reference-dialog').isVisible(),true);
+  };
   await page.goto('http://127.0.0.1:'+server.address().port+'/six-axis-agent/');
   await page.waitForFunction(()=>!!window.robotLabSnapshot);
   assert.equal(await $('render-error').isVisible(),false);
   assert.equal(await page.locator('#timed-goals').count(),0);
-  assert.equal(await page.locator('#target-key li').count(),2);
+  assert.equal(await page.locator('#target-key,.target-number').count(),0);
   assert.equal(await $('timed-start').isEnabled(),false);
+  await openReference('easy');
+  assert.match(await $('reference-title').innerText(),/Easy reference/);
+  await page.keyboard.press('Escape');
+  await page.locator('[data-level="medium"]').click();
+  await openReference('medium');
+  assert.match(await $('reference-clues').innerText(),/short edge/);
+  await $('reference-dialog').getByRole('button',{name:'Close'}).click();
+  await page.locator('[data-level="easy"]').click();
   await $('send').click();await waitIdle();assert.equal((await snapshot()).connected,true);
   const start=(await snapshot()).scene;
   await send('Rotate joint 1 30 degrees clockwise');assert.notDeepEqual((await snapshot()).scene.joints,start.joints);
   await $('timed-start').click();
   assert.deepEqual((await snapshot()).scene,start);
   assert.equal(await $('reset').isEnabled(),false);
-  await $('prompt').fill('Put the red book flat on the left shelf spot.');await $('send').click();
+  await $('prompt').fill('Put the red book flat on the left side of the shelf.');await $('send').click();
   await page.waitForFunction(()=>document.activeElement.id==='preview-heading');
   const phoneReview=await page.evaluate(()=>{
     const scene=document.getElementById('scene-stage').getBoundingClientRect(),run=document.getElementById('preview-run').getBoundingClientRect();
@@ -65,8 +82,8 @@ try{
   await $('preview-dismiss').click();await waitIdle();
   assert.equal((await snapshot()).timed.moves,0);
   assert.deepEqual((await snapshot()).scene,start);
-  await send('Put the red book flat on the left shelf spot.');
-  await send('Put the blue notebook flat on the right shelf spot.');
+  await send('Put the red book flat on the left side of the shelf.');
+  await send('Put the blue notebook flat on the right side of the shelf.');
   assert.equal((await snapshot()).timed.recording,true);
   await $('timed-finish').click();
   const finished=await snapshot();
@@ -86,7 +103,7 @@ try{
   assert.ok(replay.timed.replayMs>0);
   assert.deepEqual(replay.scene.objects,finished.scene.objects);
   assert.deepEqual(replay.scene.joints,finished.scene.joints);
-  assert.match(await $('timed-status').innerText(),/Compare the objects/);
+  assert.match(await $('timed-status').innerText(),/Compare your desk with the reference image/);
   assert.equal(await page.evaluate(()=>{
     const clocks=document.getElementById('timed-clocks').getBoundingClientRect();
     return clocks.top>=0&&clocks.bottom<=innerHeight;
@@ -98,9 +115,16 @@ try{
   if(output)await page.screenshot({path:path.join(output,'tablet-replay-result.png'),fullPage:true});
 
   await page.locator('[data-level="hard"]').click();
-  assert.equal(await page.locator('#target-key li').count(),5);
-  assert.match(await $('target-key').innerText(),/X 154 · Y 152/);
   await $('timed-start').click();
+  const beforeReference=await snapshot();
+  await page.setViewportSize({width:390,height:844});
+  await openReference('hard');
+  assert.match(await $('reference-clues').innerText(),/bound spine/);
+  assert.match(await $('reference-clues').innerText(),/20 mm/);
+  if(output)await page.screenshot({path:path.join(output,'phone-hard-reference.png')});
+  await $('reference-dialog').getByRole('button',{name:'Close'}).click();
+  assert.deepEqual((await snapshot()).scene,beforeReference.scene);
+  assert.equal((await snapshot()).timed.recording,true);
   await $('prompt').fill('Rotate joint 1 90degrees clockwise');await $('send').click();await $('preview-run').click();
   await page.waitForFunction(()=>window.robotLabSnapshot().scene.joints[0]<-25);
   await page.evaluate(()=>document.getElementById('stop').click());
@@ -115,10 +139,14 @@ try{
   assert.deepEqual(partialReplay.scene.joints,partial.scene.joints);
   await $('language').click();await page.setViewportSize({width:390,height:844});
   assert.match(await page.locator('[data-level="hard"][aria-pressed="true"]').innerText(),/困难/);
-  assert.match(await $('timed-status').innerText(),/对照编号/);
+  assert.match(await $('timed-status').innerText(),/对照参考图/);
+  await openReference('hard');
+  assert.match(await $('reference-title').innerText(),/困难/);
+  assert.match(await $('reference-clues').innerText(),/毫米/);
+  await page.keyboard.press('Escape');
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
   await page.reload();await page.waitForFunction(()=>!!window.robotLabSnapshot);
   assert.equal((await snapshot()).timed.moves,0);
   assert.deepEqual(errors,[]);
-  console.log('PASS: visual targets, phone approval with the scene in view, timed reset, manual finish, offline replay, top view, partial stop replay, bilingual layouts.');
+  console.log('PASS: three finished references, bilingual clues, phone movement approval, timed reset, manual finish, offline replay, top view and partial stop replay.');
 }finally{await browser?.close();server.close();}

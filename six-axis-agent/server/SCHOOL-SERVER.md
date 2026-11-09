@@ -4,17 +4,17 @@ This package hosts the six-axis simulator and Alibaba connection together. Stude
 
 ## Updating the existing school installation
 
-From Windows PowerShell, upload the desk placement challenge archive and connect:
+From Windows PowerShell, upload the desk reference challenge archive and connect:
 
 ```powershell
-scp "Robot-Lab-school-six-axis-desk-targets-20261109.tar.gz" xyc@192.168.230.31:~/
+scp "Robot-Lab-school-six-axis-desk-references-20261109.tar.gz" xyc@192.168.230.31:~/
 ssh xyc@192.168.230.31
 ```
 
 Run the upload from the folder containing the archive, or use its full path. Then, on the school server:
 
 ```bash
-tar -xzf "$HOME/Robot-Lab-school-six-axis-desk-targets-20261109.tar.gz" -C "$HOME" &&
+tar -xzf "$HOME/Robot-Lab-school-six-axis-desk-references-20261109.tar.gz" -C "$HOME" &&
   bash "$HOME/robot-lab-school/six-axis-agent/server/school-server.sh" restart
 curl -fsS http://127.0.0.1:8081/health
 ```
@@ -30,7 +30,7 @@ Requires Linux, Python 3.9 or newer, SSH access and outbound HTTPS to the select
 Use the absolute local path of the provided archive:
 
 ```powershell
-scp "C:\Users\zhini\OneDrive\Documents\ChatGPT\collaborative workspace\robot-arm-lab\Robot-Lab-school-six-axis-desk-targets-20261109.tar.gz" xyc@192.168.230.31:~/
+scp "C:\Users\zhini\OneDrive\Documents\ChatGPT\collaborative workspace\robot-arm-lab\Robot-Lab-school-six-axis-desk-references-20261109.tar.gz" xyc@192.168.230.31:~/
 ssh xyc@192.168.230.31
 ```
 
@@ -38,7 +38,7 @@ ssh xyc@192.168.230.31
 
 ```bash
 python3 --version
-tar -xzf "$HOME/Robot-Lab-school-six-axis-desk-targets-20261109.tar.gz" -C "$HOME"
+tar -xzf "$HOME/Robot-Lab-school-six-axis-desk-references-20261109.tar.gz" -C "$HOME"
 cd "$HOME/robot-lab-school"
 python3 six-axis-agent/server/school_server.py configure --public-url http://192.168.230.31:8081 --port 8081
 ```

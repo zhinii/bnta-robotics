@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { applyStep, initialState, planActions, snapshot } from '../world.mjs';
-import { createTimedChallenge, deskTargets, formatChallengeTime } from '../timed-challenge.mjs';
+import { applyStep, initialState, inHolder, objectLocation, planActions, restingFace, snapshot } from '../world.mjs';
+import { createTimedChallenge, formatChallengeTime } from '../timed-challenge.mjs';
 import { precisionCommand } from '../precision-command.mjs';
+import { referenceArrangements } from './reference-arrangements.mjs';
 
-for(const [level,targets] of Object.entries(deskTargets))test(`${level}: all visual spots are reachable and replay reproduces the placement`,()=>{
+for(const [level,actions] of Object.entries(referenceArrangements))test(`${level}: the reference arrangement is reachable and replay reproduces it`,()=>{
   let now=0;
   const timed=createTimedChallenge(()=>now),start=initialState(0,'desk');
   timed.select(level);
@@ -12,18 +13,31 @@ for(const [level,targets] of Object.entries(deskTargets))test(`${level}: all vis
   assert.equal(timed.select('hard'),false);
   assert.equal(timed.beginReplay(),null);
   let state=start;
-  for(const target of targets){
-    const plan=planActions(state,[{type:'transfer',object:target.id,position:target.xy}]);
+  for(const action of actions){
+    const plan=planActions(state,[action]);
     timed.append(plan.steps);
     state=plan.result;
     now+=7000;
   }
-  for(const target of targets)assert.deepEqual(state.objects.find(o=>o.id===target.id).position.slice(0,2),target.xy);
+  const item=id=>state.objects.find(o=>o.id===id);
+  const book=item('book'),notebook=item('notebook');
+  assert.equal(objectLocation(state,book).onShelf,true);
+  assert.equal(objectLocation(state,notebook).onShelf,true);
+  assert.equal(book.position[0]<notebook.position[0],level!=='hard');
+  assert.equal(restingFace(book),{easy:'flat',medium:'short-edge',hard:'face-down'}[level]);
+  assert.equal(restingFace(notebook),level==='hard'?'spine':'flat');
+  assert.equal(inHolder(state,item('pen')),level==='medium');
+  assert.equal(inHolder(state,item('pencil')),level==='hard');
+  if(level==='hard'){
+    assert.deepEqual(item('pen-holder').position.slice(0,2),[160,65]);
+    assert.deepEqual(item('pen').position.slice(0,2),[95,-135]);
+    assert.deepEqual(item('pen').rpy,[0,0,90]);
+  }
   assert.equal(timed.recording,true,'the student finishes recording, even after the placement is complete');
   timed.finish();
   assert.equal(timed.recording,false);
-  assert.equal(timed.summary().moves,targets.length);
-  assert.equal(timed.summary().attemptMs,7000*targets.length);
+  assert.equal(timed.summary().moves,actions.length);
+  assert.equal(timed.summary().attemptMs,7000*actions.length);
   now+=50000;
   const playback=timed.beginReplay();
   assert.deepEqual(playback.scene,start);
@@ -33,7 +47,7 @@ for(const [level,targets] of Object.entries(deskTargets))test(`${level}: all vis
   assert.equal(timed.summary().replayComplete,true);
   assert.ok(timed.summary().replayMs>0);
   assert.ok(timed.summary().replayMs<timed.summary().attemptMs);
-  assert.equal(timed.summary().moves,targets.length);
+  assert.equal(timed.summary().moves,actions.length);
 });
 
 test('stop, replay and retry preserve separate clocks and do not grade a partial arrangement',()=>{
@@ -60,17 +74,13 @@ test('stop, replay and retry preserve separate clocks and do not grade a partial
   timed.start(start);assert.equal(timed.summary().moves,0);
 });
 
-test('numbered spots and X/Y commands use exact locations without imposing a pose',()=>{
+test('X/Y commands remain available independently of the reference arrangement',()=>{
   const start=initialState(0,'desk');
-  assert.deepEqual(precisionCommand('Put the red book at spot 1',start.q,'en',deskTargets.easy).actions,
-    [{type:'transfer',object:'book',position:[145,160]}]);
-  assert.deepEqual(precisionCommand('把蓝色笔记本放在 2 号位置',start.q,'zh',deskTargets.medium).actions,
-    [{type:'transfer',object:'notebook',position:[195,160]}]);
   assert.deepEqual(precisionCommand('Place the pen holder at X 160 Y 65',start.q,'en').actions,
     [{type:'transfer',object:'pen-holder',position:[160,65]}]);
   assert.deepEqual(precisionCommand('把铅笔放在 X 105，Y 5',start.q,'zh').actions,
     [{type:'transfer',object:'pencil',position:[105,5]}]);
-  assert.equal(precisionCommand('Put the red book at spot 4',start.q,'en',deskTargets.easy),null);
+  assert.equal(precisionCommand('Put the red book at spot 1',start.q,'en'),null);
 });
 
 test('precise joint commands change only the named joint, preserve direction, and still check limits',()=>{

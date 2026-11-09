@@ -18,10 +18,7 @@ const zhObject='('+Object.keys(chinese).join('|')+')';
 const coordinate='[\\s,，]*x\\s*=?\\s*'+number+'\\s*(?:mm|毫米)?[\\s,，]+y\\s*=?\\s*'+number+'\\s*(?:mm|毫米)?(?:[\\s,，]+(?:yaw|偏航角)\\s*=?\\s*'+number+'\\s*(?:degrees?|deg|度|°)?)?[.!。！]?$';
 const placeEn=new RegExp('^(?:please )?(?:place|put) (?:the )?'+enObject+' (?:flat )?(?:on the shelf )?at\\s*'+coordinate,'i');
 const placeZh=new RegExp('^(?:把|将)\\s*'+zhObject+'\\s*(?:平)?(?:放在|放到)\\s*(?:搁板上)?'+coordinate,'i');
-const spotEn=new RegExp('^(?:please )?(?:place|put) (?:the )?'+enObject+' (?:at|on|in) (?:spot|target)\\s*([1-5])[.!]?$','i');
-const spotZh=new RegExp('^(?:把|将)\\s*'+zhObject+'\\s*(?:放在|放到)\\s*(?:位置|目标)?\\s*([1-5])\\s*(?:号位置|号)?[。！]?$');
-
-export function precisionCommand(question,joints,language,targets=[]){
+export function precisionCommand(question,joints,language){
   const text=question.trim();
   if(/^(?:go home|return (?:to )?home|回到初始姿势|回到原位)[.!。！]?$/iu.test(text))return {
     reply:language==='zh'?'我会回到初始姿势。':'I’ll return to the home pose.',
@@ -38,16 +35,6 @@ export function precisionCommand(question,joints,language,targets=[]){
       reply:language==='zh'?`我会将关节 ${joint} ${direction}旋转 ${angle}°。`:`I’ll rotate joint ${joint} ${angle}° ${direction}.`,
       after:language==='zh'?`关节 ${joint} 已${direction}旋转 ${angle}°。`:`Joint ${joint} rotated ${angle}° ${direction}.`,
       actions:[{type:'pose',joints:q}],
-    };
-  }
-  const spot=spotEn.exec(text)||spotZh.exec(text);
-  if(spot){
-    const [,subject,index]=spot,at=targets[Number(index)-1];
-    if(!at)return null;
-    const item=english[subject.toLowerCase()]||chinese[subject];
-    return {
-      reply:language==='zh'?'我会把'+item.zh+'放到 '+index+' 号位置。':'I’ll place the '+item.en+' at spot '+index+'.',
-      actions:[{type:'transfer',object:item.id,position:[...at.xy]}],
     };
   }
   const place=placeEn.exec(text)||placeZh.exec(text);

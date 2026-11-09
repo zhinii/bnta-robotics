@@ -1,11 +1,11 @@
-import { initialState, snapshot, applyStep, CATALOG, objectPosture, restingFace, objectLocation, previewSteps, inHolder, footprint, graspWidth } from './world.mjs?v=desk-targets-20261109-1';
-import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=desk-targets-20261109-1';
-import { createScene } from './scene.mjs?v=desk-targets-20261109-1';
-import { createSpeech } from './speech.mjs?v=desk-targets-20261109-1';
-import { words, challenges } from './i18n.mjs?v=desk-targets-20261109-1';
-import { createTimedChallenge, deskTargets, formatChallengeTime } from './timed-challenge.mjs?v=desk-targets-20261109-1';
-import { precisionCommand } from './precision-command.mjs?v=desk-targets-20261109-1';
-import deployment from './deployment.mjs?v=desk-targets-20261109-1';
+import { initialState, snapshot, applyStep, CATALOG, objectPosture, restingFace, objectLocation, previewSteps, inHolder, footprint, graspWidth } from './world.mjs?v=desk-references-20261109-1';
+import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=desk-references-20261109-1';
+import { createScene } from './scene.mjs?v=desk-references-20261109-1';
+import { createSpeech } from './speech.mjs?v=desk-references-20261109-1';
+import { words, challenges } from './i18n.mjs?v=desk-references-20261109-1';
+import { createTimedChallenge, formatChallengeTime } from './timed-challenge.mjs?v=desk-references-20261109-1';
+import { precisionCommand } from './precision-command.mjs?v=desk-references-20261109-1';
+import deployment from './deployment.mjs?v=desk-references-20261109-1';
 const serverMode=deployment?.mode==='school',hostedMode=deployment?.mode==='hosted',managedConnection=serverMode||hostedMode;
 
 const $=id=>document.getElementById(id);
@@ -20,7 +20,7 @@ const timed=createTimedChallenge();
 let capture=null;
 const t=(key,vars={})=>Object.entries(vars).reduce((s,[k,v])=>s.replaceAll('{'+k+'}',v),words[language][key]||key);
 const name=id=>CATALOG[id]?.[language==='zh'?'zh':'name']||state.obstacles.find(o=>o.id===id)?.[language==='zh'?'zh':'name']||({table:'桌面','robot arm':'机械臂','robot base':'机械臂底座','tall divider':'高挡板','low divider':'矮挡板'}[id]&&language==='zh'?{table:'桌面','robot arm':'机械臂','robot base':'机械臂底座','tall divider':'高挡板','low divider':'矮挡板'}[id]:id)||(language==='zh'?'物品':'item');
-const perception=()=>({...snapshot(state),canUndo:undo.length>0,placementTargets:deskTargets[timed.level].map(({id,xy,support},i)=>({number:i+1,object:id,position:xy,surface:support}))});
+const perception=()=>({...snapshot(state),canUndo:undo.length>0});
 const compactLayout=matchMedia('(max-width:900px)');
 compactLayout.addEventListener('change',event=>{
   if(event.matches&&[$('prompt'),$('api-key')].includes(document.activeElement))document.activeElement.blur();
@@ -65,8 +65,25 @@ function renderTimedClocks(run=timed.summary()){
   }
   $('timed-summary').hidden=!active&&!run.replayComplete;
 }
+let referenceKey='';
+function renderReference(level){
+  const key=language+':'+level;
+  if(referenceKey===key)return;
+  referenceKey=key;
+  const levelName=t({easy:'timedEasy',medium:'timedMedium',hard:'timedHard'}[level]);
+  const image='./reference-'+level+'.png?v='+document.body.dataset.version;
+  $('reference-level').textContent=t('referenceLevel',{level:levelName});
+  $('reference-title').textContent=t('referenceTitle',{level:levelName});
+  $('reference-thumb').src=image;
+  $('reference-image').src=image;
+  const reference=words[language].references[level];
+  $('reference-image').alt=reference.alt;
+  $('reference-clues').replaceChildren(...reference.clues.map(clue=>{
+    const item=document.createElement('li');item.textContent=clue;return item;
+  }));
+}
 function renderTimed(){
-  const run=timed.summary(),targets=deskTargets[run.level];
+  const run=timed.summary();
   const levels=document.querySelector('.timed-levels');levels.setAttribute('aria-label',t('timedDifficulty'));
   for(const button of levels.querySelectorAll('button')){
     button.setAttribute('aria-pressed',String(button.dataset.level===run.level));button.disabled=busy||run.recording||run.replaying;
@@ -79,20 +96,7 @@ function renderTimed(){
   $('timed-replay').disabled=busy||!view;
   $('timed-replay').textContent=t(run.replayComplete?'timedAgain':'timedReplay');
   $('timed-clocks').hidden=run.attemptMs===null||run.recording;
-  const list=$('target-key'),listKey=language+':'+run.level;
-  if(list.dataset.key!==listKey){
-    list.dataset.key=listKey;
-    const title=t(run.level==='hard'?'targetSpotsMm':'targetSpots');
-    $('target-title').textContent=title;list.setAttribute('aria-label',title);
-    list.replaceChildren(...targets.map(({id,xy,space},i)=>{
-      const li=document.createElement('li'),number=document.createElement('span'),label=document.createElement('span'),location=document.createElement('span');
-      number.className='target-number';number.style.setProperty('--target-color',CATALOG[id].color);number.textContent=String(i+1);
-      label.textContent=name(id);location.className='target-coordinates';
-      location.textContent=space?t({'shelf-left':'targetLeft','shelf-middle':'targetMiddle','shelf-right':'targetRight'}[space]):'X '+xy[0]+' · Y '+xy[1];
-      li.append(number,label,location);return li;
-    }));
-  }
-  view?.setTargets(targets);
+  renderReference(run.level);
   const statusKey=run.replaying?'timedPlaying':run.recording?'timedRecording':run.replayStopped?'timedStopped':run.replayComplete?'timedComplete':run.attemptMs!==null?(run.moves?'timedSaved':'timedEmpty'):connection?'timedReady':'timedConnect';
   const status=$('timed-status'),label=t(statusKey,{count:run.moves});
   if(status.textContent!==label)status.textContent=label;
@@ -167,7 +171,7 @@ function prepare(actions){
     return Promise.resolve({plan:{steps:undo.at(-1)},undoing:true});
   }
   return new Promise((resolve,reject)=>{
-    const planner=new Worker(new URL('./planner-worker.mjs?v=desk-targets-20261109-1',import.meta.url),{type:'module'});worker=planner;
+    const planner=new Worker(new URL('./planner-worker.mjs?v=desk-references-20261109-1',import.meta.url),{type:'module'});worker=planner;
     const finish=()=>{clearTimeout(timer);planner.terminate();if(worker===planner){worker=null;workerReject=null;}};
     const timer=setTimeout(()=>{finish();reject(Error('planningTimeout'));},45000);
     workerReject=error=>{finish();reject(error);};
@@ -248,7 +252,7 @@ async function connect(){
 async function send(question){
   if(busy||!question.trim())return;if(!connection){say('needConnection');return;}if(!view){say('sceneUnavailable',{},'assistant',true);return;}
   speech.abort();clearPreview();const id=++epoch;busy=true;add('user',question);$('prompt').value='';status('thinking');
-  const explicit=precisionCommand(question,state.q,language,deskTargets[timed.level]);
+  const explicit=precisionCommand(question,state.q,language);
   let feedback,response,prepared,intention;
   try{
     for(let attempt=0;attempt<2;attempt++){
@@ -306,6 +310,7 @@ document.querySelectorAll('[data-level]').forEach(button=>button.addEventListene
   if(!busy&&timed.select(button.dataset.level)){clearPreview();refresh();}
 }));
 $('view-toggle').addEventListener('click',()=>{if(view){view.setTopView(!view.topView);refresh();}});
+$('reference-open').addEventListener('click',()=>$('reference-dialog').showModal());
 $('timed-start').addEventListener('click',startTimed);
 $('timed-finish').addEventListener('click',()=>{if(!busy){timed.finish();refresh();$('timed-status').focus({preventScroll:true});}});
 $('timed-replay').addEventListener('click',()=>void replayTimed());
