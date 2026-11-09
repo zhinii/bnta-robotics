@@ -1,6 +1,6 @@
-import { ChallengeController, initialWorld, armById, pose, limits, validJoints, solvePosition, atPose, collision, clone, gripPoint, upgradeHandoffSteps } from './challenge-model.mjs?v=gripper-collisions-1';
-import { createChallengeScene } from './challenge-scene.mjs?v=gripper-collisions-1';
-import { text, words } from './challenge-i18n.mjs?v=gripper-collisions-1';
+import { ChallengeController, initialWorld, armById, pose, limits, validJoints, solvePosition, planMove, clone, gripPoint, upgradeHandoffSteps } from './challenge-model.mjs?v=collision-preview-1';
+import { createChallengeScene } from './challenge-scene.mjs?v=collision-preview-1';
+import { text, words } from './challenge-i18n.mjs?v=collision-preview-1';
 import { CONFIG } from './model.mjs';
 import { ARM, toolReachFor } from './challenge-kinematics.mjs';
 const $=id=>document.getElementById(id),KEY='bnta:robot-challenges:v1',challenges=['easy','medium','hard'],modes=['explore',...challenges];
@@ -9,6 +9,7 @@ try{localStorage.removeItem(KEY);}catch{}
 let language='en',selected='A',tab='controls',controlMode='xyz',draft=null,previewError=null,view=null,controller=null,pending=null,lastProgramKey='',lastComplete=false;
 let message={key:'ready',vars:{},error:false},programs={explore3:[],explore6:[],easy:[],medium:[],hard:[]},recording=false,exploreAxes=6;
 let coordinateTarget=null,xyzReference=null,xyzSeed=null,introVisible=true,taskOpen=false,expandedStep=null;
+let previewPlan=null,previewKey='';
 // Only this UI's successful live replays award progress. Imported programs do not.
 const passed=new Set();
 const unlocked=mode=>mode==='explore'||mode==='easy'||passed.has(challenges[challenges.indexOf(mode)-1]);
@@ -58,7 +59,16 @@ function buildInputs(){
 function syncXYZSlider(input,slider){const value=Number(input.value);if(!input.value.trim()||!Number.isFinite(value))return;slider.min=String(Math.min(Number(slider.dataset.min),value));slider.max=String(Math.max(Number(slider.dataset.max),value));slider.value=input.value;}
 function readXYZ(){const values=['x','y','z'].map(axis=>$('axis-'+axis).value);if(values.some(v=>!v.trim()||!Number.isFinite(Number(v)))){coordinateTarget=null;draft=null;previewError='numbers';render();return;}introVisible=false;taskOpen=false;coordinateTarget=values.map(Number);const r=solvePosition(arm(),coordinateTarget,xyzReference||arm().q,xyzSeed||arm().q);draft=r.q||null;if(r.q)xyzSeed=[...r.q];previewError=r.error||null;preview();}
 function readJoints(){coordinateTarget=null;xyzReference=null;xyzSeed=null;const values=arm().q.map((_,i)=>$('joint-'+i).value);draft=values.every(v=>v.trim()&&Number.isFinite(Number(v)))?values.map(Number):null;if(draft)introVisible=false;taskOpen=false;preview();}
-function preview(){if(draft){previewError=validJoints(arm(),draft)?(controller.world.part.receiver?'handoffLocked':collision(atPose(controller.world,selected,draft))):'limits';}else previewError=previewError||'numbers';render();}
+function refreshPreview(){
+  // Reuse execution's entire path check. Cache it across language/tab/status
+  // renders, and never calculate a new manual preview during real movement.
+  if(controller.busy)return;
+  const key=JSON.stringify([controller.world,selected,draft,controlMode]);if(key===previewKey)return;previewKey=key;
+  previewPlan=null;
+  if(draft){if(validJoints(arm(),draft)){previewPlan=planMove(controller.world,selected,draft,controlMode,{preview:true});previewError=previewPlan.error||null;}else previewError='limits';}
+  else previewError=previewError||'numbers';
+}
+function preview(){previewKey='';render();}
 function execute(type){if(controller.busy)return say('busy',{},true);const step={arm:selected,type};if(type==='move'){if(!draft||!validJoints(arm(),draft))return say(previewError||'numbers',{},true);Object.assign(step,{q:[...draft],kind:controlMode});}pending=null;const r=controller.execute(step);if(!r.error){pending=clone(step);if(type==='move')introVisible=false;taskOpen=false;render();}report(r);}
 function addStep(type){if(controller.busy)return say('busy',{},true);const step={type,arm:selected};if(type==='move'){if(!draft||!validJoints(arm(),draft))return say('limits',{},true);Object.assign(step,{q:[...draft],kind:controlMode});}if(type==='handoff')return say('handoffSteps',{},true);if(report(controller.add(step))){rememberProgram();say('programAdded');}}
 function setRecording(on){
@@ -78,6 +88,7 @@ function showCoordinates(id,key,p,armId){
 }
 function render(){
   if(!controller)return;const world=controller.world,a=arm(),exploring=world.mode==='explore';document.documentElement.lang=language;$('language').value=language;
+  refreshPreview();
   document.querySelectorAll('[data-t]').forEach(el=>el.textContent=t(el.dataset.t));
   document.querySelectorAll('[data-mode]').forEach(b=>{b.setAttribute('aria-pressed',String(b.dataset.mode===world.mode));b.disabled=controller.busy||!unlocked(b.dataset.mode);b.title=t(unlocked(b.dataset.mode)?b.dataset.mode+'Name':'locked');});
   document.querySelectorAll('[data-arm]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.arm===selected)));
@@ -98,7 +109,7 @@ function render(){
   $('target-tcp').classList.toggle('invalid',!controller.running&&!!previewError);
   document.querySelectorAll('[data-joint-name]').forEach(el=>el.textContent=words[language].jointNames[Number(el.dataset.jointName)]);
   document.querySelectorAll('#xyz-inputs input[type="range"]').forEach(el=>el.setAttribute('aria-label',t('coordinateSlider',{axis:el.dataset.axis})));
-  $('preview-state').textContent=t(world.failure?'restartRequired':previewError||'previewShort');$('preview-state').className=world.failure||previewError?'error':'';
+  $('preview-state').textContent=previewPlan?.collision&&!world.failure?t('collisionPreview',{reason:t(previewError)}):t(world.failure?'restartRequired':previewError||'previewShort');$('preview-state').className=world.failure||previewError?'error':'';
   for(const id of ['move','add-move'])$(id).disabled=controller.busy||(id==='move'&&!!world.failure)||!draft||!validJoints(a,draft);
   document.querySelectorAll('#xyz-inputs input,#joint-inputs input,[data-action="open"],[data-action="close"]').forEach(el=>el.disabled=controller.busy||!!world.failure);
   $('record').disabled=controller.busy;$('record').setAttribute('aria-pressed',String(recording));$('record').textContent=t(recording?'finishRecord':'record');$('record').title=t('recordHelp');
@@ -125,7 +136,7 @@ function render(){
   const active=controller.running?{key:controller.paused?'paused':'running',vars:{step:controller.index+1,total:controller.program.length,arm:controller.program[controller.index]?.arm||''}}:message;
   $('feedback').textContent=t(active.key,{...active.vars,...(active.vars?.reason?{reason:t(active.vars.reason)}:{})});$('feedback').className=message.error&&!controller.running?'error':'';
   $('save-state').textContent=t('sessionOnly');
-  view?.update(world,{language,selected,target:!world.failure&&draft&&validJoints(a,draft)?draft:null,targetPosition:world.failure?null:targetPosition,error:!!previewError,introVisible});
+  view?.update(world,{language,selected,target:!world.failure&&!controller.busy&&draft&&validJoints(a,draft)?draft:null,targetPosition:world.failure||controller.busy?null:targetPosition,error:!controller.busy&&!!previewError,motion:world.failure||controller.busy?null:previewPlan,introVisible});
 }
 function renderProgram(){
   $('steps').replaceChildren(...controller.program.map((step,i)=>{

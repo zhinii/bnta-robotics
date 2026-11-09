@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {initialWorld,pose,applyAction,collision,graspContact,bounds,ChallengeController,gripperParts,solvePosition,atPose} from '../challenge-model.mjs';
+import {initialWorld,pose,applyAction,collision,graspContact,bounds,ChallengeController,gripperParts,solvePosition,atPose,planMove} from '../challenge-model.mjs';
 import {ikTool,transform,rotationFromEuler} from '../challenge-kinematics.mjs';
 import {boxesIntersect} from '../challenge-contact.mjs';
 import {referenceProgram} from './challenge-fixtures.mjs';
@@ -88,3 +88,18 @@ for(const axes of [3,6]){
   assert.equal(c.execute({type:'move',arm:'A',q:target}).error,'partCollision');assert.deepEqual(c.world,before);assert.equal(c.busy,false);assert.equal(c.metrics.actions,0);
  });
 }
+
+test('movement preview identifies the same first collision as execution, even with a clear destination',()=>{
+ const w=initialWorld('easy'),before=structuredClone(w),q=solvePosition(w.arms[0],w.source).q;
+ assert.equal(collision(atPose(w,'A',q)),null);
+ const preview=planMove(w,'A',q,'xyz',{preview:true}),execution=applyAction(w,{arm:'A',type:'move',q,kind:'xyz'});
+ assert.equal(preview.error,'partCollision');assert.deepEqual(preview.collision,execution.collision);assert.deepEqual(preview.trace,execution.trace);
+ assert.ok(preview.collision.fraction>0&&preview.collision.fraction<1);assert.deepEqual(preview.collision.partIndices,[0]);assert.ok(preview.collision.point.every(Number.isFinite));
+ assert.deepEqual(preview.trace.at(-1),pose(w.arms[0],preview.collision.q).tip);assert.equal(collision(atPose(w,'A',preview.collision.q)),preview.error);assert.deepEqual(w,before);
+ const clear=planMove(w,'A',solvePosition(w.arms[0],[147,-85,130]).q,'xyz',{preview:true});assert.equal(clear.error,undefined);assert.equal(clear.collision,undefined);assert.equal(clear.samples.length,0);assert.deepEqual(clear.trace.at(-1),pose(clear.end.arms[0]).tip);
+});
+test('wall previews identify the blocked wall, while a shared-grip preview never drops the part',()=>{
+ let w=initialWorld('medium');for(const s of referenceProgram('medium').slice(0,2))w=applyAction(w,s).end;
+ const q=ikTool([220,110,130],w.arms[0].q,'nearest',[0,0,0]).q,preview=planMove(w,'A',q,'joints',{preview:true});assert.ok(preview.error);assert.ok(preview.collision.obstacleIndex>=0);assert.equal(preview.collision.point[0],w.wall.planeX);
+ const route=referenceProgram('hard'),shared=through(route,7),before=structuredClone(shared),locked=planMove(shared,'B',route[9].q,'joints',{preview:true});assert.equal(locked.error,'handoffLocked');assert.equal(locked.failure,undefined);assert.deepEqual(shared,before);
+});

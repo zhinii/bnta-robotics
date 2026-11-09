@@ -115,34 +115,47 @@ export function jointBounds(arm){
   return {min:sub(origin,extent),max:add(origin,extent)};
  });
 }
-export function collision(world) {
+const midpoint=(a,b)=>a.map((v,i)=>(v+b[i])/2);
+function closestOnSegment(a,b,p){const d=sub(b,a),length=d.reduce((s,v)=>s+v*v,0),t=length?Math.max(0,Math.min(1,d.reduce((s,v,i)=>s+v*(p[i]-a[i]),0)/length)):0;return a.map((v,i)=>v+d[i]*t);}
+function contactMarker(a,b){const aa=bounds(a.position,a.rotation,a.size),bb=bounds(b.position,b.rotation,b.size);return aa.min.map((v,i)=>(Math.max(v,bb.min[i])+Math.min(aa.max[i],bb.max[i]))/2);}
+export function collision(world,details=false) {
+  const hit=(error,point=null,extra={})=>details?{error,point,...extra}:error,parts=world.parts||[world.part];
   for(const arm of world.arms) {
-    if(!validJoints(arm,arm.q))return 'limits';
-    const p=pose(arm),segments=armSegments(arm);
-    for(let i=0;i<p.points.length-1;i++)for(let j=i+3;j<p.points.length-1;j++)if(segmentDistance(p.points[i],p.points[i+1],p.points[j],p.points[j+1])<segments[i].radius+segments[j].radius)return 'selfCollision';
-    if(p.points.slice(2).some(point=>point[2]<10)||gripperParts(arm).some(g=>bounds(g.position,g.rotation,g.size).min[2]<0))return 'table';
-    for(const box of world.obstacles) {
-      if(segments.some(s=>segmentBox(s.a,s.b,box,s.radius)))return 'obstacle';
-      if(jointBounds(arm).some(j=>hitsBox(boundsShape(j),box)))return 'obstacle';
-      if(gripperParts(arm).some(g=>hitsBox(g,box)))return 'obstacle';
+    if(!validJoints(arm,arm.q))return hit('limits');
+    const p=pose(arm),segments=armSegments(arm),gripper=gripperParts(arm);
+    for(let i=0;i<p.points.length-1;i++)for(let j=i+3;j<p.points.length-1;j++)if(segmentDistance(p.points[i],p.points[i+1],p.points[j],p.points[j+1])<segments[i].radius+segments[j].radius)return hit('selfCollision',closestOnSegment(p.points[i],p.points[i+1],p.points[j]));
+    const low=p.points.slice(2).find(point=>point[2]<10)||gripper.find(g=>bounds(g.position,g.rotation,g.size).min[2]<0)?.position;
+    if(low)return hit('table',[low[0],low[1],0]);
+    for(const [obstacleIndex,box] of world.obstacles.entries()) {
+      const obstaclePoint=point=>box.polygon?[box.planeX,point[1],point[2]]:point.map((v,i)=>Math.max(box.min[i],Math.min(box.max[i],v)));
+      const segment=segments.find(s=>segmentBox(s.a,s.b,box,s.radius));
+      if(segment)return hit('obstacle',obstaclePoint(closestOnSegment(segment.a,segment.b,box.polygon?[box.planeX,...midpoint(segment.a,segment.b).slice(1)]:midpoint(box.min,box.max))),{obstacleIndex});
+      const joint=jointBounds(arm).find(j=>hitsBox(boundsShape(j),box));
+      if(joint)return hit('obstacle',obstaclePoint(midpoint(joint.min,joint.max)),{obstacleIndex});
+      const finger=gripper.find(g=>hitsBox(g,box));
+      if(finger)return hit('obstacle',obstaclePoint(finger.position),{obstacleIndex});
     }
     // Surface contact is allowed; solid fingers, palm and links cannot penetrate
     // a block. This includes both robot types, held parts and the receiving arm.
-    for(const part of world.parts||[world.part]){
-      if(part.owner!==arm.id)for(let i=1;i<segments.length-1;i++){const link=linkShape(segments[i]);if(link&&boxesIntersect(link,part))return 'partCollision';}
-      if(gripperParts(arm).some(g=>boxesIntersect(g,part)))return 'partCollision';
+    for(const [partIndex,part] of parts.entries()){
+      if(part.owner!==arm.id)for(let i=1;i<segments.length-1;i++){const link=linkShape(segments[i]);if(link&&boxesIntersect(link,part))return hit('partCollision',contactMarker(link,part),{partIndices:[partIndex]});}
+      const finger=gripper.find(g=>boxesIntersect(g,part));
+      if(finger)return hit('partCollision',contactMarker(finger,part),{partIndices:[partIndex]});
     }
   }
   if(world.part.owner) {
     const b=bounds(world.part.position,world.part.rotation,world.part.size);
-    if(b.min[2]<-.01)return 'table'; if(world.obstacles.some(o=>hitsBox(world.part,o)))return 'partCollision';
-    if(world.parts?.some(p=>p!==world.part&&boxesIntersect(p,world.part)))return 'partCollision';
+    if(b.min[2]<-.01)return hit('table',[world.part.position[0],world.part.position[1],0],{partIndices:[parts.indexOf(world.part)]});
+    const obstacleIndex=world.obstacles.findIndex(o=>hitsBox(world.part,o));
+    if(obstacleIndex>=0)return hit('partCollision',world.wall?[world.wall.planeX,world.part.position[1],world.part.position[2]]:world.part.position,{obstacleIndex,partIndices:[parts.indexOf(world.part)]});
+    const partIndex=parts.findIndex(p=>p!==world.part&&boxesIntersect(p,world.part));
+    if(partIndex>=0)return hit('partCollision',contactMarker(parts[partIndex],world.part),{partIndices:[partIndex,parts.indexOf(world.part)]});
   }
   if(world.arms.length===2) {
     const a=pose(world.arms[0]).points,b=pose(world.arms[1]).points,sa=armSegments(world.arms[0]),sb=armSegments(world.arms[1]);
-    for(let i=0;i<a.length-1;i++)for(let j=0;j<b.length-1;j++)if(segmentDistance(a[i],a[i+1],b[j],b[j+1])<sa[i].radius+sb[j].radius+2)return 'armCollision';
-    for(let side=0;side<2;side++){const other=pose(world.arms[1-side]).points;for(const g of gripperParts(world.arms[side]))for(let i=0;i<other.length-1;i++)if(segmentShape(other[i],other[i+1],g,(side?sa:sb)[i].radius))return 'armCollision';}
-    for(const ga of gripperParts(world.arms[0]))for(const gb of gripperParts(world.arms[1]))if(boxesIntersect(ga,gb))return 'armCollision';
+    for(let i=0;i<a.length-1;i++)for(let j=0;j<b.length-1;j++)if(segmentDistance(a[i],a[i+1],b[j],b[j+1])<sa[i].radius+sb[j].radius+2)return hit('armCollision',closestOnSegment(a[i],a[i+1],b[j]));
+    for(let side=0;side<2;side++){const other=pose(world.arms[1-side]).points;for(const g of gripperParts(world.arms[side]))for(let i=0;i<other.length-1;i++)if(segmentShape(other[i],other[i+1],g,(side?sa:sb)[i].radius))return hit('armCollision',closestOnSegment(other[i],other[i+1],g.position));}
+    for(const ga of gripperParts(world.arms[0]))for(const gb of gripperParts(world.arms[1]))if(boxesIntersect(ga,gb))return hit('armCollision',contactMarker(ga,gb));
   }
   return null;
 }
@@ -152,28 +165,29 @@ function gripperSweep(world,id,target){
  for(let i=0;i<=count;i++){arm.jawY=target.map((y,j)=>start[j]+(y-start[j])*i/count);const hit=collision(trial);if(hit)return hit;}
  return null;
 }
-export function planMove(world,id,q,kind='joints') {
+export function planMove(world,id,q,kind='joints',{preview=false}={}) {
   if(world.failure)return {error:'restartRequired'};
   const arm=armById(world,id);if(!arm||!validJoints(arm,q))return {error:'limits'};
-  if(world.part.receiver&&distance(arm.q,q)>.01)return dropPart(world,'handoffDropped');
-  const start=arm.q,n=Math.max(1,Math.ceil(Math.max(...q.map((v,i)=>Math.abs(v-start[i])))/.5)),samples=[];
-  let crossed=world.evidence.gate,entering=world.evidence.slotEntry,previous=world.part.position;
+  if(world.part.receiver&&distance(arm.q,q)>.01)return preview?{error:'handoffLocked'}:dropPart(world,'handoffDropped');
+  const start=arm.q,n=Math.max(1,Math.ceil(Math.max(...q.map((v,i)=>Math.abs(v-start[i])))/.5)),samples=[],trace=[pose(arm).tip];
+  let crossed=world.evidence.gate,entering=world.evidence.slotEntry,previous=world.part.position,end;
   for(let i=1;i<=n;i++) {
-    const next=atPose(world,id,start.map((v,k)=>v+(q[k]-v)*i/n)),error=collision(next);if(error)return {error};
+    const next=atPose(world,id,start.map((v,k)=>v+(q[k]-v)*i/n)),moving=armById(next,id),hit=collision(next,true);trace.push(pose(moving).tip);
+    if(hit)return {error:hit.error,collision:{...hit,arm:id,q:[...moving.q],fraction:i/n},trace};
     const p=next.part.position;
     if(world.wall&&world.part.owner===id&&previous[0]<world.wall.planeX&&p[0]>=world.wall.planeX){
       const wall=world.wall,dx=p[1]-wall.centre[1],dz=p[2]-wall.centre[2];
       if(Math.abs(dx*wall.u[0]+dz*wall.u[1])<wall.width/2&&Math.abs(dx*wall.v[0]+dz*wall.v[1])<wall.height/2){
-        if(!slotAligned(next.part,wall))return {error:'slotAlignment'};
+        if(!slotAligned(next.part,wall))return {error:'slotAlignment',collision:{error:'slotAlignment',point:[...p],arm:id,q:[...moving.q],fraction:i/n,obstacleIndex:0,partIndices:[0]},trace};
         entering=true;
       }
     }
     if(world.wall&&world.part.owner===id){const b=bounds(next.part.position,next.part.rotation,next.part.size);if(entering&&b.min[0]>world.wall.planeX+world.wall.depth/2)crossed=true;if(b.max[0]<world.wall.planeX-world.wall.depth/2)entering=false;}
-    previous=p;samples.push(next);
+    previous=p;end=next;if(!preview)samples.push(next);
   }
-  const end=samples.at(-1);end.evidence.gate=crossed;end.evidence.slotEntry=entering;
+  end.evidence.gate=crossed;end.evidence.slotEntry=entering;
   if(kind==='joints'&&arm.axes===6&&distance(start,q)>.1)end.evidence.jointMove=true;
-  return {samples,end,duration:Math.max(250,Math.max(...q.map((v,i)=>Math.abs(v-start[i])))/55*1000)};
+  return {samples,end,trace,duration:Math.max(250,Math.max(...q.map((v,i)=>Math.abs(v-start[i])))/55*1000)};
 }
 function success(world) {
   const e=world.evidence;world.complete=world.mode!=='explore'&&!world.failure&&e.delivered&&e.picked&&(world.mode!=='medium'||(e.gate&&e.jointMove))&&(world.mode!=='hard'||e.handoff);return world;

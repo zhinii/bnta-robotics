@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import {mkdir} from 'node:fs/promises';
-import {operate,record,replay} from './challenge-browser-helpers.mjs';
+import {operate,record,replay,enterChallenge} from './challenge-browser-helpers.mjs';
 import {referenceProgram} from './challenge-fixtures.mjs';
+import {initialWorld,applyAction} from '../challenge-model.mjs';
+import {ikTool} from '../challenge-kinematics.mjs';
 const {chromium}=await import(process.env.BNTA_PLAYWRIGHT_PATH||'playwright');
 const browser=await chromium.launch({channel:'msedge',headless:true});
 const out=process.env.BNTA_SCREENSHOTS||'../../test-artifacts/gripper-collisions';await mkdir(out,{recursive:true});
@@ -16,6 +18,7 @@ try{
   await operate(page,'close');await idle();const actual=await page.locator('#tcp').textContent(),objects=await page.locator('#task-positions').textContent();
   await operate(page,`target 150 -70 ${axes===3?24:16}`);
   assert.match(await page.locator('#preview-state').textContent(),/Collision/);
+  assert.match(await page.locator('#scene canvas').getAttribute('aria-label'),/first blockage/);
   assert.equal(await page.locator('#target-tcp').evaluate(el=>el.classList.contains('invalid')),true);
   await operate(page,'move');await idle();assert.match(await page.locator('#feedback').textContent(),/Collision/);
   assert.equal(await page.locator('#tcp').textContent(),actual);assert.equal(await page.locator('#task-positions').textContent(),objects);assert.equal(await page.locator('#step-count').textContent(),'1');
@@ -31,7 +34,14 @@ try{
  }
  // The endpoint is clear, but a direct sideways approach crosses a finger into
  // the object. The move is rejected before motion and before any recording.
- await page.locator('[data-mode="easy"]').click();await record(page);const before=await page.locator('#tcp').textContent();await operate(page,'target 147 -85 80');await operate(page,'move');
+ await page.locator('[data-mode="easy"]').click();await record(page);const before=await page.locator('#tcp').textContent();await operate(page,'target 147 -85 80');
+ assert.match(await page.locator('#preview-state').textContent(),/first blocked position/);assert.match(await page.locator('#scene canvas').getAttribute('aria-label'),/first blockage/);
+ await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));await page.screenshot({path:`${out}/first-blocked-pose.png`});await operate(page,'move');
  assert.match(await page.locator('#feedback').textContent(),/Collision/);assert.equal(await page.locator('#tcp').textContent(),before);assert.equal(await page.locator('#step-count').textContent(),'0');
+ await operate(page,'target 147 -85 130');await page.locator('#axis-slider-z').focus();await page.keyboard.press('ArrowRight');assert.equal(await page.locator('#target-tcp').evaluate(el=>el.classList.contains('invalid')),false);assert.doesNotMatch(await page.locator('#scene canvas').getAttribute('aria-label'),/first blockage/);assert.equal(await page.locator('#tcp').textContent(),before);assert.equal(await page.locator('#step-count').textContent(),'0');
+ await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));await page.screenshot({path:`${out}/clear-route-recovered.png`});
+ // Carry a bar into the wall: the wall and the blocked preview are highlighted.
+ await enterChallenge(page,'medium');let world=initialWorld('medium');for(const step of referenceProgram('medium').slice(0,2)){if(step.type==='move'){await operate(page,'joints '+step.q.join(' '));await operate(page,'move');}else await operate(page,step.type);await idle();world=applyAction(world,step).end;}
+ const q=ikTool([220,110,130],world.arms[0].q,'nearest',[0,0,0]).q;await operate(page,'joints '+q.join(' '));assert.match(await page.locator('#scene canvas').getAttribute('aria-label'),/first blockage/);await page.locator('#language').selectOption('zh');assert.match(await page.locator('#preview-state').textContent(),/首次受阻/);await page.setViewportSize({width:768,height:1024});await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));await page.screenshot({path:`${out}/wall-collision-zh.png`});
  assert.deepEqual(errors,[]);console.log('Collision browser PASS: both robot types reject closed-finger penetration; red bilingual preview/error; actual pose/objects/recording unchanged; replay cannot bypass collisions; safe pickup/release works; clear-endpoint path collision blocked.');
 }finally{await browser.close();}
