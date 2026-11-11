@@ -34,7 +34,7 @@ for(const [level,actions] of Object.entries(referenceArrangements))test(`${level
     assert.deepEqual(item('pen').rpy,[0,0,90]);
   }
   assert.equal(timed.recording,true,'the student finishes recording, even after the placement is complete');
-  timed.finish();
+  timed.finish(state);
   assert.equal(timed.recording,false);
   assert.equal(timed.summary().moves,actions.length);
   assert.equal(timed.summary().attemptMs,7000*actions.length);
@@ -57,9 +57,9 @@ test('stop, replay and retry preserve separate clocks and do not grade a partial
   const plan=planActions(start,[{type:'transfer',object:'book',target:'shelf-left'}]);
   timed.append([]);
   timed.append(plan.steps);
-  now=15000;timed.finish();
+  now=15000;timed.finish(plan.result);
   assert.equal(timed.summary().moves,1);
-  timed.beginReplay();now+=1500;timed.endReplay({stopped:true});
+  timed.beginReplay();now+=1500;timed.advanceReplay(1500);timed.endReplay({stopped:true});
   assert.equal(timed.summary().replayStopped,true);
   assert.equal(timed.summary().replayComplete,false);
   assert.equal(timed.summary().replayMs,1500);
@@ -81,6 +81,38 @@ test('X/Y commands remain available independently of the reference arrangement',
   assert.deepEqual(precisionCommand('把铅笔放在 X 105，Y 5',start.q,'zh').actions,
     [{type:'transfer',object:'pencil',position:[105,5]}]);
   assert.equal(precisionCommand('Put the red book at spot 1',start.q,'en'),null);
+});
+
+test('pausing freezes replay time and editing restores the saved endpoint with the earlier moves',()=>{
+  let now=0;
+  const timed=createTimedChallenge(()=>now),start={objects:[{position:[0,0,0]}]};
+  const end={objects:[{position:[10,0,0]}]};
+  timed.start(start);timed.append([{type:'move',seconds:2}]);
+  now=5000;timed.finish(end);
+  const replay=timed.beginReplay();
+  replay.scene.objects[0].position[0]=3;
+  timed.advanceReplay(500);timed.pauseReplay();now=100000;timed.advanceReplay(1000);
+  assert.equal(timed.summary().replayMs,500);
+  assert.equal(timed.paused,true);
+  assert.equal(timed.edit(),null);
+  timed.pauseReplay();timed.advanceReplay(500);timed.endReplay({stopped:true});
+  assert.equal(timed.summary().replayMs,1000);
+  assert.deepEqual(timed.savedScene(),end);
+  const edited=timed.edit();
+  assert.deepEqual(edited,end);
+  edited.objects[0].position[0]=12;
+  assert.deepEqual(timed.savedScene(),end,'editing works on a copy of the saved scene');
+  timed.append([{type:'move',seconds:1}]);now+=2000;timed.finish(edited);
+  assert.equal(timed.summary().attemptMs,7000,'review and playback time are excluded from solve time');
+  assert.equal(timed.summary().moves,2);
+  assert.equal(timed.summary().replayMs,null);
+  const again=timed.beginReplay();
+  assert.deepEqual(again.scene,start);assert.equal(again.commands.length,2);
+  timed.endReplay();assert.equal(timed.summary().replayMs,3000);
+  assert.equal(timed.clear(),true);
+  assert.equal(timed.summary().attemptMs,null);
+  assert.equal(timed.summary().replayComplete,false);
+  assert.equal(timed.savedScene(),null);
 });
 
 test('precise joint commands change only the named joint, preserve direction, and still check limits',()=>{

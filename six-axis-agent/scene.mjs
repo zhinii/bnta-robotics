@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from '../beginner-3axis/vendor/three/examples/jsm/controls/OrbitControls.js';
-import { fk, toolPose } from './kinematics.mjs?v=desk-rulers-20261109-1';
-import { CATALOG, DESK, graspWidth } from './world.mjs?v=desk-rulers-20261109-1';
-import {objectGeometry,gripperGeometry,armGeometry,LINK_RADII,JOINT_RADII,JOINT_LENGTHS,CAP_RADII,CAP_OFFSETS} from './shapes.mjs?v=desk-rulers-20261109-1';
+import { fk, toolPose } from './kinematics.mjs?v=recording-ui-20261111-1';
+import { CATALOG, DESK, graspWidth } from './world.mjs?v=recording-ui-20261111-1';
+import {objectGeometry,gripperGeometry,armGeometry,LINK_RADII,JOINT_RADII,JOINT_LENGTHS,CAP_RADII,CAP_OFFSETS} from './shapes.mjs?v=recording-ui-20261111-1';
 
 export function createScene(container) {
   const scene=new THREE.Scene(); scene.background=new THREE.Color('#eeeee7');
@@ -240,5 +240,24 @@ export function createScene(container) {
     const data=image.toDataURL('image/jpeg',.6),frame={width:image.width,height:image.height,objects:[...objects].filter(([,m])=>m.visible).map(([id,m])=>{const p=m.getWorldPosition(new THREE.Vector3()).project(camera);return {id,pixel:[Math.round((p.x+1)*image.width/2),Math.round((1-p.y)*image.height/2)],inFrame:Math.abs(p.x)<=1&&Math.abs(p.y)<=1&&Math.abs(p.z)<=1};})};
     return data.length<=64000?{data,width:image.width,height:image.height,frame}:null;
   }
-  return {update,preview,clearPreview,capture,setTopView,get topView(){return topView;},language:()=>{},resetView};
+  function comparison(){
+    const size=renderer.getSize(new THREE.Vector2()),pixelRatio=renderer.getPixelRatio();
+    const hidden=[...links,...joints,...caps,gripper,pedestal,ring,ghosts];
+    const visibility=hidden.map(object=>object.visible);
+    // Match the framing used by the three reference images.
+    const width=660,height=width*680/1000;
+    const referenceCamera=new THREE.OrthographicCamera(-width/2,width/2,height/2,-height/2,1,3000);
+    station.updateMatrixWorld(true);referenceCamera.up.set(0,0,1);
+    referenceCamera.position.copy(station.localToWorld(v([250,-440,1140])));
+    referenceCamera.lookAt(station.localToWorld(v([250,13,0])));
+    try{
+      hidden.forEach(object=>object.visible=false);
+      renderer.setPixelRatio(1);renderer.setSize(1000,680,false);renderer.render(scene,referenceCamera);
+      return renderer.domElement.toDataURL('image/png');
+    }finally{
+      hidden.forEach((object,i)=>object.visible=visibility[i]);
+      renderer.setPixelRatio(pixelRatio);renderer.setSize(size.x,size.y,false);renderer.render(scene,camera);
+    }
+  }
+  return {update,preview,clearPreview,capture,comparison,setTopView,get topView(){return topView;},language:()=>{},resetView};
 }

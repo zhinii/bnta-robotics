@@ -6,7 +6,7 @@ For school hosting with a server-held Alibaba key entered through SSH, follow [S
 
 ## Timed desk challenges
 
-Choose a difficulty and open **Reference & clues** below the scene to see the finished desk. Connect, then press **Start attempt** to reset the desk and record the movements you approve and run. You can reopen the reference during the attempt. Use **Top view** to check spacing and alignment.
+Choose a difficulty and inspect the finished **Reference** desk and its clues. Wide screens show them beside the robot; narrower screens use **Your desk / Reference / Clues** tabs in the same space. **Enlarge** opens the full reference. Press **Start recording** to connect, reset the desk and begin recording the movements you approve and run. Use **Top view** to check spacing and alignment.
 
 The rulers on the front edges of the desk and shelf show 10 mm per tick. In **Top view**, compare the spacing with the objects or try “Move the pen 10 mm to the right.”
 
@@ -16,9 +16,13 @@ The rulers on the front edges of the desk and shelf show 10 mm per tick. In **To
 
 For example, say “Put the red book on the left side of the shelf” or “Move the holder 20 mm to the right.” The clues are available in English and Chinese. All movements pass the motion and collision checks.
 
-Press **Finish attempt** when the desk matches the reference. **Replay** resets the same starting scene and times the recorded movements separately from the attempt, without contacting the AI. Students compare the final arrangement visually. Recordings stay in the tab until reload.
+Press **Finish recording** when the desk matches the reference. The saved recording has a prominent **Play recording** button and an **Edit recording** option. Editing restores the saved final desk and appends further movements, even if playback was stopped midway. Commands are unavailable during review so changes cannot accidentally fall outside the recording.
 
-On phones and narrow tablets, the scene comes first, followed by the command input and the current exchange. Connection status appears once in the page header. Earlier messages and command ideas expand on demand. The compact inventory stays open on every screen size, with equal 8 px side padding. Replies do not automatically focus the phone keyboard or scroll the page to the input.
+**Solve time** measures time spent recording, including thinking, AI waits and movement. Editing resumes that clock; time spent reviewing or replaying is excluded. **Robot time** is the recorded movement timeline, excluding thinking and AI waits. Playback shows elapsed/total motion time, command progress, **Pause / Resume**, and a separate **Stop playback** button. Replay uses recorded trajectories without contacting the AI. **Stop robot** during recording retains the executed portion; **Finish recording** ends the attempt when the robot is idle.
+
+After playback, an aligned overhead view hides the arm for visual comparison with the reference. **Back to 3D** restores normal camera control. Students assess object locations and orientations; there is no automatic score or required final robot pose. **More → New recording…** asks before clearing that level's recording and resetting the desk. Each level retains its recording in this tab until reload; recordings are not saved to the server.
+
+On phones and narrow tablets, the scene comes first, followed by recording controls, the command input and the current exchange. Connection status appears in the page header. Earlier messages, inventory and command ideas expand on demand. When a touch keyboard reduces the visual viewport, a compact typing view keeps the command and Send button above it and fits an overhead scene into the remaining space. Reference tabs remain available. Sending closes the keyboard and shows the checked movement preview before execution. Replies do not reopen the touch keyboard. This uses the browser's VisualViewport API; native iPad Safari behavior still requires a physical-device check.
 
 Visual or ambiguous requests can include one JPEG of the simulated scene, with a maximum edge of 512 px. Ordinary named-object commands and locally measured space questions send no image. The capture excludes chat, API keys, other tabs and device cameras; it includes no rejected preview ghosts. Object IDs and projected image positions accompany the existing exact geometry. The school backend and original Alibaba relay use `qwen3.7-plus` for image requests (configurable with `ALIBABA_VISION_MODEL` or school `--vision-model`) while routine requests retain `qwen3.8-flash`. If the account cannot use that vision model, the request falls back once to geometry and the page stops trying images for that connection. “Scene image used” identifies replies that actually received one. Images add input tokens and processing time, so they are selective rather than sent continuously. The language prompt is shorter; execution still validates reach, grips, support and collisions.
 
@@ -31,7 +35,7 @@ The pen holder is an open square box with four 3 mm walls and a 4 mm floor. Its 
 
 After placing an item on the shelf, the assistant asks whether that spot works or whether you would like it elsewhere. A conversational “yes” leaves it in place.
 
-Press **Connect** to use the managed connection. The GitHub frontend uses the hosted relay configured in `agent.mjs`, currently a Kimi Sites endpoint. The browser sends no saved key. The separate school package uses its own same-origin Python backend and server-held Alibaba key.
+**Start recording** also establishes the managed connection. The GitHub frontend uses the hosted relay configured in `agent.mjs`, currently a Kimi Sites endpoint. The browser sends no saved key. The separate school package uses its own same-origin Python backend and server-held Alibaba key.
 
 
 Every checked task first shows green destination outlines and a dashed gripper path. Choose **Run movement** to execute or **Cancel movement** to leave the scene and undo history unchanged. Rejected collisions show a red ghost of the actual rejected candidate pose and an outline of the blocking object. Amber marks unsupported placements or unreachable targets; it does not claim a collision. A rejected candidate is not proof that every possible route is blocked. Previews use copied state and can be dismissed or replaced by a new command.

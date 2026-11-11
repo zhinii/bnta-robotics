@@ -1,4 +1,4 @@
-import { validateActions } from './world.mjs?v=desk-rulers-20261109-1';
+import { validateActions } from './world.mjs?v=recording-ui-20261111-1';
 
 export const DEFAULTS = { base: 'https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1', model: 'qwen3.8-flash' };
 export const RELAY = 'https://s52xzsn2ztf64.kimi.site/api/chat';

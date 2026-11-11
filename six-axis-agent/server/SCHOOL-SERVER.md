@@ -1,20 +1,20 @@
 # School server deployment
 
-This package hosts the six-axis simulator and Alibaba connection together. Students press **Connect**; the server supplies the key. The key is never sent to the browser. The GitHub Pages version uses a key saved in its hosted relay; this school version uses only its own server configuration.
+This package hosts the six-axis simulator and Alibaba connection together. Students press **Start recording**; the server supplies the key. The key is never sent to the browser. The GitHub Pages version uses a key saved in its hosted relay; this school version uses only its own server configuration.
 
 ## Updating the existing school installation
 
 From Windows PowerShell, upload the updated challenge archive and connect:
 
 ```powershell
-scp "Robot-Lab-school-six-axis-desk-rulers-20261109.tar.gz" xyc@192.168.230.31:~/
+scp "Robot-Lab-school-six-axis-recording-ui-20261111.tar.gz" xyc@192.168.230.31:~/
 ssh xyc@192.168.230.31
 ```
 
 Run the upload from the folder containing the archive, or use its full path. Then, on the school server:
 
 ```bash
-tar -xzf "$HOME/Robot-Lab-school-six-axis-desk-rulers-20261109.tar.gz" -C "$HOME" &&
+tar -xzf "$HOME/Robot-Lab-school-six-axis-recording-ui-20261111.tar.gz" -C "$HOME" &&
   bash "$HOME/robot-lab-school/six-axis-agent/server/school-server.sh" restart
 curl -fsS http://127.0.0.1:8081/health
 ```
@@ -30,7 +30,7 @@ Requires Linux, Python 3.9 or newer, SSH access and outbound HTTPS to the select
 Use the absolute local path of the provided archive:
 
 ```powershell
-scp "C:\Users\zhini\OneDrive\Documents\ChatGPT\collaborative workspace\robot-arm-lab\Robot-Lab-school-six-axis-desk-rulers-20261109.tar.gz" xyc@192.168.230.31:~/
+scp "C:\Users\zhini\OneDrive\Documents\ChatGPT\collaborative workspace\robot-arm-lab\Robot-Lab-school-six-axis-recording-ui-20261111.tar.gz" xyc@192.168.230.31:~/
 ssh xyc@192.168.230.31
 ```
 
@@ -38,7 +38,7 @@ ssh xyc@192.168.230.31
 
 ```bash
 python3 --version
-tar -xzf "$HOME/Robot-Lab-school-six-axis-desk-rulers-20261109.tar.gz" -C "$HOME"
+tar -xzf "$HOME/Robot-Lab-school-six-axis-recording-ui-20261111.tar.gz" -C "$HOME"
 cd "$HOME/robot-lab-school"
 python3 six-axis-agent/server/school_server.py configure --public-url http://192.168.230.31:8081 --port 8081
 ```
@@ -66,7 +66,7 @@ Use `"$ROBOT_PYTHON"` instead of `python3` for configure/check, and keep this va
 
 ## 3. Open the simulator
 
-Open `http://192.168.230.31:8081/six-axis-agent/` from a school-network computer and press **Connect**. A successful Connect checks Alibaba. Students enter commands, not the key. If local health works but this URL does not, ask IT to allow inbound TCP 8081 from the school network; check from PowerShell with:
+Open `http://192.168.230.31:8081/six-axis-agent/` from a school-network computer and press **Start recording**. Starting checks Alibaba before resetting the desk and beginning the timer. Students enter commands, not the key. If local health works but this URL does not, ask IT to allow inbound TCP 8081 from the school network; check from PowerShell with:
 
 ```powershell
 Test-NetConnection 192.168.230.31 -Port 8081

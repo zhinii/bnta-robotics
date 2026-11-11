@@ -5,10 +5,10 @@
   <meta name="theme-color" content="#f5f4f0">
   <meta name="description" content="Guide a six-axis robot to arrange objects on a desk, then replay your recorded moves. A robotics activity from Beijing New Talent Academy.">
   <title>BNTA Robot Lab — Six Axis</title>
-  <link rel="stylesheet" href="./style.css?v=desk-rulers-20261109-1">
+  <link rel="stylesheet" href="./style.css?v=recording-ui-20261111-1">
   <script type="importmap">{"imports":{"three":"../beginner-3axis/vendor/three/build/three.module.js"}}</script>
 </head>
-<body data-version="desk-rulers-20261109-1">
+<body data-version="recording-ui-20261111-1">
   <header><div class="brand"><img class="brand-mark" src="./bnta-tree.png" alt="BNTA tree"><b>BNTA Robot Lab</b></div>
     <div class="header-actions"><span id="connection-state" class="status" role="status">Not connected</span><button id="language" aria-label="Switch to Chinese">中文</button></div>
   </header>
@@ -20,22 +20,26 @@
         <button type="button" data-level="medium" data-i18n="timedMedium" aria-pressed="false">Medium</button>
         <button type="button" data-level="hard" data-i18n="timedHard" aria-pressed="false">Hard</button>
       </div>
-      <p id="timed-status" class="timed-status" tabindex="-1" role="status"></p>
-      <div class="timed-actions">
-        <div class="timed-buttons">
-          <button id="timed-start" type="button" disabled>Start attempt</button>
-          <button id="timed-finish" type="button" data-i18n="timedFinish" hidden>Finish attempt</button>
-          <button id="timed-replay" type="button" hidden>Replay</button>
-        </div>
-      </div>
+      <details id="session-options"><summary data-i18n="sessionOptions">More</summary>
+        <button id="reset" type="button" data-i18n="resetShort">Reset desk</button>
+        <button id="timed-new" type="button" data-i18n="timedNew" hidden>New recording…</button>
+      </details>
     </section>
-    <section class="workspace" aria-label="Robot workspace">
+    <section id="workbench" class="workbench" data-panel="desk">
+      <div id="view-tabs" role="tablist" aria-label="Desk views">
+        <button id="desk-tab" type="button" role="tab" data-panel="desk" aria-controls="scene-panel" aria-selected="true" data-i18n="yourDesk">Your desk</button>
+        <button id="reference-tab" type="button" role="tab" data-panel="reference" aria-controls="reference-visual" aria-selected="false" tabindex="-1" data-i18n="referenceDesk">Reference</button>
+        <button id="clues-tab" type="button" role="tab" data-panel="clues" aria-controls="clues-pane" aria-selected="false" tabindex="-1" data-i18n="referenceClues">Clues</button>
+      </div>
+      <div class="visual-panes">
+      <section id="scene-panel" class="workspace" aria-label="Robot workspace">
       <div id="scene-stage" class="scene-stage">
         <div id="scene"><div id="render-error" hidden></div></div>
+        <img id="comparison-image" hidden alt="">
         <div class="scene-toolbar">
-          <span id="timed-summary" class="timed-summary" hidden></span>
+          <span id="scene-title" data-i18n="yourDesk">Your desk</span>
+          <button id="compare-toggle" type="button" hidden>Compare desks</button>
           <button id="view-toggle" type="button" aria-pressed="false">Top view</button>
-          <button id="reset" class="reset-button" type="button" title="Reset scene" aria-label="Reset scene"><span aria-hidden="true">↺</span> <span data-i18n="resetShort">Reset</span></button>
           <button id="stop" type="button" hidden>Stop</button>
         </div>
         <span id="ruler-note" data-i18n="rulerNote" hidden>Each tick is 10 mm</span>
@@ -45,15 +49,37 @@
         <p id="preview-description"></p>
         <div><button id="preview-run" type="button" data-i18n="previewRun">Run movement</button><button id="preview-dismiss" type="button" data-i18n="previewDismiss">Dismiss preview</button></div>
       </div>
-      <button id="reference-open" class="reference-open" type="button" aria-haspopup="dialog">
-        <img id="reference-thumb" alt="" width="80" height="54">
-        <span><strong data-i18n="referenceOpen">Reference &amp; clues</strong><small id="reference-level"></small></span>
-        <span class="reference-arrow" aria-hidden="true">↗</span>
-      </button>
+      </section>
+      <aside id="reference-panel" class="reference-panel">
+        <section id="reference-visual" aria-labelledby="reference-label">
+          <div class="reference-heading"><h2 id="reference-label" data-i18n="referenceDesk">Reference desk</h2><button id="reference-open" type="button" aria-haspopup="dialog" data-i18n="enlargeReference">Enlarge</button></div>
+          <img id="reference-preview" width="1000" height="680" alt="">
+        </section>
+        <section id="clues-pane" aria-labelledby="clues-label">
+          <h3 id="clues-label" data-i18n="referenceClues">Clues</h3><ul id="inline-clues"></ul>
+          <p class="reference-direction" data-i18n="referenceDirection"></p>
+        </section>
+      </aside>
+      </div>
+    </section>
+    <section id="session-controls" class="session-controls" aria-labelledby="run-title">
+      <div class="session-copy"><h2 id="run-title" tabindex="-1"></h2><p id="timed-status" class="timed-status" role="status"></p>
+        <span id="timed-summary" class="timed-summary" hidden></span>
+        <div id="playback-track" hidden><label id="playback-label" for="playback-progress"></label><progress id="playback-progress" max="1" value="0"></progress></div>
+      </div>
       <dl id="timed-clocks" class="timed-clocks" hidden>
-        <div><dt data-i18n="timedAttempt">Your attempt</dt><dd id="timed-attempt">—</dd></div>
-        <div><dt data-i18n="timedPlayback">Robot playback</dt><dd id="timed-playback">—</dd></div>
+        <div><dt data-i18n="timedAttempt">Solve time</dt><dd id="timed-attempt">—</dd></div>
+        <div id="playback-clock"><dt data-i18n="timedPlayback">Robot time</dt><dd id="timed-playback">—</dd></div>
       </dl>
+      <div class="timed-buttons">
+        <button id="connection-retry" type="button" data-i18n="schoolReconnect" hidden>Reconnect</button>
+        <button id="timed-edit" type="button" data-i18n="timedEdit" hidden>Edit recording</button>
+        <button id="timed-stop" type="button" data-i18n="timedStop" hidden>Stop playback</button>
+        <button id="timed-pause" type="button" hidden>Pause</button>
+        <button id="timed-start" type="button">Start recording</button>
+        <button id="timed-finish" type="button" data-i18n="timedFinish" hidden>Finish recording</button>
+        <button id="timed-replay" type="button" hidden>Play recording</button>
+      </div>
     </section>
     <section class="conversation" aria-label="Robot conversation">
       <div id="composer" role="group">
@@ -81,7 +107,12 @@
     <h3 data-i18n="referenceClues">Clues</h3>
     <ul id="reference-clues"></ul>
   </dialog>
+  <dialog id="reset-dialog" aria-labelledby="reset-title">
+    <h2 id="reset-title" data-i18n="newRecordingTitle">Start a new recording?</h2>
+    <p data-i18n="newRecordingBody">This clears this level’s recording and resets the desk.</p>
+    <form method="dialog"><button value="cancel" data-i18n="keepRecording">Keep recording</button><button value="reset" data-i18n="newRecordingConfirm">Reset recording</button></form>
+  </dialog>
   <footer><span>Beijing New Talent Academy <span class="footer-cn">/ 北京市新英才学校</span></span></footer>
-  <script type="module" src="./main.mjs?v=desk-rulers-20261109-1"></script>
+  <script type="module" src="./main.mjs?v=recording-ui-20261111-1"></script>
 </body>
 </html>
