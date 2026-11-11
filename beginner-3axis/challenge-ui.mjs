@@ -1,8 +1,9 @@
-import { ChallengeController, initialWorld, armById, pose, limits, validJoints, solvePosition, planMove, clone, gripPoint, upgradeHandoffSteps } from './challenge-model.mjs?v=collision-preview-1';
-import { createChallengeScene } from './challenge-scene.mjs?v=collision-preview-1';
-import { text, words } from './challenge-i18n.mjs?v=collision-preview-1';
+import { ChallengeController, initialWorld, armById, pose, limits, validJoints, solvePosition, planMove, clone, gripPoint, upgradeHandoffSteps } from './challenge-model.mjs?v=number-pad-1';
+import { createChallengeScene } from './challenge-scene.mjs?v=number-pad-1';
+import { text, words } from './challenge-i18n.mjs?v=number-pad-1';
 import { CONFIG } from './model.mjs';
 import { ARM, toolReachFor } from './challenge-kinematics.mjs';
+import { createNumberPad } from './challenge-number-pad.mjs?v=number-pad-1';
 const $=id=>document.getElementById(id),KEY='bnta:robot-challenges:v1',challenges=['easy','medium','hard'],modes=['explore',...challenges];
 // Every visit is fresh. Remove only this app's legacy save, even if it is malformed.
 try{localStorage.removeItem(KEY);}catch{}
@@ -10,6 +11,8 @@ let language='en',selected='A',tab='controls',controlMode='xyz',draft=null,previ
 let message={key:'ready',vars:{},error:false},programs={explore3:[],explore6:[],easy:[],medium:[],hard:[]},recording=false,exploreAxes=6;
 let coordinateTarget=null,xyzReference=null,xyzSeed=null,introVisible=true,taskOpen=false,expandedStep=null;
 let previewPlan=null,previewKey='';
+let numberPad=null,padSnapshot=null;
+const touchNumbers=window.matchMedia?window.matchMedia('(pointer: coarse)').matches:(navigator.maxTouchPoints||0)>0;
 // Only this UI's successful live replays award progress. Imported programs do not.
 const passed=new Set();
 const unlocked=mode=>mode==='explore'||mode==='easy'||passed.has(challenges[challenges.indexOf(mode)-1]);
@@ -41,6 +44,7 @@ function selectControlMode(next){controlMode=next;if(!draft||!validJoints(arm(),
 function selectExploreRobot(axes){if(![3,6].includes(axes))return say('command',{},true);if(controller.world.mode==='explore'&&arm().axes===axes)return;if(selectMode('explore',axes))say('robotChanged',{axes});}
 function selectArm(id){if(!armById(controller.world,id))return say('command',{},true);selected=id;syncDraft();render();$('panel-scroll').scrollTop=0;}
 function buildInputs(){
+  numberPad?.dismiss();padSnapshot=null;
   const a=arm(),q=draft&&validJoints(a,draft)?draft:a.q,p=controlMode==='xyz'&&coordinateTarget?coordinateTarget:pose(a,q).tip;
   const reach=a.axes===3?CONFIG.A+CONFIG.D:toolReachFor(a.axes),height=a.axes===3?CONFIG.H:ARM.base;
   $('xyz-inputs').replaceChildren(...['X','Y','Z'].map((axis,i)=>{
@@ -55,6 +59,30 @@ function buildInputs(){
     const slider=document.createElement('input'),number=document.createElement('input');slider.type='range';number.type='number';number.id='joint-'+i;slider.id='slider-'+i;
     for(const input of [slider,number]){input.min=limits(a)[i][0];input.max=limits(a)[i][1];input.step='.1';input.value=q[i].toFixed(1);input.setAttribute('aria-label','J'+(i+1)+' '+words[language].jointNames[i]);input.oninput=()=>{const value=input.value;const other=input===slider?number:slider;other.value=value;readJoints();};}
     row.append(label,slider,number);return row;}));
+  document.querySelectorAll('#xyz-inputs input[type="number"],#joint-inputs input[type="number"]').forEach(input=>{
+    input.readOnly=!!touchNumbers;input.inputMode=touchNumbers?'none':'decimal';
+    const touchEntry=()=>{input.readOnly=true;input.inputMode='none';input.setAttribute('aria-controls','number-editor');input.setAttribute('aria-describedby','number-pad-help');};
+    if(touchNumbers)touchEntry();
+    // A mouse-equipped tablet/laptop can have a fine primary pointer and still
+    // receive real touch taps. Suppress native focus before opening the editor.
+    input.onpointerdown=e=>{if(e.pointerType==='touch'&&!input.readOnly){e.preventDefault();touchEntry();openNumberPad(input);}};
+    input.onclick=()=>{if(input.readOnly)openNumberPad(input);};input.onkeydown=e=>{if(input.readOnly&&(e.key==='Enter'||e.key===' ')){e.preventDefault();openNumberPad(input);}};
+  });
+}
+function numberFields(){return [...document.querySelectorAll((controlMode==='xyz'?'#xyz-inputs':'#joint-inputs')+' input[type="number"]')].map((input,i)=>({input,short:controlMode==='xyz'?['X','Y','Z'][i]:'J'+(i+1),label:()=>controlMode==='xyz'?['X','Y','Z'][i]:'J'+(i+1)+' '+words[language].jointNames[i],unit:controlMode==='xyz'?'mm':'°',step:controlMode==='xyz'?1:.1}));}
+function openNumberPad(input){
+ if(controller.busy||controller.world.failure||numberPad.active)return;
+ const fields=numberFields(),index=Math.max(0,fields.findIndex(f=>f.input===input));
+ padSnapshot={draft:clone(draft),coordinateTarget:clone(coordinateTarget),xyzReference:clone(xyzReference),xyzSeed:clone(xyzSeed),previewError,values:fields.map(f=>f.input.value)};
+ numberPad.open(fields,index);render();
+}
+function applyPadValues(values){
+ numberFields().forEach((f,i)=>{f.input.value=values[i];const slider=controlMode==='xyz'?$('axis-slider-'+['x','y','z'][i]):$('slider-'+i);if(controlMode==='xyz')syncXYZSlider(f.input,slider);else slider.value=values[i];});
+ if(controlMode==='xyz')readXYZ();else readJoints();
+}
+function finishNumberPad(cancelled){
+ if(cancelled&&padSnapshot){const saved=padSnapshot;numberFields().forEach((f,i)=>{f.input.value=saved.values[i];const slider=controlMode==='xyz'?$('axis-slider-'+['x','y','z'][i]):$('slider-'+i);if(controlMode==='xyz')syncXYZSlider(f.input,slider);else slider.value=saved.values[i];});({draft,coordinateTarget,xyzReference,xyzSeed,previewError}=saved);previewKey='';}
+ padSnapshot=null;render();
 }
 function syncXYZSlider(input,slider){const value=Number(input.value);if(!input.value.trim()||!Number.isFinite(value))return;slider.min=String(Math.min(Number(slider.dataset.min),value));slider.max=String(Math.max(Number(slider.dataset.max),value));slider.value=input.value;}
 function readXYZ(){const values=['x','y','z'].map(axis=>$('axis-'+axis).value);if(values.some(v=>!v.trim()||!Number.isFinite(Number(v)))){coordinateTarget=null;draft=null;previewError='numbers';render();return;}introVisible=false;taskOpen=false;coordinateTarget=values.map(Number);const r=solvePosition(arm(),coordinateTarget,xyzReference||arm().q,xyzSeed||arm().q);draft=r.q||null;if(r.q)xyzSeed=[...r.q];previewError=r.error||null;preview();}
@@ -78,7 +106,7 @@ function setRecording(on){
   recording=on;tab=on?'controls':'program';expandedStep=null;rememberProgram();say(on?'recordOn':'recordOff');
 }
 function startProgram(){tab='program';if(controller.busy)return say('busy',{},true);pending=null;recording=false;if(report(controller.run())){introVisible=false;taskOpen=false;say('running',{step:1,total:controller.program.length,arm:controller.program[0].arm});}}
-function stop(){pending=null;recording=false;controller.stop();say('stopped');}
+function stop(){numberPad?.dismiss();padSnapshot=null;pending=null;recording=false;controller.stop();say('stopped');}
 function reset(){pending=null;recording=false;introVisible=true;taskOpen=false;controller.reset();syncDraft();say('resetDone');}
 function formatPosition(p){return p.map((v,i)=>['X','Y','Z'][i]+' '+v.toFixed(1)).join(' · ')+' mm';}
 function showCoordinates(id,key,p,armId){
@@ -110,6 +138,8 @@ function render(){
   document.querySelectorAll('[data-joint-name]').forEach(el=>el.textContent=words[language].jointNames[Number(el.dataset.jointName)]);
   document.querySelectorAll('#xyz-inputs input[type="range"]').forEach(el=>el.setAttribute('aria-label',t('coordinateSlider',{axis:el.dataset.axis})));
   $('preview-state').textContent=previewPlan?.collision&&!world.failure?t('collisionPreview',{reason:t(previewError)}):t(world.failure?'restartRequired':previewError||'previewShort');$('preview-state').className=world.failure||previewError?'error':'';
+  $('open-number-pad').disabled=controller.busy||!!world.failure;$('open-number-pad').title=t('numberPad');$('open-number-pad').setAttribute('aria-label',t('numberPad'));
+  numberPad?.update({context:t(selected==='A'?'armA':'armB')+' · '+t(controlMode==='xyz'?'xyzShort':'jointsShort'),warning:$('preview-state').textContent,error:!!previewError||!!world.failure});
   for(const id of ['move','add-move'])$(id).disabled=controller.busy||(id==='move'&&!!world.failure)||!draft||!validJoints(a,draft);
   document.querySelectorAll('#xyz-inputs input,#joint-inputs input,[data-action="open"],[data-action="close"]').forEach(el=>el.disabled=controller.busy||!!world.failure);
   $('record').disabled=controller.busy;$('record').setAttribute('aria-pressed',String(recording));$('record').textContent=t(recording?'finishRecord':'record');$('record').title=t('recordHelp');
@@ -163,6 +193,8 @@ $('export').onclick=()=>{const blob=new Blob([JSON.stringify({version:1,mode:con
 $('import').onclick=()=>$('file').click();$('file').onchange=async()=>{try{const file=$('file').files[0];if(!file)return;if(file.size>100000)throw Error();const data=JSON.parse(await file.text());const axes=data.axes??6;if(data.mode==='explore'&&![3,6].includes(axes))throw Error();data.steps=upgradeHandoffSteps(data.mode,data.steps);if(data.version!==1||!modes.includes(data.mode)||!validSteps(data.mode,data.steps,axes)||controller.busy)throw Error();if(!selectMode(data.mode,axes))return;controller.program=clone(data.steps);rememberProgram();tab='program';say('loaded');}catch{say('invalidFile',{},true);}finally{$('file').value='';}};
 function fit(){document.documentElement.style.setProperty('--height',(window.visualViewport?.height||innerHeight)+'px');}
 window.visualViewport?.addEventListener('resize',fit);window.addEventListener('resize',fit);
+numberPad=createNumberPad({host:$('number-editor'),t,onInput:applyPadValues,onClose:finishNumberPad});
+$('open-number-pad').onclick=()=>openNumberPad();
 syncDraft();view=createChallengeScene($('scene'),language);render();fit();
 let frame,last=0;function tick(now){const wasRunning=controller.running;controller.tick(Math.min(100,now-(last||now)));last=now;if(wasRunning&&!controller.running&&!controller.lastError){say(controller.world.mode==='explore'?'exploreReplayDone':controller.complete?'complete':'endIncomplete');rememberProgram();}frame=requestAnimationFrame(tick);}frame=requestAnimationFrame(tick);
 window.addEventListener('pagehide',()=>{pending=null;cancelAnimationFrame(frame);view.dispose();});

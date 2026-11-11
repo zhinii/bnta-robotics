@@ -27,6 +27,12 @@ export async function exportProgram(page){
 // Test journeys use real visible controls; the app has no command/Guide interface.
 export async function replay(page){await page.locator('[data-tab="program"]').click();await page.locator('#run').click();}
 export async function record(page){await page.locator('[data-tab="controls"]').click();await page.locator('#record').click();}
+// Exact-value entry through the visible editor on touch devices, native fields on desktop.
+export async function fillNumber(page,selector,value){
+ const input=page.locator(selector);
+ if(await input.evaluate(el=>el.readOnly)){await input.click();await page.locator('#pad-keyboard').click();await page.locator('#pad-value').fill(String(value));await page.locator('#pad-done').click();}
+ else await input.fill(String(value));
+}
 export async function operate(page,request){
  const alias={'探索':'explore','简单':'easy','中等':'medium','困难':'hard','控制':'controls','程序':'program','中文':'language zh','英语':'language en'};
  const s=alias[request]||request;
@@ -47,7 +53,7 @@ export async function operate(page,request){
  if(match){await operate(page,'controls');let kind=match[1],values=match[2].split(/[\s,]+/).map(Number);
   if(kind==='joints'&&values.length===3){values=pose(initialWorld('easy').arms[0],values).tip;kind='target';}
   const mode=kind==='joints'?'joints':'xyz',toggle=page.locator(`[data-control="${mode}"]`);if(await toggle.isVisible())await toggle.click();
-  for(const [i,value] of values.entries())await page.locator(kind==='joints'?'#joint-'+i:'#axis-'+['x','y','z'][i]).fill(String(value));
+  for(const [i,value] of values.entries())await fillNumber(page,kind==='joints'?'#joint-'+i:'#axis-'+['x','y','z'][i],String(value));
   if(kind==='move')await page.locator('#move').click();return;
  }
  throw Error('Unsupported test action: '+request);

@@ -1,3 +1,4 @@
+import {fillNumber} from './challenge-browser-helpers.mjs';
 import {operate,replay,record} from './challenge-browser-helpers.mjs';
 import assert from 'node:assert/strict';
 import {mkdir,readFile} from 'node:fs/promises';
@@ -15,7 +16,7 @@ try{
  await page.locator('[data-mode="easy"]').tap();await page.locator('#add-move').tap();await page.locator('[data-mode="explore"]').tap();
  assert.equal(await page.locator('#step-count').textContent(),'0');assert.equal(await page.locator('#control-mode').isVisible(),true);assert.equal(await page.locator('#checks').isVisible(),false);assert.equal(await page.locator('#target-legend').isVisible(),false);assert.equal(await page.locator('#task-positions p').count(),3);assert.match(await page.locator('#task-description').textContent(),/No objective or score/);
  await page.screenshot({path:out+'/start-landscape.png'});
- const before=await page.locator('#tcp').textContent();await page.locator('[data-control="xyz"]').click();await page.locator('#axis-x').fill('175');assert.equal(await page.locator('#tcp').textContent(),before);assert.equal(await page.locator('#task-card').isVisible(),false);assert.equal(await page.locator('#step-count').textContent(),'0');
+ const before=await page.locator('#tcp').textContent();await page.locator('[data-control="xyz"]').click();await fillNumber(page,'#axis-x','175');assert.equal(await page.locator('#tcp').textContent(),before);assert.equal(await page.locator('#task-card').isVisible(),false);assert.equal(await page.locator('#step-count').textContent(),'0');
  await record(page);const route=referenceProgram('explore');
  for(const [i,step] of route.entries()){
   if(step.type==='move'){await send('joints '+step.q.join(' '));await page.locator('#move').tap();}else await page.locator(`[data-action="${step.type}"]`).tap();
