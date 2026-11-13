@@ -1,7 +1,7 @@
 // Deterministic challenge world. Degrees and millimetres throughout.
 import { CONFIG, fk as fk3, solveIk, validateJointPose } from './model.mjs';
 import { JOINTS, homeFor, toolPose, ikTool, valid, transform, multiply, rotationFromEuler } from './challenge-kinematics.mjs';
-import { slottedWall, segmentPanel, boxPanel, slotAligned } from './challenge-wall.mjs';
+import { slottedWall, segmentPanel, boxPanel } from './challenge-wall.mjs?v=square-opening-1';
 import { boxesIntersect, jawContact } from './challenge-contact.mjs';
 export const clone = value => structuredClone(value);
 const rad = Math.PI / 180, I = [1,0,0,0,1,0,0,0,1];
@@ -178,7 +178,7 @@ export function planMove(world,id,q,kind='joints',{preview=false}={}) {
     if(world.wall&&world.part.owner===id&&previous[0]<world.wall.planeX&&p[0]>=world.wall.planeX){
       const wall=world.wall,dx=p[1]-wall.centre[1],dz=p[2]-wall.centre[2];
       if(Math.abs(dx*wall.u[0]+dz*wall.u[1])<wall.width/2&&Math.abs(dx*wall.v[0]+dz*wall.v[1])<wall.height/2){
-        if(!slotAligned(next.part,wall))return {error:'slotAlignment',collision:{error:'slotAlignment',point:[...p],arm:id,q:[...moving.q],fraction:i/n,obstacleIndex:0,partIndices:[0]},trace};
+        // The square opening accepts any orientation that clears its real edges.
         entering=true;
       }
     }

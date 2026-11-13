@@ -5,13 +5,13 @@ function clip(poly,n,k){
   if(da<=1e-8)out.push(a);if((da<0)!==(db<0)){const t=da/(da-db);out.push(a.map((v,j)=>v+(b[j]-v)*t));}}
  return out;
 }
-export function slottedWall({centre=[0,180],width=132,height=64,left=-200}={}){
- const angle=30*Math.PI/180,u=[Math.cos(angle),Math.sin(angle)],v=[-Math.sin(angle),Math.cos(angle)];
+export function slottedWall({centre=[0,180],width=132,height=132,left=-200}={}){
+ const u=[1,0],v=[0,1];
  const outer=[[left,0],[200,0],[200,540],[left,540]],uc=dot(centre,u),vc=dot(centre,v);
  const half=(poly,n,k)=>clip(poly,n,k),neg=n=>n.map(x=>-x);
  const middle=half(half(outer,u,uc+width/2),neg(u),-uc+width/2);
  const polygons=[half(outer,u,uc-width/2),half(outer,neg(u),-uc-width/2),half(middle,v,vc-height/2),half(middle,neg(v),-vc-height/2)];
- return {angle:30,centre:[215,centre[0],centre[1]],planeX:215,width,height,u,v,depth:12,
+ return {angle:0,centre:[215,centre[0],centre[1]],planeX:215,width,height,u,v,depth:12,
   opening:[[-1,-1],[1,-1],[1,1],[-1,1]].map(([a,b])=>centre.map((x,i)=>x+a*u[i]*width/2+b*v[i]*height/2)),
   panels:polygons.map(polygon=>({polygon,planeX:215,min:[Math.min(...polygon.map(p=>p[0])),-6,Math.min(...polygon.map(p=>p[1]))],max:[Math.max(...polygon.map(p=>p[0])),6,Math.max(...polygon.map(p=>p[1]))]}))};
 }
@@ -33,4 +33,3 @@ export function boxPanel(position,rotation,size,panel){
   if(c+r<=Math.min(...values)+.01||c-r>=Math.max(...values)-.01)return false;
  }return true;
 }
-export function slotAligned(part,wall){return Math.abs(part.rotation[3]*wall.u[0]+part.rotation[6]*wall.u[1])>Math.cos(12*Math.PI/180);}

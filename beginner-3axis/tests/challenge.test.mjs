@@ -19,11 +19,14 @@ test('completion waits for every recorded action, even after placement',()=>{
  while(c.metrics.actions<c.program.length-1)c.tick(100);assert.equal(c.world.complete,true);assert.equal(c.running,true);assert.equal(c.complete,false);c.stop();assert.equal(c.complete,false);
  c.run();advance(c);assert.equal(c.complete,true);assert.equal(c.metrics.actions,c.program.length);
 });
-test('tall wall has a closed angled slot: tilted part fits, level and off-centre parts collide',()=>{
+test('medium has a 132 mm upright square: varied angles fit and all four edges still collide',()=>{
  const w=initialWorld('medium'),at=[215,0,180],tilted=rotationFromEuler([-90,-30,90]),level=rotationFromEuler([-90,0,90]);
  const hits=(p,r)=>w.obstacles.some(o=>boxPanel(p,r,w.part.size,o));
- assert.equal(hits(at,tilted),false);assert.equal(hits(at,level),true);
- assert.equal(hits([215,0,240],tilted),true);assert.equal(hits([215,90,180],tilted),true);
+ assert.equal(w.wall.width,132);assert.equal(w.wall.height,132);assert.equal(w.wall.angle,0);
+ assert.deepEqual(w.wall.opening,[[-66,114],[66,114],[66,246],[-66,246]]);
+ assert.equal(hits(at,tilted),false);assert.equal(hits(at,level),false);
+ assert.equal(hits(at,rotationFromEuler([-90,-90,90])),false);
+ for(const point of [[215,0,250],[215,0,110],[215,70,180],[215,-70,180]])assert.equal(hits(point,level),true);
  assert.equal(Math.max(...w.obstacles.map(o=>o.max[2])),540);assert.ok(solvePosition(w.arms[0],[215,0,550]).error);
 });
 test('each difficulty uses the specified physical joint counts and independent bases',()=>{assert.deepEqual(initialWorld('easy').arms.map(a=>a.q.length),[3]);assert.deepEqual(initialWorld('medium').arms.map(a=>a.q.length),[6]);assert.deepEqual(initialWorld('hard').arms.map(a=>a.q.length),[6,6]);for(const mode of ['easy','medium','hard'])assert.equal(collision(initialWorld(mode)),null);});
@@ -34,7 +37,7 @@ test('XYZ preview translates the draft wrist pose without executing or drifting 
  for(let n=1;n<=10;n++){const target=start.tip.map((v,i)=>v+(i===0?n:0)),r=solvePosition(arm,target,reference,seed);assert.ok(r.q,r.error);assert.ok(distance(pose(arm,r.q).tip,target)<.12);assert.ok(Math.hypot(...orientationError(start.rotation,pose(arm,r.q).rotation))<.004);seed=r.q;}
  assert.deepEqual(w,before);assert.ok(Math.hypot(...orientationError(pose(arm).rotation,pose(arm,seed).rotation))>.4);
 });
-test('unrotated carried part cannot cross the gate and rejected movement is atomic',()=>{let w=initialWorld('medium');const route=referenceProgram('medium');for(const s of route.slice(0,2))w=applyAction(w,s).end;const before=structuredClone(w),q=ikTool([220,110,130],w.arms[0].q,'nearest',[0,0,0]).q;assert.ok(q);assert.ok(['partCollision','obstacle'].includes(applyAction(w,{type:'move',arm:'A',q,kind:'xyz'}).error));assert.deepEqual(w,before);assert.equal(w.complete,false);});
+test('an off-centre carried part still hits the wall and rejected movement is atomic',()=>{let w=initialWorld('medium');const route=referenceProgram('medium');for(const s of route.slice(0,2))w=applyAction(w,s).end;const before=structuredClone(w),q=ikTool([220,110,130],w.arms[0].q,'nearest',[0,0,0]).q;assert.ok(q);assert.ok(['partCollision','obstacle'].includes(applyAction(w,{type:'move',arm:'A',q,kind:'xyz'}).error));assert.deepEqual(w,before);assert.equal(w.complete,false);});
 test('B grips, A releases, then B moves; premature moves and releases plan a drop',()=>{
  let w=initialWorld('hard');const route=referenceProgram('hard');
  assert.equal(applyAction(w,{type:'handoff',arm:'A'}).error,'handoffSteps');

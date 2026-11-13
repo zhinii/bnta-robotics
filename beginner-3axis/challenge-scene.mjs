@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from './vendor/three/examples/jsm/controls/OrbitControls.js';
-import { pose, atPose, gripperParts } from './challenge-model.mjs?v=number-pad-1';
-import { text } from './challenge-i18n.mjs?v=number-pad-1';
-import { createFairinoArm, updateFairinoArm } from './fairino-arm.mjs?v=number-pad-1';
+import { pose, atPose, gripperParts } from './challenge-model.mjs?v=square-opening-1';
+import { text } from './challenge-i18n.mjs?v=square-opening-1';
+import { createFairinoArm, updateFairinoArm } from './fairino-arm.mjs?v=square-opening-1';
 const vec=p=>new THREE.Vector3(...p),Y=new THREE.Vector3(0,1,0);
 function material(color,ghost=false){return new THREE.MeshStandardMaterial({color,roughness:.45,metalness:.15,transparent:ghost,opacity:ghost?.3:1,depthWrite:!ghost,wireframe:ghost});}
 function orient(mesh,a,b){const d=vec(b).sub(vec(a));mesh.position.copy(vec(a).add(vec(b)).multiplyScalar(.5));mesh.scale.set(1,d.length(),1);mesh.quaternion.setFromUnitVectors(Y,d.normalize());}
@@ -49,7 +49,7 @@ export function createChallengeScene(host,language='en'){
       if(!box.polygon){const mesh=new THREE.Mesh(new THREE.BoxGeometry(...box.max.map((v,i)=>v-box.min[i])),material('#7c94a8'));mesh.position.copy(vec(box.max.map((v,i)=>(v+box.min[i])/2)));worldGroup.add(mesh);obstacleMeshes[i]=mesh;}
     }
     if(world.wall){const shape=new THREE.Shape([[-200,0],[200,0],[200,540],[-200,540]].map(p=>new THREE.Vector2(...p)));shape.holes.push(new THREE.Path([...world.wall.opening].reverse().map(p=>new THREE.Vector2(...p))));const mat=material('#68859d');mat.transparent=true;mat.opacity=.24;mat.depthWrite=false;const mesh=new THREE.Mesh(new THREE.ExtrudeGeometry(shape,{depth:12,bevelEnabled:false}),mat);mesh.setRotationFromMatrix(new THREE.Matrix4().set(0,0,1,0,1,0,0,0,0,1,0,0,0,0,0,1));mesh.position.x=world.wall.planeX-6;worldGroup.add(mesh);wallMesh=mesh;}
-    if(world.wall){const wall=world.wall;for(const x of [wall.planeX-6,wall.planeX+6])for(let i=0;i<4;i++){const a=wall.opening[i],b=wall.opening[(i+1)%4];line(worldGroup,[x,a[0],a[1]],[x,b[0],b[1]],'#d79a26',2.2);}for(const y of [-200,200])line(worldGroup,[wall.planeX,y,0],[wall.planeX,y,540],'#68859d',2);line(worldGroup,[wall.planeX,-200,540],[wall.planeX,200,540],'#68859d',2);const tag=pin('30°','#a67b17');tag.scale.set(25,25,1);tag.position.set(wall.planeX,0,235);worldGroup.add(tag);}
+    if(world.wall){const wall=world.wall;for(const x of [wall.planeX-6,wall.planeX+6])for(let i=0;i<4;i++){const a=wall.opening[i],b=wall.opening[(i+1)%4];line(worldGroup,[x,a[0],a[1]],[x,b[0],b[1]],'#d79a26',2.2);}for(const y of [-200,200])line(worldGroup,[wall.planeX,y,0],[wall.planeX,y,540],'#68859d',2);line(worldGroup,[wall.planeX,-200,540],[wall.planeX,200,540],'#68859d',2);const tag=pin('□','#a67b17');tag.scale.set(25,25,1);tag.position.set(wall.planeX,wall.centre[1],wall.centre[2]+wall.height/2+22);worldGroup.add(tag);}
     if(world.mode==='hard')for(const [i,x]of [-42,42].entries()){const mark=new THREE.Mesh(new THREE.TorusGeometry(12,1.5,8,24),material(i?'#5b98db':'#dca442'));mark.position.set(x,0,160);worldGroup.add(mark);const tag=pin(i?'B':'A',i?'#215fad':'#99601d');tag.scale.set(14,14,1);tag.position.set(x,0,136);worldGroup.add(tag);}
     partLabels=[];parts=(world.parts||[world.part]).map(p=>{const mesh=new THREE.Mesh(new THREE.BoxGeometry(...p.size),material(p.color||'#edab39'));mesh.castShadow=true;mesh.receiveShadow=true;worldGroup.add(mesh);if(world.mode==='explore'){const tag=pin(p.id,p.color);worldGroup.add(tag);partLabels.push(tag);}return mesh;});
     ghostPart=new THREE.Mesh(new THREE.BoxGeometry(...world.part.size),material('#3c9ae2',true));worldGroup.add(ghostPart);

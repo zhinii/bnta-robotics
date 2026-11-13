@@ -30,7 +30,7 @@ try{
   await send('program');assert.equal(await page.locator('#steps li').count(),route.length);assert.equal(await page.locator('#completion').isVisible(),false);
   await replay(page);await page.locator('#completion').waitFor({state:'visible',timeout:60000});
   assert.match(await page.locator('#checks').textContent(),/✓ Place/);
-  if(mode==='medium')assert.match(await page.locator('#checks').textContent(),/✓ Pass slot/);
+  if(mode==='medium')assert.match(await page.locator('#checks').textContent(),/✓ Pass opening/);
   if(mode==='hard'){assert.match(await page.locator('#checks').textContent(),/✓ Transfer to B/);assert.equal(await page.locator('.arm-badge.b').count(),6);}
   await page.locator('#language').selectOption('zh');assert.match(await page.locator('#completion').textContent(),/挑战完成/);
   await send('控制');if(mode==='hard')await page.locator('[data-arm="B"]').click();
@@ -45,6 +45,6 @@ try{
  await send('program');const count=await page.locator('#steps li').count();await replay(page);await page.locator('#pause').click();const paused=await page.locator('#tcp').textContent();await page.waitForTimeout(250);assert.equal(await page.locator('#tcp').textContent(),paused);await page.locator('#stop').click();assert.equal(await page.locator('#steps li').count(),count);assert.equal(await page.locator('#completion').isVisible(),false);
  const downloadPromise=page.waitForEvent('download');await page.locator('#export').click();const download=await downloadPromise;assert.equal(download.suggestedFilename(),'robot-challenge-hard.json');
  await page.locator('#file').setInputFiles({name:'bad.json',mimeType:'application/json',buffer:Buffer.from('{"version":1,"mode":"hard","steps":[{"type":"move","arm":"B","q":[0,999,0,0,0,0],"kind":"joints"}]}')});await page.waitForFunction(()=>document.querySelector('#feedback').textContent.includes('not a valid'));assert.equal(await page.locator('#steps li').count(),count);
- await page.reload();await page.locator('#axis-x').waitFor({state:'attached'});assert.equal(await page.locator('[data-mode="explore"]').getAttribute('aria-pressed'),'true');assert.equal(await page.locator('#step-count').textContent(),'0');assert.equal(await page.locator('#completion').isVisible(),false);assert.equal(await page.locator('[data-mode="medium"]').isDisabled(),true);assert.equal(await page.locator('[data-mode="hard"]').isDisabled(),true);
+ await page.reload();await page.locator('#axis-x').waitFor({state:'attached'});assert.equal(await page.locator('[data-mode="explore"]').getAttribute('aria-pressed'),'true');assert.equal(await page.locator('#step-count').textContent(),'0');assert.equal(await page.locator('#completion').isVisible(),false);assert.equal(await page.locator('[data-mode="medium"]').isDisabled(),false);assert.equal(await page.locator('[data-mode="hard"]').isDisabled(),false);
  assert.deepEqual(errors,[]);console.log('Browser PASS: pause/stop, file export, reload, invalid import protection, no Guide; no page errors.');
 }finally{await browser.close();}

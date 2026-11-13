@@ -11,7 +11,7 @@ await import('../challenge-ui.mjs');hook.deregister();
 const $=id=>document.getElementById(id),click=selector=>document.querySelector(selector).click();
 assert.equal($('command'),null);assert.equal($('command-form'),null);assert.equal(document.querySelectorAll('[data-mode]').length,4);
 assert.equal(document.querySelector('[data-mode="explore"]').getAttribute('aria-pressed'),'true');assert.equal($('step-count').textContent,'0');assert.equal(document.documentElement.lang,'en');assert.equal(localStorage.getItem('bnta:robot-challenges:v1'),null);assert.equal(localStorage.getItem('other-app'),'keep');
-assert.equal(document.querySelector('[data-mode="medium"]').disabled,true);assert.equal(document.querySelector('[data-mode="hard"]').disabled,true);
+assert.equal(document.querySelector('[data-mode="medium"]').disabled,false);assert.equal(document.querySelector('[data-mode="hard"]').disabled,false);
 assert.equal($('task-card').hidden,true);click('#task-toggle');assert.equal($('task-card').hidden,false);click('#task-toggle');
 const before=$('tcp').textContent;click('[data-control="xyz"]');$('axis-x').value='175';$('axis-x').dispatchEvent(new w.Event('input'));assert.equal($('tcp').textContent,before);click('#add-move');assert.equal($('step-count').textContent,'1');
 $('language').value='zh';$('language').dispatchEvent(new w.Event('change'));assert.equal(document.documentElement.lang,'zh');assert.match($('target-tcp').textContent,/计划位置/);

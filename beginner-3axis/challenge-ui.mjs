@@ -1,9 +1,9 @@
-import { ChallengeController, initialWorld, armById, pose, limits, validJoints, solvePosition, planMove, clone, gripPoint, upgradeHandoffSteps } from './challenge-model.mjs?v=number-pad-1';
-import { createChallengeScene } from './challenge-scene.mjs?v=number-pad-1';
-import { text, words } from './challenge-i18n.mjs?v=number-pad-1';
+import { ChallengeController, initialWorld, armById, pose, limits, validJoints, solvePosition, planMove, clone, gripPoint, upgradeHandoffSteps } from './challenge-model.mjs?v=square-opening-1';
+import { createChallengeScene } from './challenge-scene.mjs?v=square-opening-1';
+import { text, words } from './challenge-i18n.mjs?v=square-opening-1';
 import { CONFIG } from './model.mjs';
 import { ARM, toolReachFor } from './challenge-kinematics.mjs';
-import { createNumberPad } from './challenge-number-pad.mjs?v=number-pad-1';
+import { createNumberPad } from './challenge-number-pad.mjs?v=square-opening-1';
 const $=id=>document.getElementById(id),KEY='bnta:robot-challenges:v1',challenges=['easy','medium','hard'],modes=['explore',...challenges];
 // Every visit is fresh. Remove only this app's legacy save, even if it is malformed.
 try{localStorage.removeItem(KEY);}catch{}
@@ -13,9 +13,7 @@ let coordinateTarget=null,xyzReference=null,xyzSeed=null,introVisible=true,taskO
 let previewPlan=null,previewKey='';
 let numberPad=null,padSnapshot=null;
 const touchNumbers=window.matchMedia?window.matchMedia('(pointer: coarse)').matches:(navigator.maxTouchPoints||0)>0;
-// Only this UI's successful live replays award progress. Imported programs do not.
-const passed=new Set();
-const unlocked=mode=>mode==='explore'||mode==='easy'||passed.has(challenges[challenges.indexOf(mode)-1]);
+// Every challenge is selectable; completion still requires a verified replay.
 const t=(key,vars)=>text(language,key,vars),arm=()=>armById(controller.world,selected);
 const programSlot=(mode,axes)=>mode==='explore'?'explore'+axes:mode;
 function validSteps(mode,steps,axes=6){
@@ -31,14 +29,14 @@ function report(result){if(result?.error){say(result.index===undefined?result.er
 function changed(){
   if(!controller)return;
   if(pending&&!controller.operation&&!controller.running){const step=pending;pending=null;if(recording){const added=controller.add(step);if(added.error){recording=false;return say('recordFull',{},true);}}say(step.type==='close'&&controller.world.part.owner!==step.arm&&controller.world.part.receiver!==step.arm?'emptyGrip':controller.world.part.receiver?'sharedGrip':step.type==='open'&&step.arm==='A'&&controller.world.part.owner==='B'?'handed':{move:'moved',close:'closed',open:'opened'}[step.type]);rememberProgram();preview();}
-  if(controller.complete&&!lastComplete){passed.add(controller.world.mode);message={key:'complete',vars:{},error:false};rememberProgram();}
+  if(controller.complete&&!lastComplete){message={key:'complete',vars:{},error:false};rememberProgram();}
   else if(controller.world.complete&&!controller.busy&&!controller.complete&&!controller.lastError)message={key:controller.program.length?'replayRequired':'recordRequired',vars:{},error:false};
   if(controller.world.failure&&!controller.busy){recording=false;message={key:controller.world.failure,vars:{},error:true};}
   if(controller.lastError&&!controller.running){message=controller.lastErrorIndex===null?{key:controller.lastError,vars:{},error:true}:{key:'programError',vars:{step:controller.lastErrorIndex+1,reason:controller.lastError},error:true};}
   lastComplete=controller.complete;render();
 }
 function syncDraft(){draft=[...arm().q];coordinateTarget=null;xyzReference=[...draft];xyzSeed=[...draft];controlMode=arm().axes===3?'xyz':'joints';buildInputs();preview();}
-function selectMode(mode,axes=exploreAxes){if(controller.busy){say('busy',{},true);return false;}if(!unlocked(mode)){say('locked',{},true);return false;}rememberProgram();pending=null;recording=false;selected='A';introVisible=true;taskOpen=false;expandedStep=null;if(mode==='explore')exploreAxes=axes;controller.selectMode(mode,axes);controller.program=clone(programs[programSlot(mode,axes)]);tab='controls';lastProgramKey='';syncDraft();say('ready');$('panel-scroll').scrollTop=0;rememberProgram();return true;}
+function selectMode(mode,axes=exploreAxes){if(controller.busy){say('busy',{},true);return false;}rememberProgram();pending=null;recording=false;selected='A';introVisible=true;taskOpen=false;expandedStep=null;if(mode==='explore')exploreAxes=axes;controller.selectMode(mode,axes);controller.program=clone(programs[programSlot(mode,axes)]);tab='controls';lastProgramKey='';syncDraft();say('ready');$('panel-scroll').scrollTop=0;rememberProgram();return true;}
 function selectTab(next){tab=next;render();$('panel-scroll').scrollTop=0;}
 function selectControlMode(next){controlMode=next;if(!draft||!validJoints(arm(),draft))draft=[...arm().q];coordinateTarget=next==='xyz'?pose(arm(),draft).tip:null;xyzReference=[...draft];xyzSeed=[...draft];buildInputs();preview();}
 function selectExploreRobot(axes){if(![3,6].includes(axes))return say('command',{},true);if(controller.world.mode==='explore'&&arm().axes===axes)return;if(selectMode('explore',axes))say('robotChanged',{axes});}
@@ -118,7 +116,7 @@ function render(){
   if(!controller)return;const world=controller.world,a=arm(),exploring=world.mode==='explore';document.documentElement.lang=language;$('language').value=language;
   refreshPreview();
   document.querySelectorAll('[data-t]').forEach(el=>el.textContent=t(el.dataset.t));
-  document.querySelectorAll('[data-mode]').forEach(b=>{b.setAttribute('aria-pressed',String(b.dataset.mode===world.mode));b.disabled=controller.busy||!unlocked(b.dataset.mode);b.title=t(unlocked(b.dataset.mode)?b.dataset.mode+'Name':'locked');});
+  document.querySelectorAll('[data-mode]').forEach(b=>{b.setAttribute('aria-pressed',String(b.dataset.mode===world.mode));b.disabled=controller.busy;b.title=t(b.dataset.mode+'Name');});
   document.querySelectorAll('[data-arm]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.arm===selected)));
   document.querySelectorAll('[data-tab]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tab===tab)));
   $('explore-robot').hidden=!exploring;$('explore-robot').dataset.axes=String(exploreAxes);document.querySelectorAll('[data-robot-axes]').forEach(b=>{b.disabled=controller.busy;b.setAttribute('aria-pressed',String(Number(b.dataset.robotAxes)===exploreAxes));});$('explore-robot').setAttribute('aria-label',t('exploreRobot'));$('explore-robot').title=t('robotSwitchHelp');
