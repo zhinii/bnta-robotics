@@ -6,7 +6,7 @@ For school hosting with a server-held Alibaba key entered through SSH, follow [S
 
 ## Timed desk challenges
 
-Choose any difficulty and inspect the finished **Reference** desk and its clues. Easy, Medium and Hard are always selectable; switching levels stops the current activity and saves the movements already executed. Wide screens show the reference beside the robot; narrower screens use **Your desk / Reference / Clues** tabs in the same space. **Enlarge** opens the full reference. Press **Start recording**, or type your first command and choose **Start & send**, to connect, reset the desk and begin recording the movements you approve and run. Use **Top view** to check spacing and alignment.
+Choose any difficulty and inspect the finished **Reference** desk and its clues. Easy, Medium and Hard are always selectable; switching levels stops the current activity and saves the movements already executed. Wide screens show the reference beside the robot; narrower screens use **Your desk / Reference / Clues** tabs in the same space. **Enlarge** opens the full reference. The API connects automatically when the page loads. Before recording, send practice commands freely: approved movements execute, but neither the timer nor the recording starts. Press **Start recording** when ready; it resets the desk and conversation context and begins recording only the movements you approve and run afterward. Use **Top view** to check spacing and alignment.
 
 The rulers on the front edges of the desk and shelf show 10 mm per tick. In **Top view**, compare the spacing with the objects or try “Move the pen 10 mm to the right.”
 
@@ -37,7 +37,7 @@ The pen holder is an open square box with four 3 mm walls and a 4 mm floor. Its 
 
 After placing an item on the shelf, the assistant asks whether that spot works or whether you would like it elsewhere. A conversational “yes” leaves it in place.
 
-**Start recording** also establishes the managed connection. The GitHub frontend uses the hosted relay configured in `agent.mjs`, currently a Kimi Sites endpoint. The browser sends no saved key. The separate school package uses its own same-origin Python backend and server-held Alibaba key.
+The managed connection starts automatically on page load without focusing the input or opening a keyboard. If it fails, **Reconnect** retries without changing the desk or starting a recording. **Start recording** reuses the connection, or retries before resetting if disconnected. The GitHub frontend uses the hosted relay configured in `agent.mjs`, currently a Kimi Sites endpoint. The browser sends no saved key. The separate school package uses its own same-origin Python backend and server-held Alibaba key.
 
 
 Every checked task first shows green destination outlines and a dashed gripper path. Choose **Run movement** to execute or **Cancel movement** to leave the scene and undo history unchanged. Rejected collisions show a red ghost of the actual rejected candidate pose and an outline of the blocking object. Amber marks unsupported placements or unreachable targets; it does not claim a collision. A rejected candidate is not proof that every possible route is blocked. Previews use copied state and can be dismissed or replaced by a new command.

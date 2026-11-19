@@ -1,12 +1,12 @@
-import { initialState, snapshot, applyStep, CATALOG, objectPosture, restingFace, objectLocation, previewSteps, inHolder, footprint, graspWidth } from './world.mjs?v=slim-chat-20261119-1';
-import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=slim-chat-20261119-1';
-import { createScene } from './scene.mjs?v=slim-chat-20261119-1';
-import { createSpeech } from './speech.mjs?v=slim-chat-20261119-1';
-import { words, challenges } from './i18n.mjs?v=slim-chat-20261119-1';
-import { createTimedChallenge, formatChallengeTime } from './timed-challenge.mjs?v=slim-chat-20261119-1';
-import { precisionCommand } from './precision-command.mjs?v=slim-chat-20261119-1';
-import { setupKeyboardLayout } from './keyboard-layout.mjs?v=slim-chat-20261119-1';
-import deployment from './deployment.mjs?v=slim-chat-20261119-1';
+import { initialState, snapshot, applyStep, CATALOG, objectPosture, restingFace, objectLocation, previewSteps, inHolder, footprint, graspWidth } from './world.mjs?v=practice-20261119-1';
+import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=practice-20261119-1';
+import { createScene } from './scene.mjs?v=practice-20261119-1';
+import { createSpeech } from './speech.mjs?v=practice-20261119-1';
+import { words, challenges } from './i18n.mjs?v=practice-20261119-1';
+import { createTimedChallenge, formatChallengeTime } from './timed-challenge.mjs?v=practice-20261119-1';
+import { precisionCommand } from './precision-command.mjs?v=practice-20261119-1';
+import { setupKeyboardLayout } from './keyboard-layout.mjs?v=practice-20261119-1';
+import deployment from './deployment.mjs?v=practice-20261119-1';
 const serverMode=deployment?.mode==='school',hostedMode=deployment?.mode==='hosted',managedConnection=serverMode||hostedMode;
 
 const $=id=>document.getElementById(id);
@@ -97,8 +97,8 @@ function renderTimed(){
     button.setAttribute('aria-pressed',String(button.dataset.level===run.level));button.disabled=!view;
   }
   $('timed-start').hidden=run.attemptMs!==null;$('timed-start').disabled=busy||!view;
-  $('timed-start').textContent=t(activity==='connecting'?'connecting':'timedStart');
-  $('connection-retry').hidden=!!connection||!managedConnection||!run.recording;
+  $('timed-start').textContent=t('timedStart');
+  $('connection-retry').hidden=!!connection||!managedConnection||!connectionFailed;
   $('connection-retry').disabled=busy;
   $('timed-finish').hidden=!run.recording;$('timed-finish').disabled=busy;
   $('timed-replay').hidden=!review||!run.moves;
@@ -140,7 +140,7 @@ function refresh(){
   $('suggestions').hidden=!connection||busy;$('mic').hidden=!connection||busy;$('speech-note').hidden=!connection||!speech.active;
   $('mic').title=t(speech.active?'micStop':'mic');$('mic').setAttribute('aria-label',t(speech.active?'micStop':'mic'));$('mic').setAttribute('aria-pressed',String(speech.active));
   $('composer').hidden=false;
-  $('send').textContent=t(!connection&&!managedConnection?'connect':timed.summary().canEdit?'continueSend':timed.summary().attemptMs===null?'startSend':'send');$('send').disabled=busy||speech.active;
+  $('send').textContent=t(!connection&&!managedConnection?'connect':timed.summary().canEdit?'continueSend':'send');$('send').disabled=busy||speech.active;
   $('stop').hidden=!busy||timed.replaying||previewData?.kind==='ready';$('stop').textContent=t('stopRobot');
   $('api-key').disabled=busy||!!connection;$('prompt').disabled=busy;$('base-url').disabled=busy;$('model').disabled=busy;
   const connectionLabel=connection?'online':activity==='connecting'?'connecting':connectionFailed?'cantConnect':'offline';
@@ -205,7 +205,7 @@ function prepare(actions){
     return Promise.resolve({plan:{steps:undo.at(-1)},undoing:true});
   }
   return new Promise((resolve,reject)=>{
-    const planner=new Worker(new URL('./planner-worker.mjs?v=slim-chat-20261119-1',import.meta.url),{type:'module'});worker=planner;
+    const planner=new Worker(new URL('./planner-worker.mjs?v=practice-20261119-1',import.meta.url),{type:'module'});worker=planner;
     const finish=()=>{clearTimeout(timer);planner.terminate();if(worker===planner){worker=null;workerReject=null;}};
     const timer=setTimeout(()=>{finish();reject(Error('planningTimeout'));},45000);
     workerReject=error=>{finish();reject(error);};
@@ -285,7 +285,7 @@ function reportError(error){
   if(['reach','blocked'].includes(key)&&['place','transfer'].includes(error.action?.type)&&error.action?.orientation?.slice(0,2).some(v=>Math.abs(v)>.1)){const vars={object:name(errorObject),angles:error.action.orientation.map(v=>Math.round(v)).join('°, ')+'°'};say('tiltedPlacement',vars,'assistant',true);return t('tiltedPlacement',vars);}
   say(key,{},'assistant',true);return t(key);
 }
-async function connect(){
+async function connect({autofocus=true}={}){
   const id=++epoch;connectionFailed=false;busy=true;status('connecting');
   try{
     const candidate=serverMode?{server:true}:hostedMode?{hosted:true}:validateConnection({base:$('base-url').value.trim(),model:$('model').value.trim(),key:$('api-key').value});$('api-key').value='';
@@ -297,15 +297,13 @@ async function connect(){
     connection=candidate;if(!managedConnection)try{localStorage.setItem('six-axis-settings',JSON.stringify({base:candidate.base,model:candidate.model}));}catch{}
     say('connected');
   }catch(error){if(id===epoch){connectionFailed=true;reportError(error);}}
-  finally{if(id===epoch){busy=false;activity='';abort=null;refresh();focusInput(connection?$('prompt'):managedConnection?$('send'):$('api-key'));}}
+  finally{if(id===epoch){busy=false;activity='';abort=null;refresh();if(autofocus)focusInput(connection?$('prompt'):managedConnection?$('send'):$('api-key'));}}
 }
 async function send(question){
   if(busy||!question.trim())return;
   if(!view){say('sceneUnavailable',{},'assistant',true);return;}
   if(!connection){await connect();if(!connection)return;}
   if(timed.summary().canEdit)editTimed();
-  else if(!timed.recording)await startTimed();
-  if(!timed.recording)return;
   $('prompt').blur();
   speech.abort();clearPreview();const id=++epoch;busy=true;add('user',question);$('prompt').value='';status('thinking');
   const explicit=precisionCommand(question,state.q,language);
@@ -435,3 +433,4 @@ setupKeyboardLayout({window,document,onChange:active=>{
 }});
 say('welcome');refresh();
 Object.defineProperty(window,'robotLabSnapshot',{value:()=>structuredClone({scene:perception(),busy,connected:!!connection,language,listening:speech.active,timed:timed.summary()})});
+if(managedConnection&&view)void connect({autofocus:false});
