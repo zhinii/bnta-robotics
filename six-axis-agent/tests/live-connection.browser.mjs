@@ -11,7 +11,10 @@ if(output)await mkdir(output,{recursive:true});
 const browser=await chromium.launch({channel,headless:true,args:['--enable-webgl','--ignore-gpu-blocklist']});
 const report={url,channel,checks:[],requests:[],errors:[]};
 try{
-  const page=await browser.newPage({viewport:{width:1180,height:820},hasTouch:true});
+  const page=await browser.newPage({viewport:{width:1180,height:820}});
+  const cdp=await page.context().newCDPSession(page);await cdp.send('Network.enable');
+  cdp.on('Network.responseReceived',event=>{if(event.response.url.includes('/api/chat'))console.log('Live HTTP:',event.type,event.response.status,event.response.protocol);});
+  page.on('requestfailed',request=>{if(request.url().includes('/api/chat'))console.log('Live network error:',request.failure()?.errorText);});
   page.on('pageerror',error=>report.errors.push(error.message));
   page.on('request',request=>{
     if(!request.url().includes('/api/chat')||request.method()!=='POST')return;
@@ -35,18 +38,22 @@ try{
   };
   await page.goto(url,{waitUntil:'domcontentloaded',timeout:45000});
   await page.waitForFunction(()=>!!window.robotLabSnapshot);
-  await page.locator('[data-level=hard]').click();await $('language').click();
-  await page.locator('[data-level=easy]').click();await $('language').click();
+  assert.equal(await page.locator('body').getAttribute('data-version'),new URL(url).searchParams.get('release'));
   await idle();const initial=await snap();
   assert.equal(initial.connected,true,'automatic connection: '+await $('messages').innerText());
   assert.equal(initial.timed.attemptMs,null);assert.equal(initial.timed.moves,0);
-  record('automatic connection without Reconnect, despite level and language changes',{attempts:initial.connectionAttempt});
+  record('automatic connection on untouched page: no clicks, no Reconnect',{attempts:initial.connectionAttempt});
   await shot('01-connected-desktop');
   if(output)await $('scene-stage').screenshot({path:path.join(output,'scene-only.png')});
   const connectionChecks=checks();
+  await page.locator('[data-level=hard]').click();await $('language').click();
+  await page.locator('[data-level=easy]').click();await $('language').click();
+  assert.equal((await snap()).connected,true);assert.equal(checks(),connectionChecks);
+  record('level/language changes preserve the established connection');
   await $('prompt').fill('pick up the book');await $('send').click();await idle();
   assert.match(await $('messages').innerText(),/Which book/);assert.deepEqual((await snap()).scene,initial.scene);
   await page.setViewportSize({width:390,height:844});await shot('03-clarification-phone');
+  await cdp.send('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:1});
   await page.setViewportSize({width:820,height:1180});await $('prompt').focus();
   await page.evaluate(()=>{
     Object.defineProperty(visualViewport,'height',{value:650,configurable:true});
