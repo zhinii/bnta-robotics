@@ -1,12 +1,12 @@
-import { initialState, snapshot, applyStep, CATALOG, objectPosture, restingFace, objectLocation, previewSteps, inHolder, footprint, graspWidth } from './world.mjs?v=practice-20261119-1';
-import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=practice-20261119-1';
-import { createScene } from './scene.mjs?v=practice-20261119-1';
-import { createSpeech } from './speech.mjs?v=practice-20261119-1';
-import { words, challenges } from './i18n.mjs?v=practice-20261119-1';
-import { createTimedChallenge, formatChallengeTime } from './timed-challenge.mjs?v=practice-20261119-1';
-import { precisionCommand } from './precision-command.mjs?v=practice-20261119-1';
-import { setupKeyboardLayout } from './keyboard-layout.mjs?v=practice-20261119-1';
-import deployment from './deployment.mjs?v=practice-20261119-1';
+import { initialState, snapshot, applyStep, CATALOG, objectPosture, restingFace, objectLocation, previewSteps, inHolder, footprint, graspWidth } from './world.mjs?v=connection-20261119-1';
+import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=connection-20261119-1';
+import { createScene } from './scene.mjs?v=connection-20261119-1';
+import { createSpeech } from './speech.mjs?v=connection-20261119-1';
+import { words, challenges } from './i18n.mjs?v=connection-20261119-1';
+import { createTimedChallenge, formatChallengeTime } from './timed-challenge.mjs?v=connection-20261119-1';
+import { precisionCommand } from './precision-command.mjs?v=connection-20261119-1';
+import { setupKeyboardLayout } from './keyboard-layout.mjs?v=connection-20261119-1';
+import deployment from './deployment.mjs?v=connection-20261119-1';
 const serverMode=deployment?.mode==='school',hostedMode=deployment?.mode==='hosted',managedConnection=serverMode||hostedMode;
 
 const $=id=>document.getElementById(id);
@@ -14,7 +14,7 @@ const $=id=>document.getElementById(id);
 // heuristics out of chat, with native masking as a fallback in older browsers.
 if(!CSS.supports('-webkit-text-security','disc'))$('api-key').type='password';
 let language='en';try{language=localStorage.getItem('six-axis-language')==='zh'?'zh':'en';}catch{}
-let connectionFailed=false;
+let connectionFailed=false,connecting=false,connectionJob=null;
 let state=initialState(0,'desk'),connection=null,busy=false,epoch=0,abort=null,history=[],activity='',view=null,undo=[],worker=null,workerReject=null,challengeIndex=0;
 let previewData=null,previewResolve=null,settling=null;
 const timed=createTimedChallenge();
@@ -96,10 +96,10 @@ function renderTimed(){
   for(const button of levels.querySelectorAll('button')){
     button.setAttribute('aria-pressed',String(button.dataset.level===run.level));button.disabled=!view;
   }
-  $('timed-start').hidden=run.attemptMs!==null;$('timed-start').disabled=busy||!view;
+  $('timed-start').hidden=run.attemptMs!==null;$('timed-start').disabled=busy||connecting||!view;
   $('timed-start').textContent=t('timedStart');
-  $('connection-retry').hidden=!!connection||!managedConnection||!connectionFailed;
-  $('connection-retry').disabled=busy;
+  $('connection-retry').hidden=!!connection||!managedConnection||connecting;
+  $('connection-retry').disabled=busy||connecting;
   $('timed-finish').hidden=!run.recording;$('timed-finish').disabled=busy;
   $('timed-replay').hidden=!review||!run.moves;
   $('timed-replay').disabled=busy||!view;
@@ -119,7 +119,7 @@ function renderTimed(){
   $('comparison-image').alt=t('finalDesk');
   $('run-title').textContent=t(run.replaying?(run.paused?'timedPaused':'timedPlayingTitle'):run.recording?'timedRecordingLabel':run.replayComplete?'timedCompleteLabel':run.replayStopped?'timedStoppedTitle':review?'timedReviewTitle':'timedReadyTitle');
   renderReference(run.level);
-  const statusKey=run.replaying?'timedPlaying':run.recording?'timedRecording':run.replayStopped?'timedStopped':run.replayComplete?'timedComplete':review?(run.moves?'timedSaved':'timedEmpty'):activity==='connecting'?'connecting':connectionFailed?'connectionRetry':'timedReady';
+  const statusKey=run.replaying?'timedPlaying':run.recording?'timedRecording':run.replayStopped?'timedStopped':run.replayComplete?'timedComplete':review?(run.moves?'timedSaved':'timedEmpty'):connecting?'connecting':connectionFailed?'connectionRetry':'timedReady';
   const status=$('timed-status'),label=t(statusKey,{count:run.moves});
   if(status.textContent!==label)status.textContent=label;
   renderTimedClocks(run);
@@ -135,15 +135,15 @@ function refresh(){
   $('api-key').hidden=!!connection||managedConnection;$('prompt').hidden=!connection&&!managedConnection;$('connection-options').hidden=!!connection||managedConnection;
   $('input-label').textContent=t(connection?'messageLabel':'keyLabel');$('input-label').htmlFor=connection?'prompt':'api-key';
   $('input-label').classList.toggle('sr-only',!!connection);
-  $('key-note').hidden=!!connection||activity==='connecting';$('reconnect').hidden=!connection;$('reconnect').disabled=busy;
+  $('key-note').hidden=!!connection||connecting;$('reconnect').hidden=!connection;$('reconnect').disabled=busy||connecting;
   if(managedConnection){$('input-label').textContent=t(connection?'messageLabel':hostedMode?'hostedConnection':'schoolConnection');$('key-note').textContent=t(hostedMode?'hostedKeyNote':'schoolKeyNote');$('reconnect').textContent=t('schoolReconnect');}
-  $('suggestions').hidden=!connection||busy;$('mic').hidden=!connection||busy;$('speech-note').hidden=!connection||!speech.active;
+  $('suggestions').hidden=!connection||busy||connecting;$('mic').hidden=!connection||busy||connecting;$('speech-note').hidden=!connection||!speech.active;
   $('mic').title=t(speech.active?'micStop':'mic');$('mic').setAttribute('aria-label',t(speech.active?'micStop':'mic'));$('mic').setAttribute('aria-pressed',String(speech.active));
   $('composer').hidden=false;
-  $('send').textContent=t(!connection&&!managedConnection?'connect':timed.summary().canEdit?'continueSend':'send');$('send').disabled=busy||speech.active;
+  $('send').textContent=t(!connection&&!managedConnection?'connect':timed.summary().canEdit?'continueSend':'send');$('send').disabled=busy||connecting||speech.active;
   $('stop').hidden=!busy||timed.replaying||previewData?.kind==='ready';$('stop').textContent=t('stopRobot');
-  $('api-key').disabled=busy||!!connection;$('prompt').disabled=busy;$('base-url').disabled=busy;$('model').disabled=busy;
-  const connectionLabel=connection?'online':activity==='connecting'?'connecting':connectionFailed?'cantConnect':'offline';
+  $('api-key').disabled=busy||connecting||!!connection;$('prompt').disabled=busy;$('base-url').disabled=busy||connecting;$('model').disabled=busy||connecting;
+  const connectionLabel=connecting?'connecting':connection?'online':connectionFailed?'cantConnect':'offline';
   $('connection-state').textContent=t(connectionLabel);
   if(managedConnection){$('input-label').textContent=t('messageLabel');$('input-label').htmlFor='prompt';$('input-label').classList.add('sr-only');$('key-note').hidden=false;$('key-note').textContent=t(timed.replaying?'chatPlayback':timed.summary().canEdit?'chatContinue':timed.summary().attemptMs===null?'chatStart':'chatReady');}$('connection-state').classList.toggle('online',!!connection);
   $('activity').textContent=activity&&activity!=='connecting'&&!previewData?t(activity):'';
@@ -205,7 +205,7 @@ function prepare(actions){
     return Promise.resolve({plan:{steps:undo.at(-1)},undoing:true});
   }
   return new Promise((resolve,reject)=>{
-    const planner=new Worker(new URL('./planner-worker.mjs?v=practice-20261119-1',import.meta.url),{type:'module'});worker=planner;
+    const planner=new Worker(new URL('./planner-worker.mjs?v=connection-20261119-1',import.meta.url),{type:'module'});worker=planner;
     const finish=()=>{clearTimeout(timer);planner.terminate();if(worker===planner){worker=null;workerReject=null;}};
     const timer=setTimeout(()=>{finish();reject(Error('planningTimeout'));},45000);
     workerReject=error=>{finish();reject(error);};
@@ -286,23 +286,30 @@ function reportError(error){
   say(key,{},'assistant',true);return t(key);
 }
 async function connect({autofocus=true}={}){
-  const id=++epoch;connectionFailed=false;busy=true;status('connecting');
-  try{
-    const candidate=serverMode?{server:true}:hostedMode?{hosted:true}:validateConnection({base:$('base-url').value.trim(),model:$('model').value.trim(),key:$('api-key').value});$('api-key').value='';
-    abort=new AbortController();const controller=abort;let timedOut=false;
-    const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);let response;
-    try{response=await askAgent(candidate,{question:'connection_check',language,history:[],scene:perception()},controller.signal);}
-    catch(error){if(timedOut)throw Error('timeout');throw error;}finally{clearTimeout(timeout);}
-    if(id!==epoch)return;if(response.actions.length)throw Error('response');
-    connection=candidate;if(!managedConnection)try{localStorage.setItem('six-axis-settings',JSON.stringify({base:candidate.base,model:candidate.model}));}catch{}
-    say('connected');
-  }catch(error){if(id===epoch){connectionFailed=true;reportError(error);}}
-  finally{if(id===epoch){busy=false;activity='';abort=null;refresh();if(autofocus)focusInput(connection?$('prompt'):managedConnection?$('send'):$('api-key'));}}
+  if(connectionJob)return connectionJob;
+  connectionFailed=false;connecting=true;refresh();
+  // Connection setup belongs to the page, not a robot task. Level/language/reset
+  // controls may cancel motion without aborting this shared connection request.
+  connectionJob=Promise.resolve().then(async()=>{
+    try{
+      const candidate=serverMode?{server:true}:hostedMode?{hosted:true}:validateConnection({base:$('base-url').value.trim(),model:$('model').value.trim(),key:$('api-key').value});$('api-key').value='';
+      const controller=new AbortController();let timedOut=false;
+      const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);let response;
+      try{response=await askAgent(candidate,{question:'connection_check',language,history:[],scene:perception()},controller.signal);}
+      catch(error){if(timedOut)throw Error('connectionTimeout');throw error;}finally{clearTimeout(timeout);}
+      if(response.actions.length)throw Error('response');
+      connection=candidate;if(!managedConnection)try{localStorage.setItem('six-axis-settings',JSON.stringify({base:candidate.base,model:candidate.model}));}catch{}
+      say('connected');
+    }catch(error){connectionFailed=true;if(error.message==='connectionTimeout')say('connectionTimeout',{},'assistant',true);else reportError(error);}
+  });
+  try{await connectionJob;}
+  finally{connecting=false;connectionJob=null;refresh();if(autofocus&&!busy)focusInput(connection?$('prompt'):managedConnection?$('send'):$('api-key'));}
 }
 async function send(question){
   if(busy||!question.trim())return;
   if(!view){say('sceneUnavailable',{},'assistant',true);return;}
-  if(!connection){await connect();if(!connection)return;}
+  const pendingEpoch=epoch;
+  if(!connection){await connect();if(!connection||epoch!==pendingEpoch)return;}
   if(timed.summary().canEdit)editTimed();
   $('prompt').blur();
   speech.abort();clearPreview();const id=++epoch;busy=true;add('user',question);$('prompt').value='';status('thinking');
@@ -346,7 +353,8 @@ async function send(question){
 }
 async function startTimed(){
   if(busy||!view||timed.summary().attemptMs!==null)return;
-  if(!connection){await connect();if(!connection)return;}
+  const pendingEpoch=epoch;
+  if(!connection){await connect();if(!connection||epoch!==pendingEpoch)return;}
   speech.abort();clearPreview();
   compareDesk(false);state=initialState(0,'desk');undo=[];history=[];view.resetView();
   timed.start(state);levelHistories.delete(timed.level);archiveExchange();say('resetDone',{},'system');refresh();$('run-title').focus({preventScroll:true});
@@ -402,7 +410,7 @@ $('timed-pause').addEventListener('click',()=>{timed.pauseReplay();refresh();});
 $('timed-stop').addEventListener('click',()=>cancel(false));
 $('timed-replay').addEventListener('click',()=>void replayTimed());
 setInterval(()=>{if(timed.recording||timed.replaying)renderTimedClocks();},100);
-function submitMessage(){if(!busy&&!speech.active){if(connection||managedConnection)void send($('prompt').value.trim());else void connect();}}
+function submitMessage(){if(!busy&&!connecting&&!speech.active){if(connection||managedConnection)void send($('prompt').value.trim());else void connect();}}
 $('send').addEventListener('click',submitMessage);
 for(const id of ['prompt','api-key'])$(id).addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();submitMessage();}});
 $('stop').addEventListener('click',()=>cancel());
@@ -432,5 +440,5 @@ setupKeyboardLayout({window,document,onChange:active=>{
   refresh();
 }});
 say('welcome');refresh();
-Object.defineProperty(window,'robotLabSnapshot',{value:()=>structuredClone({scene:perception(),busy,connected:!!connection,language,listening:speech.active,timed:timed.summary()})});
-if(managedConnection&&view)void connect({autofocus:false});
+Object.defineProperty(window,'robotLabSnapshot',{value:()=>structuredClone({scene:perception(),busy,connecting,connected:!!connection,language,listening:speech.active,timed:timed.summary()})});
+if(managedConnection)void connect({autofocus:false});

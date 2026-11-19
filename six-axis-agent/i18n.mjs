@@ -1,5 +1,6 @@
 export const words={
  en:{
+  connectionTimeout:'The connection check timed out. Press Reconnect to try again. Your desk is unchanged.',
   continueSend:'Continue & send',chatStart:'Try commands freely. Start recording resets the desk and starts the timer.',chatContinue:'Sending resumes your saved recording.',chatPlayback:'Playback running. Stop to continue your recording.',chatReady:'Name an item and what to do.',recordingDetails:'Recording details',
   timedTitle:'Match the desk',timedDifficulty:'Difficulty',timedEasy:'Easy',timedMedium:'Medium',timedHard:'Hard',
   timedAttempt:'Solve time',timedPlayback:'Robot time',timedStart:'Start recording',timedNew:'New recording…',timedFinish:'Finish',timedReplay:'▶ Play recording',timedAgain:'▶ Replay again',timedStop:'Stop playback',
@@ -85,6 +86,7 @@ export const words={
   mic:'Dictate a command',micStop:'Finish dictation',listening:'Listening… tap the microphone to finish.',speechReady:'Review the words above, then press Send.',speechUnavailable:'Speech recognition isn’t available in this browser. Open the page in a supported browser, or type your command.',speechDenied:'Microphone or speech permission was denied. Allow it in your browser’s site settings, or type your command.',speechEmpty:'I didn’t hear a command. Tap the microphone and try again, or type it.',speechDevice:'I couldn’t start the microphone. Check that a working microphone is connected and available.',speechNetwork:'The browser’s speech service could not complete recognition. Check the connection or type your command.',speechNote:'Dictation uses your browser’s speech service. Review before sending.'
  },
  zh:{
+  connectionTimeout:'连接检查超时。请点击“重新连接”重试。桌面没有变化。',
   continueSend:'继续并发送',chatStart:'可自由试用指令。点击开始录制后，重置桌面并开始计时。',chatContinue:'发送后会继续已保存的录制。',chatPlayback:'正在回放，请停止回放后继续录制。',chatReady:'说出物品和要做的动作。',recordingDetails:'录制详情',
   timedTitle:'照图布置桌面',timedDifficulty:'难度',timedEasy:'简单',timedMedium:'中等',timedHard:'困难',
   timedAttempt:'解题用时',timedPlayback:'机械臂用时',timedStart:'开始录制',timedNew:'新建录制…',timedFinish:'结束录制',timedReplay:'▶ 播放录制',timedAgain:'▶ 再次回放',timedStop:'停止回放',

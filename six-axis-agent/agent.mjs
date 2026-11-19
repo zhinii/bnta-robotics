@@ -1,5 +1,5 @@
-import { validateActions } from './world.mjs?v=practice-20261119-1';
-import { clarifyReference, CLARIFICATION_POLICY } from './clarification.mjs?v=practice-20261119-1';
+import { validateActions } from './world.mjs?v=connection-20261119-1';
+import { clarifyReference, CLARIFICATION_POLICY } from './clarification.mjs?v=connection-20261119-1';
 
 export const DEFAULTS = { base: 'https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1', model: 'qwen3.8-flash' };
 export const RELAY = 'https://s52xzsn2ztf64.kimi.site/api/chat';

@@ -23,6 +23,9 @@ try{
   const page=await browser.newPage({viewport:{width:1180,height:820},hasTouch:true}),errors=[];
   page.on('pageerror',error=>errors.push(error.message));
   let providerCalls=0,failConnection=false;
+  let releaseConnection,noticeConnection;
+  const connectionGate=new Promise(resolve=>{releaseConnection=resolve;});
+  const connectionRequested=new Promise(resolve=>{noticeConnection=resolve;});
   const routes={
     connection_check:[],
     'Move the pen 10 mm to the right.':[{type:'shift',object:'pen',direction:'right',distance:10,unit:'mm'}],
@@ -35,6 +38,7 @@ try{
     assert.ok(Object.hasOwn(routes,task.question),task.question);
     assert.equal(task.scene.placementTargets,undefined);
     assert.equal(route.request().headers().authorization,undefined);
+    if(task.question==='connection_check'){noticeConnection();await connectionGate;}
     if(failConnection&&task.question==='connection_check'){await route.fulfill({status:401,json:{error:{message:'Test authentication failure'}}});return;}
     await route.fulfill({json:{choices:[{message:{content:JSON.stringify({reply:'Ready.',actions:routes[task.question]})}}]}});
   });
@@ -42,7 +46,7 @@ try{
   const snapshot=()=>page.evaluate(()=>{
     const value=window.robotLabSnapshot();delete value.scene.canUndo;return value;
   });
-  const waitIdle=()=>page.waitForFunction(()=>!window.robotLabSnapshot().busy,null,{timeout:90000});
+  const waitIdle=()=>page.waitForFunction(()=>!window.robotLabSnapshot().busy&&!window.robotLabSnapshot().connecting,null,{timeout:90000});
   const send=async command=>{
     await $('prompt').fill(command);await $('send').click();await $('preview-run').click({timeout:45000});await waitIdle();
   };
@@ -59,11 +63,19 @@ try{
     assert.equal(await $('reference-dialog').isVisible(),true);
   };
   await page.goto('http://127.0.0.1:'+server.address().port+'/six-axis-agent/');
-  await page.waitForFunction(()=>!!window.robotLabSnapshot);await waitIdle();
+  await page.waitForFunction(()=>!!window.robotLabSnapshot);await connectionRequested;
+  await page.locator('[data-level="hard"]').click();await $('language').click();
+  await page.locator('[data-level="easy"]').click();await $('language').click();
+  assert.equal(await $('prompt').isEnabled(),true,'students can draft during connection');
+  await $('prompt').fill('Connection draft');await page.keyboard.press('Enter');
+  assert.equal(await $('send').isDisabled(),true,'Enter cannot queue hidden commands while connecting');
+  const focusedDuringConnect=await page.evaluate(()=>document.activeElement.id);
+  releaseConnection();await waitIdle();
   assert.equal(await $('render-error').isVisible(),false);
-  assert.equal((await snapshot()).connected,true,'managed API connects on page load');
+  assert.equal((await snapshot()).connected,true,'startup connection survives difficulty and language changes');
   assert.equal(providerCalls,1,'one automatic connection request');
-  assert.equal(await page.evaluate(()=>document.activeElement.id),'','automatic connection does not focus the input');
+  assert.equal(await $('prompt').inputValue(),'Connection draft','connection preserves the draft');
+  assert.equal(await page.evaluate(()=>document.activeElement.id),focusedDuringConnect,'automatic connection does not steal focus');
   assert.equal(await $('timed-start').isEnabled(),true);
   assert.equal(await $('composer').isVisible(),true);
   assert.equal(await $('reference-preview').isVisible(),true);
