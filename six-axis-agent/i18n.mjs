@@ -1,5 +1,6 @@
 export const words={
  en:{
+  taskMismatch:'The checked plan would not accomplish your request, so I haven’t moved anything. Please name the item and the edge or destination you want.',
   conversationTitle:'Conversation',recentConversation:'Recent conversation',latestReply:'Latest reply ↓',promptReply:'Reply to your robot…',promptCommand:'Tell your robot what to do…',practiceHint:'Practice freely. Start recording resets the desk.',recordingHint:'Match the reference, then press Finish.',
   connectionTimeout:'The connection check timed out. Press Reconnect to try again. Your desk is unchanged.',
   connectionRetrying:'Retrying connection ({attempt}/3)…',
@@ -89,6 +90,7 @@ export const words={
   mic:'Dictate a command',micStop:'Finish dictation',listening:'Listening… tap the microphone to finish.',speechReady:'Review the words above, then press Send.',speechUnavailable:'Speech recognition isn’t available in this browser. Open the page in a supported browser, or type your command.',speechDenied:'Microphone or speech permission was denied. Allow it in your browser’s site settings, or type your command.',speechEmpty:'I didn’t hear a command. Tap the microphone and try again, or type it.',speechDevice:'I couldn’t start the microphone. Check that a working microphone is connected and available.',speechNetwork:'The browser’s speech service could not complete recognition. Check the connection or type your command.',speechNote:'Dictation uses your browser’s speech service. Review before sending.'
  },
  zh:{
+  taskMismatch:'检查后发现，这条计划不能完成你的要求，所以我还没有移动。请说出物品，以及要从哪条边缘放下或放到哪里。',
   conversationTitle:'对话',recentConversation:'最近的对话',latestReply:'最新回复 ↓',promptReply:'回复你的机械臂…',promptCommand:'告诉机械臂要做什么…',practiceHint:'可以自由练习。开始录制时会重置桌面。',recordingHint:'照图摆好后，点击“结束录制”。',
   connectionTimeout:'连接检查超时。请点击“重新连接”重试。桌面没有变化。',
   connectionRetrying:'正在重试连接（{attempt}/3）…',

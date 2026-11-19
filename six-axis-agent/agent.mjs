@@ -1,5 +1,6 @@
-import { validateActions } from './world.mjs?v=chat-ui-20261119-1';
-import { clarifyReference, CLARIFICATION_POLICY } from './clarification.mjs?v=chat-ui-20261119-1';
+import { validateActions } from './world.mjs?v=movement-20261119-1';
+import { clarifyReference, CLARIFICATION_POLICY } from './clarification.mjs?v=movement-20261119-1';
+import { taskGoal, enforceTaskGoal, OUTCOME_POLICY } from './task-intent.mjs?v=movement-20261119-1';
 
 export const DEFAULTS = { base: 'https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1', model: 'qwen3.8-flash' };
 export const RELAY = 'https://s52xzsn2ztf64.kimi.site/api/chat';
@@ -15,7 +16,7 @@ GENERAL CONTROL: human instructions define the task, not a catalogue of permitte
 Destinations: current (the item's current supporting X/Y, or pickup X/Y if held), desk (any nearby clear spot on the continuous desk), shelf (any available spot across its continuous surface), shelf-left/middle/right (only explicitly named regions), start, object-id-start, another object's ID, laptop, pen-holder. The controller supplies height. For put it down, turn it sideways, or change its resting edge without a new destination, use target:current; do NOT ask for a destination. A transfer to desk/shelf also preserves the current orientation unless a new one is requested. If 'on it too' refers to a recent surface, retain that surface, rather than stacking on the last item. 'Same orientation' copies that item's rpy. For explicit X/Y placement, use position:[x,y] in mm. surface:desk|shelf optionally names the surface for a relative placement.
 Relative placement: beside:"id",relation:"left|right|front|back|beside" uses student directions: left -X, right +X, front toward laptop/chair -Y, back toward wall +Y. Legacy side:auto|left|right|front|rear also works, but prefer relation. Keep explicit sides. Do not move neighbours without permission. The shelf and desk are continuous surfaces, not three assigned boxes. Let the controller try grips and routes.
 Relative displacement: {"type":"shift","object":"id","direction":"left|right|front|back","distance":1,"unit":"mm|cm|width|length|height|depth","reference":"id"}. Unit/reference are optional (mm and the moved object). Width is the reference's intrinsic size[0], length its longest dimension, height its current world Z size, depth its current world Y size. Fractions are allowed. For a general planar vector use {"type":"shift","object":"id","offset":[dx,dy]} in mm instead. A shift starts at the current support/pickup position, keeps orientation and releases. These primitives cover measured/fractional moves, object-sized distances and combinations; do not match only the example phrases. Ask for missing distance, direction or ambiguous reference; use needsInput:true and actions:[]. Preserve the object and direction while waiting for their answer. Never ask which surface when the current surface is known.
-Release: {"type":"release"} opens the gripper HERE and lets the held object fall. {"type":"drop","object":"id","target":"laptop"} or position/beside/relation carries above that location then releases with gravity. Drop can use the same orientation/posture/approach parameters as transfer. A free release needs no named destination. Keep target as a plain destination ID string; position:[x,y] is a sibling field, never nested inside target. For off-desk drops, compute X/Y beyond the selected desk edge by the object's rotated half-size plus 5 mm (deskBounds and worldSize are in the scene); a centre exactly on the edge still overlaps the desktop. This applies to any item and any edge. An off-desk item lands on the room floor and may be out of reach; don't claim it can be retrieved without checking.
+Release: {"type":"release"} opens the gripper HERE and lets the held object fall. {"type":"drop","object":"id","target":"laptop"} or position/beside/relation carries above that location then releases with gravity. Drop can use the same orientation/posture/approach parameters as transfer. A free release needs no named destination. Keep target as a plain destination ID string; position:[x,y] is a sibling field, never nested inside target. For off-desk drops use {"type":"drop","object":"id","target":"current","clearOf":"desk","edge":"auto"}; name front/back/left/right only if requested. The controller chooses a reachable point beyond the whole rotated footprint and checks the resulting location. clearOf:"shelf" similarly clears the shelf. Do not replace these tasks with release-here. Explicit coordinate drops still use position:[x,y]. An off-desk item lands on the room floor and may be out of reach; don't claim it can be retrieved without checking.
 Posture replaces guessed angles: short-edge/upright stands the longest dimension vertically; long-edge stands the middle dimension vertically; flat rests on a cover. For books, posture:"spine" puts the actual bound spine (local -X edge) underneath, distinct from the opposite page edge. posture:"face-down" flips a book onto its other flat cover, never a 45-degree tilt. The controller may set the SAME book upright in a clear temporary spot, release it and take a new grip to finish. When the user suggests standing and regrasping to achieve an earlier spine/face-down goal, retain that final goal in one transfer; the controller handles the real intermediate moves. If their new instruction is instead an explicit held rotation, preserve it and ask where to place it afterwards. Do not silently add return/release.
 orientation:[roll,pitch,yaw] is only for explicitly requested X/Y/Z placement angles in -180..180. Do not combine orientation and posture. {"type":"rotate","axis":"x|y|z","angle":90} turns a held object around the named robot/world axis; ask which axis when it is not specified or clear from context. Follow-up “on Y” keeps the angle and changes axis. Never substitute an axis/angle. A failed approach angle is not the requested book angle or proof of unstable support.
 Pickup approach is independent of final pose. Student front is -Y, back +Y, left -X, right +X, top +Z. Honour explicit pickup sides. Auto may choose alternatives. “From this side” without a clear reference needs “From the front or the top?” A new grip requires a real supported set-down and re-pick, never changing attachment in midair. clearAbove and stackable describe the scene, not user permissions. Actual pickup still needs a clear physical grip and path; explain a real blocker. The holder must stay upright; transfer pen/pencil to pen-holder chooses a free slot and drops it inside.
@@ -31,17 +32,19 @@ export function validateConnection({base,model,key}) {
   if(!/^[\w.\-]{1,100}$/.test(model) || typeof key!=='string' || !key.trim() || key.length>512) throw Error('credentials');
   return {base:base.replace(/\/$/,''),model,key:key.trim()};
 }
-export function parseResponse(raw) {
+export function parseResponse(raw,{goal,scene,language}={}) {
   if(typeof raw!=='string')throw Error('response');
   const result=JSON.parse(raw.trim().replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,''));
   if(!result || typeof result.reply!=='string' || !result.reply.trim() || result.reply.length>2000) throw Error('response');
   if(result.after!==undefined&&(typeof result.after!=='string'||result.after.length>600))throw Error('response');
   const choosing=/\?|？/u.test(result.reply)&&/\b(?:where (?:should|shall|would|do)|which (?:one|object|side|place|spot)|(?:do|did) you mean|how far|what distance|what do you mean)\b|放在哪|放哪里|哪一个|哪一侧|你是指|你指的是|移动多远|挪多远/iu.test(result.reply);
-  const actions=result.needsInput===true?[]:validateActions(result.actions);
   const asksChoice=/[?？]/u.test(result.reply)&&(/\b(?:which\b|what (?:distance|angle|axis|direction|object|item)|how (?:far|much)|(?:do|did) you mean)|哪(?:个|一|本|件|侧)|多远|多少|什么(?:方向|角度|轴)/iu.test(result.reply)||/(?:\b(?:should I|would you like|do you want)\b.*\bor\b)|还是/iu.test(result.reply));
+  if(result.needsInput===true||asksChoice)return {reply:result.reply,actions:[]};
+  const normalized=goal&&!choosing?enforceTaskGoal(result,goal,scene,language):result;
+  const actions=validateActions(normalized.actions);
   // A pickup may ask where to place the held item next. A transfer cannot
   // select that destination while the same response asks the user to choose.
-  return {reply:result.reply,actions:asksChoice||choosing&&actions.some(a=>['transfer','place','shift','drop','release','move','rotate','pose'].includes(a.type))?[]:actions,...(result.after?{after:result.after}:{})};
+  return {reply:normalized.reply,actions:choosing&&actions.some(a=>['transfer','place','shift','drop','release','move','rotate','pose'].includes(a.type))?[]:actions,...(normalized.after?{after:normalized.after}:{}),...(normalized.goal?{goal:normalized.goal}:{})};
 }
 export function placementIntent(response,question){
   const negated=phrase=>new RegExp("\\b(?:not|never|don't|do not|instead of).{0,35}(?:"+phrase+")|(?:不要|别).{0,16}(?:书脊|反面|正面朝下)",'iu').test(question);
@@ -69,8 +72,7 @@ export function movementIntent(response,question){
   const measures=[...question.toLowerCase().matchAll(/(\d+(?:\.\d+)?|half|quarter|three|seven|eight|four|five|nine|one|two|six|ten|an?|[零一二两三四五六七八九十百半]+)\s*(?:an?\s+)?(centimet(?:re|er)s?|millimet(?:re|er)s?|cm\b|mm\b|厘米|公分|毫米)/gu)];
   const shifts=response.actions.filter(a=>a.type==='shift');
   const measured=measures.length===1&&shifts.length===1?{distance:numeral(measures[0][1]),unit:/^(?:c|厘米|公分)/u.test(measures[0][2])?'cm':'mm'}:null;
-  const offDesk=/\b(?:off|outside|beyond|over)\b.{0,45}\b(?:desk|table)\b|\b(?:desk|table)\b.{0,25}\bedge\b|(?:桌|书桌).*(?:边缘|外面|外边|掉下|扔下)|(?:扔|丢|掉).*(?:桌|书桌)/iu.test(question)&&/\b(?:drop|release|let go|off)\b|扔|丢|掉|松开/iu.test(question);
-  return {...response,actions:response.actions.map(a=>a.type==='shift'&&measured&&Number.isFinite(measured.distance)?{...a,...measured}:a.type==='drop'&&offDesk?{...a,clearOf:'desk'}:a)};
+  return {...response,actions:response.actions.map(a=>a.type==='shift'&&measured&&Number.isFinite(measured.distance)?{...a,...measured}:a)};
 }
 const creativeMotion=q=>/\b(?:dance|dancing|wave|wiggle|gesture|celebrate|celebration|bow|hello|hi|hey|goodbye|silly|playful)\b|跳舞|挥手|招手|扭动|庆祝|你好|再见/u.test(q.toLowerCase());
 const visionUnavailable=new WeakSet();
@@ -111,10 +113,12 @@ export async function askAgent(connection, {question,language,history,scene,feed
     return {reply:(language==='zh'?'请说出你选择的物品名称；“好的”还不能告诉我是哪个。\n':'Which object do you mean? Please say its name; “yes” does not choose between those options.\n')+previous.slice(-1400),actions:[]};
   }
   const clarification=clarifyReference(question,scene,history,language);if(clarification)return clarification;
+  const goal=taskGoal(question,scene,history);
+  const intentContext={outcomePolicy:OUTCOME_POLICY,...(goal?{taskGoal:goal,dropAction:{type:'drop',object:goal.objects[0],target:'current',clearOf:goal.surface,edge:goal.edge}}:{})};
   const messages=[{role:'system',content:SYSTEM},...history.slice(-6).map(m=>({role:m.role,content:m.content.slice(0,1400)})),
-    {role:'user',content:JSON.stringify({question,language,scene,feedback,clarificationPolicy:CLARIFICATION_POLICY})}];
+    {role:'user',content:JSON.stringify({question,language,scene,feedback,clarificationPolicy:CLARIFICATION_POLICY,...intentContext})}];
   let sceneImage=null;
-  if((config.server||config.hosted)&&captureScene&&!visionUnavailable.has(connection)&&needsSceneImage(question))try{const captured=await captureScene();if(captured){const {frame,...image}=captured;sceneImage=image;if(frame)messages.at(-1).content=JSON.stringify({question,language,scene:{...scene,view:frame},feedback,clarificationPolicy:CLARIFICATION_POLICY});}}catch{}
+  if((config.server||config.hosted)&&captureScene&&!visionUnavailable.has(connection)&&needsSceneImage(question))try{const captured=await captureScene();if(captured){const {frame,...image}=captured;sceneImage=image;if(frame)messages.at(-1).content=JSON.stringify({question,language,scene:{...scene,view:frame},feedback,clarificationPolicy:CLARIFICATION_POLICY,...intentContext});}}catch{}
   const needsRelay=!config.server&&!config.hosted&&new URL(config.base).hostname.startsWith('token-plan.');
   for(let attempt=0;attempt<2;attempt++) {
   let response;
@@ -131,13 +135,13 @@ export async function askAgent(connection, {question,language,history,scene,feed
   const data=await response.json();
   if(data.perception?.imageStatus==='unavailable'){visionUnavailable.add(connection);sceneImage=null;}
   const raw=data?.choices?.[0]?.message?.content;
-  try { if(data?.choices?.[0]?.finish_reason==='length')throw Error('truncated');const parsed=movementIntent(pickupIntent(placementIntent(parseResponse(raw),question),question),question);return {...parsed,...(data.perception?.imageStatus?{imageStatus:data.perception.imageStatus}:{}),...(question==='connection_check'?{actions:[]}:{})}; } catch(error) {
+  try { if(data?.choices?.[0]?.finish_reason==='length')throw Error('truncated');const parsed=movementIntent(pickupIntent(placementIntent(parseResponse(raw,{goal,scene,language}),question),question),question);return {...parsed,...(data.perception?.imageStatus?{imageStatus:data.perception.imageStatus}:{}),...(question==='connection_check'?{actions:[]}:{})}; } catch(error) {
     if(attempt===0) {
       messages.push({role:'assistant',content:typeof raw==='string'?raw.slice(0,2500):'Invalid response'},
-        {role:'user',content:JSON.stringify({question,language,scene,clarificationPolicy:CLARIFICATION_POLICY,feedback:{...feedback,responseRepair:`Your response ${error.message==='truncated'?'was cut off before completion':'did not match the allowed action schema'}. Return a complete compact JSON object for this original request using exactly the system-defined action types and parameters. Prefer transfer for named-object placement; each transfer picks up and releases the object. If unsupported, explain why and return actions:[], without claiming execution. Keep reply and after brief.`}})});
+        {role:'user',content:JSON.stringify({question,language,scene,clarificationPolicy:CLARIFICATION_POLICY,...intentContext,feedback:{...feedback,responseRepair:`Your response ${error.message==='taskMismatch'?'did not accomplish the requested outcome':error.message==='truncated'?'was cut off before completion':'did not match the allowed action schema'}. Return a complete compact JSON object for this original request using exactly the system-defined action types and parameters. Prefer transfer for named-object placement; each transfer picks up and releases the object. If unsupported, explain why and return actions:[], without claiming execution. Keep reply and after brief.`}})});
       continue;
     }
-    if(['invalid','unknown','destination','angle'].includes(error.message)) throw Error(error.message);
+    if(['invalid','unknown','destination','angle','taskMismatch'].includes(error.message)) throw Error(error.message);
     throw Error('response');
   }
   }

@@ -4,6 +4,10 @@
 
 For school hosting with a server-held Alibaba key entered through SSH, follow [School server deployment](server/SCHOOL-SERVER.md). The package needs only Python 3.9 or newer and serves the simulator and connection together on a configurable port.
 
+## Movement outcomes
+
+Off-desk commands carry the whole object beyond a reachable edge before release. A named edge is preserved; an unspecified edge can use a clear reachable alternative. The simulator checks the planned outcome before approval, and drop completion messages use the actual landing surface rather than the model's prediction. “Drop here” still releases at the current grip position. English and Chinese requests share these semantics. See [movement acceptance scenarios](MOVEMENT-CHECKS.md) for the test cases and verification boundaries.
+
 ## Timed desk challenges
 
 Choose any difficulty and inspect the finished **Reference** desk and its clues. Easy, Medium and Hard are always selectable; switching levels stops the current activity and saves the movements already executed. The **Your desk / Reference / Clues** tabs share the scene space, leaving room for conversation beside the robot on wide screens. **Enlarge** opens the full reference. The API connects automatically when the page loads. Before recording, send practice commands freely: approved movements execute, but neither the timer nor the recording starts. Press **Start recording** when ready; it resets the desk and conversation context and begins recording only the movements you approve and run afterward. Use **Top view** to check spacing and alignment.

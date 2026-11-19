@@ -1,13 +1,16 @@
 // Check unresolved references before requesting a plan. The model handles broader ambiguity.
 export const CLARIFICATION_POLICY='For ambiguous commands, ask ONE short question in the selected language and return needsInput:true, actions:[]. Ask only for the missing detail: which object, reference, distance, direction, axis or order. Use held-object and recent task context before asking. Keep the pending task so a short answer completes it. Do not guess among multiple plausible objects or invent distances/axes. Clear general placement of a named item on the shelf may use any clear spot; do not demand exact coordinates. Creative social gestures may choose a small movement. Never move while asking the user to choose.';
 
+export function referencedObjects(text,scene){
+  const aliases={book:/\bred\s*(?:book|one)\b|红(?:色)?(?:的)?(?:书|本)/iu,notebook:/\b(?:blue\s*(?:book|notebook|one)|notebook)\b|蓝(?:色)?(?:的)?(?:书|本|笔记本)|笔记本/iu,pen:/\bpen\b(?!\s*(?:holder|cup))|蓝(?:色)?(?:的)?笔(?!记)|钢笔/iu,pencil:/\bpencil\b|铅笔/iu,'pen-holder':/\b(?:holder|cup)\b|笔筒/iu};
+  return (scene.objects||[]).filter(o=>aliases[o.id]?.test(text));
+}
 export function clarifyReference(question,scene,history,language){
   if(question==='connection_check')return null;
   const q=question.trim(),zh=language==='zh';
   if(!/\b(?:pick|put|place|move|shift|nudge|turn|rotate|stand|lay|take|drop|lift)\b|拿|放|移|挪|转|立|摆/iu.test(q))return null;
   const items=scene.objects||[];
-  const aliases={book:/\bred\s*book\b|红(?:色)?(?:书|本)/iu,notebook:/\b(?:blue\s*(?:book|notebook)|notebook)\b|蓝(?:色)?(?:书|本|笔记本)|笔记本/iu,pen:/\bpen\b(?!\s*(?:holder|cup))|蓝(?:色)?笔(?!记)|钢笔/iu,pencil:/\bpencil\b|铅笔/iu,'pen-holder':/\b(?:holder|cup)\b|笔筒/iu};
-  const mentions=text=>items.filter(o=>aliases[o.id]?.test(text));
+  const mentions=text=>referencedObjects(text,scene);
   const explicit=mentions(q);
   const recent=history.slice(-2).map(m=>m.content.split(/\n(?:Executed actions|Actual scene|Unexecuted request):/)[0]).join(' ');
   const context=mentions(recent),clearReference=!!scene.held||context.length===1;

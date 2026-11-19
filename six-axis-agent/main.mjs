@@ -1,13 +1,14 @@
-import { initialState, snapshot, applyStep, CATALOG, objectPosture, restingFace, objectLocation, previewSteps, inHolder, footprint, graspWidth } from './world.mjs?v=chat-ui-20261119-1';
-import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=chat-ui-20261119-1';
-import { createScene } from './scene.mjs?v=chat-ui-20261119-1';
-import { createSpeech } from './speech.mjs?v=chat-ui-20261119-1';
-import { words, challenges } from './i18n.mjs?v=chat-ui-20261119-1';
-import { createTimedChallenge, formatChallengeTime } from './timed-challenge.mjs?v=chat-ui-20261119-1';
-import { precisionCommand } from './precision-command.mjs?v=chat-ui-20261119-1';
-import { setupKeyboardLayout } from './keyboard-layout.mjs?v=chat-ui-20261119-1';
-import deployment from './deployment.mjs?v=chat-ui-20261119-1';
-import { initializeConnection } from './connection.mjs?v=chat-ui-20261119-1';
+import { initialState, snapshot, applyStep, CATALOG, objectPosture, restingFace, objectLocation, previewSteps, inHolder, footprint, graspWidth } from './world.mjs?v=movement-20261119-1';
+import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=movement-20261119-1';
+import { createScene } from './scene.mjs?v=movement-20261119-1';
+import { createSpeech } from './speech.mjs?v=movement-20261119-1';
+import { words, challenges } from './i18n.mjs?v=movement-20261119-1';
+import { createTimedChallenge, formatChallengeTime } from './timed-challenge.mjs?v=movement-20261119-1';
+import { precisionCommand } from './precision-command.mjs?v=movement-20261119-1';
+import { setupKeyboardLayout } from './keyboard-layout.mjs?v=movement-20261119-1';
+import deployment from './deployment.mjs?v=movement-20261119-1';
+import { initializeConnection } from './connection.mjs?v=movement-20261119-1';
+import {checkTaskOutcome,dropCompletion} from './task-intent.mjs?v=movement-20261119-1';
 const serverMode=deployment?.mode==='school',hostedMode=deployment?.mode==='hosted',managedConnection=serverMode||hostedMode;
 
 const $=id=>document.getElementById(id);
@@ -228,7 +229,7 @@ function prepare(actions){
     return Promise.resolve({plan:{steps:undo.at(-1)},undoing:true});
   }
   return new Promise((resolve,reject)=>{
-    const planner=new Worker(new URL('./planner-worker.mjs?v=chat-ui-20261119-1',import.meta.url),{type:'module'});worker=planner;
+    const planner=new Worker(new URL('./planner-worker.mjs?v=movement-20261119-1',import.meta.url),{type:'module'});worker=planner;
     const finish=()=>{clearTimeout(timer);planner.terminate();if(worker===planner){worker=null;workerReject=null;}};
     const timer=setTimeout(()=>{finish();reject(Error('planningTimeout'));},45000);
     workerReject=error=>{finish();reject(error);};
@@ -336,15 +337,15 @@ async function send(question){
   $('prompt').blur();
   speech.abort();clearPreview();const id=++epoch;busy=true;add('user',question);$('prompt').value='';status('thinking');
   const explicit=precisionCommand(question,state.q,language);
-  let feedback,response,prepared,intention;
+  let feedback,response,prepared,intention;const initialHeld=state.held;
   try{
     for(let attempt=0;attempt<2;attempt++){
       response=explicit||await request(question,id,feedback);if(id!==epoch)return;
       if(response.imageStatus==='unavailable')say('visionUnavailable');
       if(!response.actions.length)break;
       status('planning');
-      try{prepared=await prepare(response.actions);break;}
-      catch(error){if(id!==epoch)return;if(attempt===1||error.message!=='empty')throw error;feedback={error:error.message,detail:error.detail,action:error.action,attempted:response.actions};status('replanning');}
+      try{prepared=await prepare(response.actions);checkTaskOutcome(response.goal,snapshot(prepared.plan.result));break;}
+      catch(error){if(id!==epoch)return;if(attempt===1||!['empty','taskMismatch'].includes(error.message))throw error;feedback={error:error.message,detail:error.detail,action:error.action,attempted:response.actions};status('replanning');}
     }
     if(id!==epoch)return;
     remember('user',question);
@@ -368,6 +369,7 @@ async function send(question){
     }
     if(!rotated&&response.actions.some(a=>a.target==='shelf'))completion=state.objects.filter(o=>touched.has(o.id)&&onShelf(o)&&!inHolder(state,o)).map(o=>t('placedOnShelf',{object:name(o.id)})).join('\n')||completion;
     if(last.type!=='restore'&&last.type!=='undo'&&state.objects.some(o=>touched.has(o.id)&&onShelf(o))&&!/[?？]/u.test(completion))completion+='\n'+t('shelfFollowup');
+    completion=dropCompletion(response.actions,perception(),language,initialHeld)||completion;
     intention?.remove();add('assistant',completion,{image:usedImage});
     remember('assistant',completion+'\nExecuted actions: '+JSON.stringify(response.actions)+'\nActual scene: '+JSON.stringify(perception()));
   }catch(error){if(id===epoch){remember('user',question);remember('assistant','Execution did not complete: '+reportError(error)+'\nUnexecuted request: '+JSON.stringify(response?.actions||[])+'\nActual scene: '+JSON.stringify(perception()));}}

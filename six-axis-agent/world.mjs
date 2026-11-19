@@ -1,6 +1,6 @@
-import { homeFor, ikTool, toolPose, valid, distance, transform, rotationFromEuler, multiply, JOINTS, orientationError } from './kinematics.mjs?v=chat-ui-20261119-1';
-import {at,shape,cylinder,bounds,overlaps,broadOverlap,xyz} from './collision.mjs?v=chat-ui-20261119-1';
-import {objectGeometry,objectShapes,objectBounds,gripperGeometry,armGeometry,projectedWidth,GRIPPER,GRIPPER_CONTACT} from './shapes.mjs?v=chat-ui-20261119-1';
+import { homeFor, ikTool, toolPose, valid, distance, transform, rotationFromEuler, multiply, JOINTS, orientationError } from './kinematics.mjs?v=movement-20261119-1';
+import {at,shape,cylinder,bounds,overlaps,broadOverlap,xyz} from './collision.mjs?v=movement-20261119-1';
+import {objectGeometry,objectShapes,objectBounds,gripperGeometry,armGeometry,projectedWidth,GRIPPER,GRIPPER_CONTACT} from './shapes.mjs?v=movement-20261119-1';
 
 export const AREAS={left:[170,-230],right:[170,230],rear:[-280,0],front:[280,0]};
 export const HOME=[210,0,150];
@@ -51,6 +51,20 @@ function carriedPose(state,pose){
 export function graspWidth(state){const o=state.objects.find(o=>o.id===state.held);return state.jawWidth??(o?projectedWidth(o,state.grasp?.rotation||identity):(state.approachWidth??GRIPPER.travelOpening));}
 export const relativeBounds=(object,rpy=object.rpy||[0,0,object.yaw||0])=>bounds(at(objectGeometry(object),[0,0,0],rotationFromEuler(Array.isArray(rpy)?rpy:[0,0,rpy])));
 export const footprint=(object,rpy)=>{const b=relativeBounds(object,rpy);return b.high.map((v,i)=>v-b.low[i]);};
+
+export function outsideCandidates(state,object,rpy,{clearOf='desk',edge='auto'}={}){
+  const surface=clearOf==='desk'?DESK:{min:ORGANIZER.position.slice(0,2).map((v,i)=>v-ORGANIZER.size[i]/2),max:ORGANIZER.position.slice(0,2).map((v,i)=>v+ORGANIZER.size[i]/2)};
+  const origin=state.held===object.id&&state.pickup?state.pickup.position:object.position,b=relativeBounds(object,rpy);
+  const sides={left:[0,-1],right:[0,1],front:[1,-1],back:[1,1]};
+  return Object.entries(sides).filter(([side])=>edge==='auto'||edge===side).flatMap(([side,[axis,sign]])=>{
+    const cross=1-axis,along=Math.max(surface.min[cross],Math.min(surface.max[cross],origin[cross]));
+    return [0,-40,40,-80,80].map(offset=>{
+      const position=origin.slice(0,2);position[cross]=Math.max(surface.min[cross],Math.min(surface.max[cross],along+offset));
+      position[axis]=sign<0?surface.min[axis]-b.high[axis]-5:surface.max[axis]-b.low[axis]+5;
+      return {position,edge:side,distance:Math.hypot(position[0]-origin[0],position[1]-origin[1])};
+    });
+  }).sort((a,b)=>a.distance-b.distance);
+}
 
 // Gravity checks the same individual convex parts as the robot planner. A
 // released item may land on any object or miss the finite desk and hit the floor.
@@ -235,7 +249,7 @@ export function clearPose(q,state,contact=null,detail={}) {
 const vector=v=>Array.isArray(v)&&v.length===3&&v.every(Number.isFinite);
 export function validateActions(actions) {
   if(!Array.isArray(actions)||actions.length>12)throw Error('invalid');
-  const placement=['type','object','target','position','beside','side','relation','surface','orientation','posture','approach','clearOf'];
+  const placement=['type','object','target','position','beside','side','relation','surface','orientation','posture','approach','clearOf','edge'];
   const schema={pick:['type','object','approach'],transfer:placement,place:placement,drop:placement,release:['type'],shift:['type','object','offset','direction','distance','unit','reference','approach','orientation','posture'],rotate:['type','angle','axis'],move:['type','position','orientation'],pose:['type','joints'],home:['type'],dance:['type','style','repeat'],wave:['type','repeat'],bow:['type','repeat'],circle:['type','repeat'],bob:['type','repeat'],gesture:['type','points','tempo','repeat'],restore:['type'],undo:['type']};
   return actions.map(a=>{
     if(!a||typeof a!=='object'||Array.isArray(a)||!Object.hasOwn(schema,a.type)||Object.keys(a).some(k=>!schema[a.type].includes(k)))throw Error('invalid');
@@ -252,7 +266,14 @@ export function validateActions(actions) {
     if('approach'in a&&!['auto','top','front','back','left','right'].includes(a.approach))throw Error('invalid');
     if(['place','transfer','drop'].includes(a.type)){
       if(a.target==='table')a.target='desk';
-      if(!['target','position','beside'].some(k=>k in a)&&(a.type!=='drop'||a.orientation||a.posture))a.target='current';
+      // A surface plus a relative/coordinate location describes one destination,
+      // not two competing destinations. Keep both the height and the relation.
+      if(['desk','shelf'].includes(a.target)&&['position','beside'].filter(k=>k in a).length===1){
+        if(a.surface&&a.surface!==a.target)throw Error('destination');
+        a.surface=a.target;delete a.target;
+      }
+      if(a.type==='drop'&&['floor','ground','off-desk'].includes(a.target)){a.target='current';a.clearOf='desk';}
+      if(!['target','position','beside'].some(k=>k in a)&&(a.type!=='drop'||a.orientation||a.posture||a.clearOf))a.target='current';
       if(a.target===a.object&&(a.orientation||a.posture))a.target='current';
       if(a.relation){const sides={left:'rear',right:'front',front:'left',back:'right',beside:'auto'};if(!a.beside||!Object.hasOwn(sides,a.relation))throw Error('destination');a.side=sides[a.relation];delete a.relation;}
       if(['target','position','beside'].filter(k=>k in a).length!==(a.type==='drop'&&!['target','position','beside'].some(k=>k in a)?0:1))throw Error('destination');
@@ -260,6 +281,7 @@ export function validateActions(actions) {
       if('position'in a&&(!Array.isArray(a.position)||a.position.length!==2||!a.position.every(Number.isFinite)))throw Error('destination');
       if('surface'in a&&!['desk','shelf'].includes(a.surface))throw Error('destination');
       if('clearOf'in a&&(a.type!=='drop'||!['desk','shelf'].includes(a.clearOf)))throw Error('destination');
+      if('edge'in a&&(!a.clearOf||!['auto','left','right','front','back'].includes(a.edge)))throw Error('destination');
       if('beside'in a&&(!Object.hasOwn(CATALOG,a.beside)||(a.side!==undefined&&!['auto','left','right','front','rear'].includes(a.side))))throw Error('destination');
       if('side'in a&&!('beside'in a))throw Error('destination');
     }
@@ -517,7 +539,8 @@ export function planActions(state,actions,options={}) {
     if(fixedSupport)point[2]=objectBounds(fixedSupport).high[2]+bottom+35;
     if(action.clearOf){
       const edge=action.clearOf==='desk'?DESK:{min:ORGANIZER.position.slice(0,2).map((v,i)=>v-ORGANIZER.size[i]/2),max:ORGANIZER.position.slice(0,2).map((v,i)=>v+ORGANIZER.size[i]/2)};
-      const sides=[0,1].flatMap(axis=>[{axis,sign:-1,distance:Math.abs(point[axis]-edge.min[axis])},{axis,sign:1,distance:Math.abs(point[axis]-edge.max[axis])}]).sort((a,b)=>a.distance-b.distance),side=sides[0];
+      const named={left:{axis:0,sign:-1},right:{axis:0,sign:1},front:{axis:1,sign:-1},back:{axis:1,sign:1}};
+      const sides=[0,1].flatMap(axis=>[{axis,sign:-1,distance:Math.abs(point[axis]-edge.min[axis])},{axis,sign:1,distance:Math.abs(point[axis]-edge.max[axis])}]).sort((a,b)=>a.distance-b.distance),side=named[action.edge]||sides[0];
       point[side.axis]=side.sign<0?Math.min(point[side.axis],edge.min[side.axis]-heldBounds.high[side.axis]-5):Math.max(point[side.axis],edge.max[side.axis]-heldBounds.low[side.axis]+5);
     }
     destination={...structuredClone(held),position:[...point],rpy:[...rpy]};
@@ -527,6 +550,11 @@ export function planActions(state,actions,options={}) {
     // Release 30 mm above the rim: the higher approach clears the laptop
     // when the cup is on the shelf and keeps the preferred grip retrievable.
     const releasePoint=holder?[point[0],point[1],point[2]+holder.size[2]+30-holder.floor]:action.type==='drop'?[point[0],point[1],point[2]+50]:point;
+    if(action.clearOf){
+      const releasedParts=at(objectGeometry(held),releasePoint,rotationFromEuler(rpy));
+      const blocker=s.obstacles.find(o=>releasedParts.some(part=>objectShapes(o).some(fixed=>overlaps(part,fixed,COLLISION_GAP))));
+      if(blocker){const detail={blocker:blocker.id,object:held.id,stage:'destination',reason:'the object would intersect this fixed obstacle at the requested release position'};throw Object.assign(Error('blocked'),{detail,preview:diagnostic('collision',detail)});}
+    }
     return {held,rpy,holder,point,releasePoint,fall:!!fixedSupport||action.type==='drop'||s.kit==='desk'&&[0,1].some(i=>point[i]<DESK.min[i]||point[i]>DESK.max[i])};
   }
   function place(action){
@@ -621,7 +649,9 @@ export function planActions(state,actions,options={}) {
     const placements=[];
     for(const orientation of orientations){
       let locations=[action];
-      if(action.target==='desk'){
+      if(action.clearOf){
+        locations=outsideCandidates(saved,object,orientation,action).map(({position,edge})=>{const a={...action,position,edge};delete a.target;delete a.beside;delete a.side;return a;});
+      }else if(action.target==='desk'){
         const origin=(s.held===id&&s.pickup?s.pickup.position:object.position).slice(0,2),positions=[origin];
         for(const radius of [30,60,90,120,160,210,270])for(const [dx,dy] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]])positions.push([origin[0]+dx*radius,origin[1]+dy*radius]);
         locations=positions.filter(p=>p.every((v,i)=>v>=DESK.min[i]&&v<=DESK.max[i])).map(position=>{const a={...action,position,surface:'desk'};delete a.target;return a;});
@@ -774,6 +804,7 @@ export function planActions(state,actions,options={}) {
       const object=s.objects.find(o=>o.id===action.object),rest=s.held===object.id&&s.pickup?{...object,...s.pickup}:object;
       arrange({type:'transfer',object:action.object,position:shiftPosition(s,action),supportZ:objectBounds(rest).low[2],...(action.orientation?{orientation:action.orientation}:{}),...(action.posture?{posture:action.posture}:{}),...(action.approach?{approach:action.approach}:{})});
     }
+    else if(action.type==='drop'&&action.object&&s.held!==action.object&&!['target','position','beside'].some(k=>k in action))arrange({...action,target:'current'});
     else if(action.type==='release'||action.type==='drop'&&!['target','position','beside'].some(k=>k in action)){
       if(!s.held)throw Error('empty');
       const object=s.objects.find(o=>o.id===s.held),ids=[s.held,...(s.cargo||[]).map(o=>o.id)];
