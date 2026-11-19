@@ -60,8 +60,15 @@ try{
     visualViewport.dispatchEvent(new Event('resize'));
   });
   await page.waitForFunction(()=>document.body.classList.contains('is-typing'));
-  report.review={questionHiddenWhileTyping:!await $('messages').isVisible()};
-  if(output)await page.screenshot({path:path.join(output,'03b-keyboard-question-hidden.png')});
+  assert.equal(await $('messages').locator('.latest-reply').isVisible(),true);
+  assert.match(await $('messages').locator('.latest-reply').innerText(),/Which book/);
+  assert.equal(await page.evaluate(()=>{
+    const question=document.getElementById('messages').getBoundingClientRect(),input=document.getElementById('composer').getBoundingClientRect(),send=document.getElementById('send').getBoundingClientRect();
+    return question.top>=visualViewport.offsetTop&&question.bottom<=input.top&&send.bottom<=visualViewport.offsetTop+visualViewport.height;
+  }),true);
+  report.review={questionVisibleWhileTyping:true};
+  record('latest question and Send remain visible above the simulated tablet keyboard');
+  if(output)await page.screenshot({path:path.join(output,'03b-keyboard-question-visible.png')});
   await page.evaluate(()=>{document.getElementById('prompt').blur();delete visualViewport.height;visualViewport.dispatchEvent(new Event('resize'));});
   await page.waitForFunction(()=>!document.body.classList.contains('is-typing'));
   await page.setViewportSize({width:1180,height:820});

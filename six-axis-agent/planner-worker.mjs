@@ -1,4 +1,4 @@
-import { planActions, reverseSteps } from './world.mjs?v=startup-20261119-1';
+import { planActions, reverseSteps } from './world.mjs?v=chat-ui-20261119-1';
 
 self.onmessage=({data})=>{
   try{const started=performance.now(),plan=planActions(data.state,data.actions);self.postMessage({plan,inverse:reverseSteps(data.state,plan.steps,{maxPlanningMs:Math.max(250,40000-(performance.now()-started))})});}

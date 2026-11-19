@@ -1,5 +1,6 @@
 export const words={
  en:{
+  conversationTitle:'Conversation',recentConversation:'Recent conversation',latestReply:'Latest reply ↓',promptReply:'Reply to your robot…',promptCommand:'Tell your robot what to do…',practiceHint:'Practice freely. Start recording resets the desk.',recordingHint:'Match the reference, then press Finish.',
   connectionTimeout:'The connection check timed out. Press Reconnect to try again. Your desk is unchanged.',
   connectionRetrying:'Retrying connection ({attempt}/3)…',
   connectionUnavailable:'The robot service could not be reached after three tries. Press Reconnect to try again. Your desk is unchanged.',
@@ -73,7 +74,7 @@ export const words={
   orientationPlaced:'The {object} is placed with X, Y, Z orientation {angles}.',
   edition:'AI ROBOT / DORM ROOM DESK',workspace:'YOUR DORM ROOM DESK',headline:'This room is messy.',mission:'Use your AI-controlled robot to organize the desk.',desk:'Dorm room desk',orbit:'Drag to orbit · Scroll to zoom',simulation:'6-axis kinematic simulation',conversation:'TALK TO YOUR ROBOT',agent:'Your robot assistant',
   suggestPick:'Pick up the pen',suggestAsk:'What can you do?',challenge:'Try a challenge',newScene:'New arrangement',school:'School objects',blocks:'Blocks',
-  keyLabel:'Your Alibaba API key',settings:'Connection settings',keyNote:'Used for this tab only. Never added to the chat.',connect:'Connect ↗',send:'Send ↗',stop:'■ Stop',reconnect:'Change connection',hint:'Name an object and a destination. Or ask for a pose, a wave, or a dance.',source:'About & source ↗',offline:'Not connected',online:'Qwen connected',you:'YOU',robot:'ROBOT',system:'TABLE',
+  keyLabel:'Your Alibaba API key',settings:'Connection settings',keyNote:'Used for this tab only. Never added to the chat.',connect:'Connect',send:'Send',stop:'■ Stop',reconnect:'Change connection',hint:'Name an object and a destination. Or ask for a pose, a wave, or a dance.',source:'About & source ↗',offline:'Not connected',online:'Robot connected',you:'You',robot:'Robot',system:'Desk',
   welcome:'Tell me which object to move and where it belongs. Try “put the book on the shelf” or say “hello” for a wave.',
   connected:'I’m ready. What would you like me to do?',
   connecting:'Connecting to Alibaba…',thinking:'Thinking…',planning:'Finding and checking a path…',replanning:'Checking why that plan failed…',moving:'Moving the arm…',empty:'Ready for a job',holding:'Holding the {object}',
@@ -88,6 +89,7 @@ export const words={
   mic:'Dictate a command',micStop:'Finish dictation',listening:'Listening… tap the microphone to finish.',speechReady:'Review the words above, then press Send.',speechUnavailable:'Speech recognition isn’t available in this browser. Open the page in a supported browser, or type your command.',speechDenied:'Microphone or speech permission was denied. Allow it in your browser’s site settings, or type your command.',speechEmpty:'I didn’t hear a command. Tap the microphone and try again, or type it.',speechDevice:'I couldn’t start the microphone. Check that a working microphone is connected and available.',speechNetwork:'The browser’s speech service could not complete recognition. Check the connection or type your command.',speechNote:'Dictation uses your browser’s speech service. Review before sending.'
  },
  zh:{
+  conversationTitle:'对话',recentConversation:'最近的对话',latestReply:'最新回复 ↓',promptReply:'回复你的机械臂…',promptCommand:'告诉机械臂要做什么…',practiceHint:'可以自由练习。开始录制时会重置桌面。',recordingHint:'照图摆好后，点击“结束录制”。',
   connectionTimeout:'连接检查超时。请点击“重新连接”重试。桌面没有变化。',
   connectionRetrying:'正在重试连接（{attempt}/3）…',
   connectionUnavailable:'尝试三次后仍无法连接机械臂服务。请点击“重新连接”重试。桌面没有变化。',
@@ -161,7 +163,7 @@ export const words={
   orientationPlaced:'{object}已放下，X、Y、Z 朝向为 {angles}。',
   edition:'AI 机械臂 / 宿舍书桌',workspace:'你的宿舍书桌',headline:'房间有点乱。',mission:'指挥你的 AI 机械臂整理书桌。',desk:'宿舍书桌',orbit:'拖动旋转视角 · 滚动缩放',simulation:'六轴运动学模拟',conversation:'与你的机械臂对话',agent:'你的机械臂助手',
   suggestPick:'拿起钢笔',suggestAsk:'你能做什么？',challenge:'试试一个挑战',newScene:'换个摆放',school:'学习用品',blocks:'方块',
-  keyLabel:'你的阿里云 API 密钥',settings:'连接设置',keyNote:'仅在当前页面使用，不会加入聊天记录。',connect:'连接 ↗',send:'发送 ↗',stop:'■ 停止',reconnect:'更改连接',hint:'说出物品和目的地，也可以让我摆姿势、挥手或跳舞。',source:'说明与源码 ↗',offline:'未连接',online:'千问已连接',you:'你',robot:'机械臂',system:'工作台',
+  keyLabel:'你的阿里云 API 密钥',settings:'连接设置',keyNote:'仅在当前页面使用，不会加入聊天记录。',connect:'连接',send:'发送',stop:'■ 停止',reconnect:'更改连接',hint:'说出物品和目的地，也可以让我摆姿势、挥手或跳舞。',source:'说明与源码 ↗',offline:'未连接',online:'机械臂已连接',you:'你',robot:'机械臂',system:'工作台',
   welcome:'告诉我要移动哪个物品，以及放在哪里。试试“把书放到整理架上”，或者说“你好”让我挥手。',connected:'准备好了。你想让我做什么？',
   connecting:'正在连接阿里云…',thinking:'正在思考…',planning:'正在寻找并检查路径…',replanning:'正在分析无法执行的原因…',moving:'机械臂正在移动…',empty:'准备接收任务',holding:'正在夹持{object}',keyPlaceholder:'在此粘贴阿里云 API 密钥',promptPlaceholder:'拿起钢笔，把它放在书旁边…',messageLabel:'向机械臂发送消息',reset:'重置当前摆放',resetDone:'摆放已重置，所有物品都回到了初始位置。',newSceneDone:'新的摆放准备好了。我会记住这些初始位置。',
   stopped:'已停在当前位置。你可以给出新指令，或让我把所有东西放回原位。撤销记录已清除。',pickDone:'我已经拿起{object}了。你想让我放在哪里？',holdDone:'完成，我正夹着{object}。接下来做什么？',danceDone:'怎么样？我准备好接收下一个任务了。',restoreDone:'所有物品已回到初始位置，我也归位了。',undoDone:'我已反向执行并撤销刚才的任务。',done:'完成。接下来想试什么？',

@@ -1,13 +1,13 @@
-import { initialState, snapshot, applyStep, CATALOG, objectPosture, restingFace, objectLocation, previewSteps, inHolder, footprint, graspWidth } from './world.mjs?v=startup-20261119-1';
-import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=startup-20261119-1';
-import { createScene } from './scene.mjs?v=startup-20261119-1';
-import { createSpeech } from './speech.mjs?v=startup-20261119-1';
-import { words, challenges } from './i18n.mjs?v=startup-20261119-1';
-import { createTimedChallenge, formatChallengeTime } from './timed-challenge.mjs?v=startup-20261119-1';
-import { precisionCommand } from './precision-command.mjs?v=startup-20261119-1';
-import { setupKeyboardLayout } from './keyboard-layout.mjs?v=startup-20261119-1';
-import deployment from './deployment.mjs?v=startup-20261119-1';
-import { initializeConnection } from './connection.mjs?v=startup-20261119-1';
+import { initialState, snapshot, applyStep, CATALOG, objectPosture, restingFace, objectLocation, previewSteps, inHolder, footprint, graspWidth } from './world.mjs?v=chat-ui-20261119-1';
+import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=chat-ui-20261119-1';
+import { createScene } from './scene.mjs?v=chat-ui-20261119-1';
+import { createSpeech } from './speech.mjs?v=chat-ui-20261119-1';
+import { words, challenges } from './i18n.mjs?v=chat-ui-20261119-1';
+import { createTimedChallenge, formatChallengeTime } from './timed-challenge.mjs?v=chat-ui-20261119-1';
+import { precisionCommand } from './precision-command.mjs?v=chat-ui-20261119-1';
+import { setupKeyboardLayout } from './keyboard-layout.mjs?v=chat-ui-20261119-1';
+import deployment from './deployment.mjs?v=chat-ui-20261119-1';
+import { initializeConnection } from './connection.mjs?v=chat-ui-20261119-1';
 const serverMode=deployment?.mode==='school',hostedMode=deployment?.mode==='hosted',managedConnection=serverMode||hostedMode;
 
 const $=id=>document.getElementById(id);
@@ -36,14 +36,32 @@ function archiveExchange(){
   archive.append(...log.children);
   while(archive.children.length>76)archive.firstElementChild.remove();
   $('earlier-messages').hidden=!archive.children.length;
+  $('latest-message').hidden=true;
+}
+function scrollConversation(){const log=$('messages');log.scrollTop=log.scrollHeight;$('latest-message').hidden=true;}
+function trimConversation(){
+  const log=$('messages'),archive=$('message-history');
+  const users=[...log.querySelectorAll('.message.user')];
+  // Keep three complete exchanges together; only older turns go into history.
+  const first=users[Math.max(0,users.length-3)];
+  if(first)while(log.firstElementChild!==first)archive.append(log.firstElementChild);
+  while(archive.children.length>76)archive.firstElementChild.remove();
+  $('earlier-messages').hidden=!archive.children.length;
 }
 function add(role,content,{key,vars,error=false,image=false}={}){
-  if(role==='user'||['connected','resetDone','change','schoolKeyNote','hostedKeyNote'].includes(key))archiveExchange();
+  if(['resetDone','change','schoolKeyNote','hostedKeyNote'].includes(key))archiveExchange();
+  if(key==='connected')$('messages').querySelector('[data-key="welcome"]')?.remove();
+  const log=$('messages'),follow=role==='user'||log.scrollHeight-log.scrollTop-log.clientHeight<48;
   const el=document.createElement('div');el.className='message '+role+(error?' error':'');
   const who=document.createElement('div');who.className='who';who.textContent=t(role==='user'?'you':role==='system'?'system':'robot')+(image?' · '+t('sceneImageUsed'):'');if(image)el.dataset.image='true';
   const body=document.createElement('div');body.className='body';body.textContent=content;el.append(who,body);
   if(key){el.dataset.key=key;el.dataset.vars=JSON.stringify(vars||{});}
-  $('messages').append(el);
+  log.append(el);
+  if(role!=='user'){
+    log.querySelector('.latest-reply')?.classList.remove('latest-reply');el.classList.add('latest-reply');
+  }
+  trimConversation();
+  if(follow)requestAnimationFrame(scrollConversation);else $('latest-message').hidden=false;
   return el;
 }
 function say(key,vars={},role='assistant',error=false){return add(role,t(key,vars),{key,vars,error});}
@@ -119,6 +137,8 @@ function renderTimed(){
   $('compare-toggle').textContent=t(comparing?'backToScene':'compareDesks');
   $('comparison-image').alt=t('finalDesk');
   $('run-title').textContent=t(run.replaying?(run.paused?'timedPaused':'timedPlayingTitle'):run.recording?'timedRecordingLabel':run.replayComplete?'timedCompleteLabel':run.replayStopped?'timedStoppedTitle':review?'timedReviewTitle':'timedReadyTitle');
+  $('session-hint').textContent=t(run.replaying?'chatPlayback':review?'chatContinue':run.recording?'recordingHint':'practiceHint');
+  $('timed-start').title=t('chatStart');
   renderReference(run.level);
   const statusKey=run.replaying?'timedPlaying':run.recording?'timedRecording':run.replayStopped?'timedStopped':run.replayComplete?'timedComplete':review?(run.moves?'timedSaved':'timedEmpty'):connecting?'connecting':connectionFailed?'connectionRetry':'timedReady';
   const status=$('timed-status'),label=t(statusKey,{count:run.moves});
@@ -132,7 +152,9 @@ function refresh(){
   $('reset').title=t('reset');$('reset').setAttribute('aria-label',t('reset'));
   $('view-toggle').disabled=!view;$('view-toggle').textContent=t(view?.topView?'viewPerspective':'viewTop');$('view-toggle').setAttribute('aria-pressed',String(!!view?.topView));
   $('ruler-note').hidden=!view?.topView;
-  $('api-key').placeholder=managedConnection?'':t('keyPlaceholder');$('prompt').placeholder=t(timed.level==='hard'?'promptPrecision':'promptPlacement');$('prompt').setAttribute('aria-label',t('messageLabel'));
+  const latest=$('messages').querySelector('.latest-reply .body')?.textContent||'';
+  $('api-key').placeholder=managedConnection?'':t('keyPlaceholder');$('prompt').placeholder=t(/[?？]/u.test(latest)?'promptReply':'promptCommand');$('prompt').setAttribute('aria-label',t('messageLabel'));
+  $('messages').setAttribute('aria-label',t('recentConversation'));
   $('api-key').hidden=!!connection||managedConnection;$('prompt').hidden=!connection&&!managedConnection;$('connection-options').hidden=!!connection||managedConnection;
   $('input-label').textContent=t(connection?'messageLabel':'keyLabel');$('input-label').htmlFor=connection?'prompt':'api-key';
   $('input-label').classList.toggle('sr-only',!!connection);
@@ -146,7 +168,7 @@ function refresh(){
   $('api-key').disabled=busy||connecting||!!connection;$('prompt').disabled=busy;$('base-url').disabled=busy||connecting;$('model').disabled=busy||connecting;
   const connectionLabel=connecting?(connectionAttempt>1?'connectionRetrying':'connecting'):connection?'online':connectionFailed?'cantConnect':'offline';
   $('connection-state').textContent=t(connectionLabel,{attempt:connectionAttempt});
-  if(managedConnection){$('input-label').textContent=t('messageLabel');$('input-label').htmlFor='prompt';$('input-label').classList.add('sr-only');$('key-note').hidden=false;$('key-note').textContent=t(timed.replaying?'chatPlayback':timed.summary().canEdit?'chatContinue':timed.summary().attemptMs===null?'chatStart':'chatReady');}$('connection-state').classList.toggle('online',!!connection);
+  if(managedConnection){$('input-label').textContent=t('messageLabel');$('input-label').htmlFor='prompt';$('input-label').classList.add('sr-only');$('key-note').hidden=true;}$('connection-state').classList.toggle('online',!!connection);
   $('activity').textContent=activity&&activity!=='connecting'&&!previewData?t(activity):'';
   $('preview-panel').hidden=!previewData;
   if(previewData){$('preview-panel').dataset.kind=previewData.kind;$('preview-heading').textContent=t(previewData.kind==='ready'?'previewReviewTitle':'previewBlockedTitle');$('preview-run').hidden=previewData.kind!=='ready';$('preview-dismiss').textContent=t(previewData.kind==='ready'?'previewCancel':'previewDismiss');$('preview-description').textContent=t(previewData.kind==='ready'?'previewReady':previewData.kind==='collision'?'previewCollision':previewData.kind==='reach'?'previewReach':'previewPlacement',{object:previewData.blocker?name(previewData.blocker):t('collisionSurface')});}
@@ -206,7 +228,7 @@ function prepare(actions){
     return Promise.resolve({plan:{steps:undo.at(-1)},undoing:true});
   }
   return new Promise((resolve,reject)=>{
-    const planner=new Worker(new URL('./planner-worker.mjs?v=startup-20261119-1',import.meta.url),{type:'module'});worker=planner;
+    const planner=new Worker(new URL('./planner-worker.mjs?v=chat-ui-20261119-1',import.meta.url),{type:'module'});worker=planner;
     const finish=()=>{clearTimeout(timer);planner.terminate();if(worker===planner){worker=null;workerReject=null;}};
     const timer=setTimeout(()=>{finish();reject(Error('planningTimeout'));},45000);
     workerReject=error=>{finish();reject(error);};
@@ -412,6 +434,8 @@ $('timed-replay').addEventListener('click',()=>void replayTimed());
 setInterval(()=>{if(timed.recording||timed.replaying)renderTimedClocks();},100);
 function submitMessage(){if(!busy&&!connecting&&!speech.active){if(connection||managedConnection)void send($('prompt').value.trim());else void connect();}}
 $('send').addEventListener('click',submitMessage);
+$('latest-message').addEventListener('click',scrollConversation);
+$('messages').addEventListener('scroll',()=>{const log=$('messages');if(log.scrollHeight-log.scrollTop-log.clientHeight<48)$('latest-message').hidden=true;});
 for(const id of ['prompt','api-key'])$(id).addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();submitMessage();}});
 $('stop').addEventListener('click',()=>cancel());
 $('preview-run').addEventListener('click',()=>{const resolve=previewResolve;previewResolve=null;clearPreview();refresh();$('stop').focus({preventScroll:true});resolve?.(true);});
@@ -424,6 +448,7 @@ $('reset-dialog').addEventListener('close',()=>{
 });
 $('language').addEventListener('click',()=>{speech.abort();if(busy)cancel();language=language==='en'?'zh':'en';try{localStorage.setItem('six-axis-language',language);}catch{}refresh();});
 $('reconnect').addEventListener('click',()=>{
+  $('connection-menu').open=false;
   cancel(false);connection=null;$('api-key').value='';
   if(managedConnection){void connect();return;}
   say('change');refresh();focusInput($('api-key'));
@@ -438,6 +463,7 @@ setupKeyboardLayout({window,document,onChange:active=>{
   if(active){keyboardWasTop=view.topView;view.setTopView(true);}
   else view.setTopView(keyboardWasTop);
   refresh();
+  if(active)requestAnimationFrame(scrollConversation);
 }});
 say('welcome');refresh();
 Object.defineProperty(window,'robotLabSnapshot',{value:()=>structuredClone({scene:perception(),busy,connecting,connectionAttempt,connected:!!connection,language,listening:speech.active,timed:timed.summary()})});

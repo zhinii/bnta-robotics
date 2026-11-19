@@ -83,7 +83,12 @@ try{
   assert.equal(await page.evaluate(()=>document.activeElement.id),focusedDuringConnect,'automatic connection does not steal focus');
   assert.equal(await $('timed-start').isEnabled(),true);
   assert.equal(await $('composer').isVisible(),true);
-  assert.equal(await $('reference-preview').isVisible(),true);
+  assert.equal(await $('reference-tab').isVisible(),true);
+  assert.equal(await page.evaluate(()=>{
+    const scene=document.getElementById('scene-stage').getBoundingClientRect(),chat=document.querySelector('.conversation').getBoundingClientRect();
+    return chat.left>=scene.right&&chat.top<scene.bottom;
+  }),true,'desktop conversation is beside the scene');
+  assert.equal(await $('composer').locator('#reconnect,#connection-retry').count(),0,'connection controls belong to the header');
   assert.match(await $('run-title').innerText(),/Practice/);
   assert.equal((await snapshot()).timed.attemptMs,null);
   await shot('01-landscape-ready');
@@ -99,7 +104,12 @@ try{
   assert.equal(practiced.timed.moves,0,'practice movements are excluded from replay');
   assert.equal(practiced.timed.recording,false);
   assert.equal(await $('timed-summary').isVisible(),false);
-  failConnection=true;await $('reconnect').click();await waitIdle();
+  for(let i=0;i<3;i++){await $('prompt').fill('pick up the book');await $('send').click();await waitIdle();}
+  assert.equal(await $('messages').locator('.message.user').count(),3,'three recent exchanges stay in the thread');
+  assert.ok(await $('message-history').locator('.message.user').count()>=2,'older exchanges remain in history');
+  await $('earlier-messages').locator('summary').click();assert.match(await $('message-history').innerText(),/Move the pen/);
+  await $('earlier-messages').locator('summary').click();
+  failConnection=true;await $('connection-menu').locator('summary').click();await $('reconnect').click();await waitIdle();
   assert.equal((await snapshot()).connected,false);
   assert.equal(await $('connection-retry').isVisible(),true,'connection can be retried before recording');
   assert.deepEqual((await snapshot()).scene,practiced.scene,'connection failure does not reset practice');
@@ -124,6 +134,7 @@ try{
   assert.deepEqual((await snapshot()).scene,start,'Hard starts fresh');
   await page.locator('[data-level="easy"]').click();assert.equal((await snapshot()).timed.canEdit,true);
   await $('timed-edit').click();assert.equal((await snapshot()).timed.recording,true);
+  await $('prompt').fill('pick up the book');await $('send').click();await waitIdle();
 
 
   // Exercise VisualViewport resizing on touch layouts. This is not a native iPad keyboard test.
@@ -141,6 +152,12 @@ try{
       const input=document.getElementById('prompt').getBoundingClientRect(),send=document.getElementById('send').getBoundingClientRect();
       return input.top>=visualViewport.offsetTop&&send.bottom<=bottom+1;
     }),true,'input and Send fit above the simulated keyboard');
+    assert.equal(await $('messages').locator('.latest-reply').isVisible(),true,'the question stays visible while typing');
+    assert.match(await $('messages').locator('.latest-reply').innerText(),/Which book/);
+    assert.equal(await page.evaluate(()=>{
+      const question=document.getElementById('messages').getBoundingClientRect(),input=document.getElementById('composer').getBoundingClientRect();
+      return question.top>=visualViewport.offsetTop&&question.bottom<=input.top&&question.height>=24;
+    }),true,'question appears directly above the input');
     await $('reference-tab').click();
     assert.equal(await $('reference-preview').isVisible(),true);
     assert.equal(await page.evaluate(()=>document.activeElement.id),'prompt','tabs preserve typing focus');
@@ -154,7 +171,7 @@ try{
     assert.equal(await $('view-toggle').getAttribute('aria-pressed'),'false');
   }
 
-  failConnection=true;await $('reconnect').click();await waitIdle();
+  failConnection=true;await $('connection-menu').locator('summary').click();await $('reconnect').click();await waitIdle();
   assert.equal((await snapshot()).connected,false);assert.equal(await $('connection-retry').isVisible(),true);
   failConnection=false;await $('connection-retry').click();await waitIdle();
   assert.equal((await snapshot()).connected,true);assert.deepEqual((await snapshot()).scene,start);
