@@ -22,7 +22,7 @@ try{
   browser=await chromium.launch({channel:'msedge',headless:true,args:['--enable-webgl','--ignore-gpu-blocklist']});
   const page=await browser.newPage({viewport:{width:1180,height:820},hasTouch:true}),errors=[];
   page.on('pageerror',error=>errors.push(error.message));
-  let providerCalls=0,failConnection=false;
+  let providerCalls=0,failConnection=false,coldStartFailures=1;
   let releaseConnection,noticeConnection;
   const connectionGate=new Promise(resolve=>{releaseConnection=resolve;});
   const connectionRequested=new Promise(resolve=>{noticeConnection=resolve;});
@@ -38,7 +38,11 @@ try{
     assert.ok(Object.hasOwn(routes,task.question),task.question);
     assert.equal(task.scene.placementTargets,undefined);
     assert.equal(route.request().headers().authorization,undefined);
-    if(task.question==='connection_check'){noticeConnection();await connectionGate;}
+    if(task.question==='connection_check'){
+      assert.deepEqual(task.scene,{objects:[]},'connection is independent of scene/task context');
+      noticeConnection();await connectionGate;
+      if(coldStartFailures-->0){await route.fulfill({status:503,body:'Website access could not be verified.'});return;}
+    }
     if(failConnection&&task.question==='connection_check'){await route.fulfill({status:401,json:{error:{message:'Test authentication failure'}}});return;}
     await route.fulfill({json:{choices:[{message:{content:JSON.stringify({reply:'Ready.',actions:routes[task.question]})}}]}});
   });
@@ -73,7 +77,8 @@ try{
   releaseConnection();await waitIdle();
   assert.equal(await $('render-error').isVisible(),false);
   assert.equal((await snapshot()).connected,true,'startup connection survives difficulty and language changes');
-  assert.equal(providerCalls,1,'one automatic connection request');
+  assert.equal(providerCalls,2,'temporary startup failure is retried automatically');
+  assert.equal((await snapshot()).connectionAttempt,2);
   assert.equal(await $('prompt').inputValue(),'Connection draft','connection preserves the draft');
   assert.equal(await page.evaluate(()=>document.activeElement.id),focusedDuringConnect,'automatic connection does not steal focus');
   assert.equal(await $('timed-start').isEnabled(),true);

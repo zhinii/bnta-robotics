@@ -1,12 +1,13 @@
-import { initialState, snapshot, applyStep, CATALOG, objectPosture, restingFace, objectLocation, previewSteps, inHolder, footprint, graspWidth } from './world.mjs?v=connection-20261119-1';
-import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=connection-20261119-1';
-import { createScene } from './scene.mjs?v=connection-20261119-1';
-import { createSpeech } from './speech.mjs?v=connection-20261119-1';
-import { words, challenges } from './i18n.mjs?v=connection-20261119-1';
-import { createTimedChallenge, formatChallengeTime } from './timed-challenge.mjs?v=connection-20261119-1';
-import { precisionCommand } from './precision-command.mjs?v=connection-20261119-1';
-import { setupKeyboardLayout } from './keyboard-layout.mjs?v=connection-20261119-1';
-import deployment from './deployment.mjs?v=connection-20261119-1';
+import { initialState, snapshot, applyStep, CATALOG, objectPosture, restingFace, objectLocation, previewSteps, inHolder, footprint, graspWidth } from './world.mjs?v=startup-20261119-1';
+import { askAgent, validateConnection, DEFAULTS } from './agent.mjs?v=startup-20261119-1';
+import { createScene } from './scene.mjs?v=startup-20261119-1';
+import { createSpeech } from './speech.mjs?v=startup-20261119-1';
+import { words, challenges } from './i18n.mjs?v=startup-20261119-1';
+import { createTimedChallenge, formatChallengeTime } from './timed-challenge.mjs?v=startup-20261119-1';
+import { precisionCommand } from './precision-command.mjs?v=startup-20261119-1';
+import { setupKeyboardLayout } from './keyboard-layout.mjs?v=startup-20261119-1';
+import deployment from './deployment.mjs?v=startup-20261119-1';
+import { initializeConnection } from './connection.mjs?v=startup-20261119-1';
 const serverMode=deployment?.mode==='school',hostedMode=deployment?.mode==='hosted',managedConnection=serverMode||hostedMode;
 
 const $=id=>document.getElementById(id);
@@ -14,7 +15,7 @@ const $=id=>document.getElementById(id);
 // heuristics out of chat, with native masking as a fallback in older browsers.
 if(!CSS.supports('-webkit-text-security','disc'))$('api-key').type='password';
 let language='en';try{language=localStorage.getItem('six-axis-language')==='zh'?'zh':'en';}catch{}
-let connectionFailed=false,connecting=false,connectionJob=null;
+let connectionFailed=false,connecting=false,connectionJob=null,connectionAttempt=0;
 let state=initialState(0,'desk'),connection=null,busy=false,epoch=0,abort=null,history=[],activity='',view=null,undo=[],worker=null,workerReject=null,challengeIndex=0;
 let previewData=null,previewResolve=null,settling=null;
 const timed=createTimedChallenge();
@@ -143,8 +144,8 @@ function refresh(){
   $('send').textContent=t(!connection&&!managedConnection?'connect':timed.summary().canEdit?'continueSend':'send');$('send').disabled=busy||connecting||speech.active;
   $('stop').hidden=!busy||timed.replaying||previewData?.kind==='ready';$('stop').textContent=t('stopRobot');
   $('api-key').disabled=busy||connecting||!!connection;$('prompt').disabled=busy;$('base-url').disabled=busy||connecting;$('model').disabled=busy||connecting;
-  const connectionLabel=connecting?'connecting':connection?'online':connectionFailed?'cantConnect':'offline';
-  $('connection-state').textContent=t(connectionLabel);
+  const connectionLabel=connecting?(connectionAttempt>1?'connectionRetrying':'connecting'):connection?'online':connectionFailed?'cantConnect':'offline';
+  $('connection-state').textContent=t(connectionLabel,{attempt:connectionAttempt});
   if(managedConnection){$('input-label').textContent=t('messageLabel');$('input-label').htmlFor='prompt';$('input-label').classList.add('sr-only');$('key-note').hidden=false;$('key-note').textContent=t(timed.replaying?'chatPlayback':timed.summary().canEdit?'chatContinue':timed.summary().attemptMs===null?'chatStart':'chatReady');}$('connection-state').classList.toggle('online',!!connection);
   $('activity').textContent=activity&&activity!=='connecting'&&!previewData?t(activity):'';
   $('preview-panel').hidden=!previewData;
@@ -205,7 +206,7 @@ function prepare(actions){
     return Promise.resolve({plan:{steps:undo.at(-1)},undoing:true});
   }
   return new Promise((resolve,reject)=>{
-    const planner=new Worker(new URL('./planner-worker.mjs?v=connection-20261119-1',import.meta.url),{type:'module'});worker=planner;
+    const planner=new Worker(new URL('./planner-worker.mjs?v=startup-20261119-1',import.meta.url),{type:'module'});worker=planner;
     const finish=()=>{clearTimeout(timer);planner.terminate();if(worker===planner){worker=null;workerReject=null;}};
     const timer=setTimeout(()=>{finish();reject(Error('planningTimeout'));},45000);
     workerReject=error=>{finish();reject(error);};
@@ -287,20 +288,19 @@ function reportError(error){
 }
 async function connect({autofocus=true}={}){
   if(connectionJob)return connectionJob;
-  connectionFailed=false;connecting=true;refresh();
+  connectionFailed=false;connecting=true;connectionAttempt=0;refresh();
   // Connection setup belongs to the page, not a robot task. Level/language/reset
   // controls may cancel motion without aborting this shared connection request.
   connectionJob=Promise.resolve().then(async()=>{
     try{
       const candidate=serverMode?{server:true}:hostedMode?{hosted:true}:validateConnection({base:$('base-url').value.trim(),model:$('model').value.trim(),key:$('api-key').value});$('api-key').value='';
-      const controller=new AbortController();let timedOut=false;
-      const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);let response;
-      try{response=await askAgent(candidate,{question:'connection_check',language,history:[],scene:perception()},controller.signal);}
-      catch(error){if(timedOut)throw Error('connectionTimeout');throw error;}finally{clearTimeout(timeout);}
+      const response=await initializeConnection(signal=>askAgent(candidate,{question:'connection_check',language,history:[],scene:{objects:[]},retryTransport:false},signal),{
+        onAttempt:attempt=>{connectionAttempt=attempt;refresh();},
+      });
       if(response.actions.length)throw Error('response');
       connection=candidate;if(!managedConnection)try{localStorage.setItem('six-axis-settings',JSON.stringify({base:candidate.base,model:candidate.model}));}catch{}
       say('connected');
-    }catch(error){connectionFailed=true;if(error.message==='connectionTimeout')say('connectionTimeout',{},'assistant',true);else reportError(error);}
+    }catch(error){connectionFailed=true;if(error.message==='connectionTimeout')say('connectionTimeout',{},'assistant',true);else if(error instanceof TypeError||error.message==='provider')say('connectionUnavailable',{},'assistant',true);else reportError(error);}
   });
   try{await connectionJob;}
   finally{connecting=false;connectionJob=null;refresh();if(autofocus&&!busy)focusInput(connection?$('prompt'):managedConnection?$('send'):$('api-key'));}
@@ -440,5 +440,5 @@ setupKeyboardLayout({window,document,onChange:active=>{
   refresh();
 }});
 say('welcome');refresh();
-Object.defineProperty(window,'robotLabSnapshot',{value:()=>structuredClone({scene:perception(),busy,connecting,connected:!!connection,language,listening:speech.active,timed:timed.summary()})});
+Object.defineProperty(window,'robotLabSnapshot',{value:()=>structuredClone({scene:perception(),busy,connecting,connectionAttempt,connected:!!connection,language,listening:speech.active,timed:timed.summary()})});
 if(managedConnection)void connect({autofocus:false});

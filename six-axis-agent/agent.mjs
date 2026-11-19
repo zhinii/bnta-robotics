@@ -1,5 +1,5 @@
-import { validateActions } from './world.mjs?v=connection-20261119-1';
-import { clarifyReference, CLARIFICATION_POLICY } from './clarification.mjs?v=connection-20261119-1';
+import { validateActions } from './world.mjs?v=startup-20261119-1';
+import { clarifyReference, CLARIFICATION_POLICY } from './clarification.mjs?v=startup-20261119-1';
 
 export const DEFAULTS = { base: 'https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1', model: 'qwen3.8-flash' };
 export const RELAY = 'https://s52xzsn2ztf64.kimi.site/api/chat';
@@ -95,7 +95,7 @@ export function spatialReply(question,scene,language='en'){
   const blocker=scene.objects.find(o=>o.id===clearance.blocker),mm=Math.floor(clearance.mm*10)/10,cm=+(mm/10).toFixed(2),directions={front:['前方（朝电脑的一侧）','front (toward the laptop)'],back:['后方（朝墙的一侧）','back (toward the wall)'],left:['左侧','left'],right:['右侧','right']},toward=directions[side][language==='zh'?0:1];
   return {reply:location+' '+(language==='zh'?`从它的${toward}边缘到${blocker?blocker.zh:'整理架边缘'}有 ${mm} 毫米（${cm} 厘米）。这是表面间距；还要检查物品、夹爪和移动路径是否放得下。你想放哪件物品？`:`There is ${mm} mm (${cm} cm) from its ${toward} edge to ${blocker?`the ${blocker.name}`:'the shelf edge'}. That is surface space; I still need to check the item, gripper and path. What would you like to put there?`),actions:[]};
 }
-export async function askAgent(connection, {question,language,history,scene,feedback,captureScene}, signal, fetcher=fetch) {
+export async function askAgent(connection, {question,language,history,scene,feedback,captureScene,retryTransport=true}, signal, fetcher=fetch) {
   const config=connection?.server===true?{server:true}:connection?.hosted===true?{hosted:true}:validateConnection(connection);
   // Qualitative amounts are not measurements. Keep the task in conversation,
   // ask once, and let the next answer supply its missing parameter.
@@ -121,8 +121,8 @@ export async function askAgent(connection, {question,language,history,scene,feed
   try{response=await fetcher(config.server?'/api/chat':config.hosted||needsRelay?RELAY:config.base+'/chat/completions', {method:'POST',signal,
     headers:{'Content-Type':'application/json',...(!config.server&&!config.hosted?{'Authorization':'Bearer '+config.key}:{}),...(needsRelay?{'X-Alibaba-Base':config.base}:{})},
     body:JSON.stringify({model:config.model,messages,...(sceneImage?{scene_image:sceneImage}:{}),temperature:creativeMotion(question)?.6:.2,max_tokens:2000,response_format:{type:'json_object'},stream:false,enable_thinking:false})});}
-  catch(error){if(attempt===0&&error instanceof TypeError&&!signal?.aborted)continue;throw error;}
-  if(attempt===0&&[502,503,504].includes(response.status))continue;
+  catch(error){if(retryTransport&&attempt===0&&error instanceof TypeError&&!signal?.aborted)continue;throw error;}
+  if(retryTransport&&attempt===0&&[502,503,504].includes(response.status))continue;
   if(!response.ok){
     const detail=typeof response.json==='function'?await response.json().catch(()=>null):null;
     if(response.status===400&&['scene_required','request','content_type','body'].includes(detail?.error))throw Error('requestError');
