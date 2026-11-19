@@ -1,7 +1,8 @@
 export const words={
  en:{
+  startSend:'Start & send',continueSend:'Continue & send',chatStart:'Start resets the desk and begins recording.',chatContinue:'Sending resumes your saved recording.',chatPlayback:'Playback running. Stop to continue your recording.',chatReady:'Name an item and what to do.',recordingDetails:'Recording details',
   timedTitle:'Match the desk',timedDifficulty:'Difficulty',timedEasy:'Easy',timedMedium:'Medium',timedHard:'Hard',
-  timedAttempt:'Solve time',timedPlayback:'Robot time',timedStart:'Start recording',timedNew:'New recording…',timedFinish:'Finish recording',timedReplay:'▶ Play recording',timedAgain:'▶ Replay again',timedStop:'Stop playback',
+  timedAttempt:'Solve time',timedPlayback:'Robot time',timedStart:'Start recording',timedNew:'New recording…',timedFinish:'Finish',timedReplay:'▶ Play recording',timedAgain:'▶ Replay again',timedStop:'Stop playback',
   timedConnect:'Look at the reference, then start recording.',timedReady:'Starting resets the desk and begins your solve timer.',
   timedRecording:'Match the reference, then finish. Solve time includes thinking and AI waits.',
   timedSaved:'{count} commands saved. Play your recording to watch the solution.',
@@ -10,8 +11,8 @@ export const words={
   timedEmpty:'No movements recorded. Start another attempt.',
   timedStopped:'Replay stopped. Your recording is kept.',
   timedRecordingLabel:'Recording',timedReplayingLabel:'Replaying',timedCompleteLabel:'Playback finished',
-  timedReadyTitle:'Ready to record',timedReviewTitle:'Recording ready',timedPlayingTitle:'Playing your recording',timedStoppedTitle:'Playback stopped',
-  timedEdit:'Edit recording',timedPause:'Ⅱ Pause',timedResume:'▶ Resume',timedPaused:'Playback paused',playbackCommand:'Command {current} of {count}',
+  timedReadyTitle:'Ready',timedReviewTitle:'Saved',timedPlayingTitle:'Playing',timedStoppedTitle:'Playback stopped',
+  timedEdit:'Continue',timedPause:'Ⅱ Pause',timedResume:'▶ Resume',timedPaused:'Playback paused',playbackCommand:'Command {current} of {count}',
   yourDesk:'Your desk',finalDesk:'Your final desk',referenceDesk:'Reference',enlargeReference:'Enlarge',compareDesks:'Compare desks',backToScene:'Back to 3D',
   sessionOptions:'More',newRecordingTitle:'Start a new recording?',newRecordingBody:'This clears this level’s recording and resets the desk. You can study the reference before starting again.',keepRecording:'Keep recording',newRecordingConfirm:'Reset recording',stopRobot:'Stop robot',
   referenceOpen:'Reference & clues',referenceLevel:'{level} · Finished desk',referenceTitle:'{level} reference',referenceClose:'Close',referenceClues:'Clues',
@@ -84,6 +85,7 @@ export const words={
   mic:'Dictate a command',micStop:'Finish dictation',listening:'Listening… tap the microphone to finish.',speechReady:'Review the words above, then press Send.',speechUnavailable:'Speech recognition isn’t available in this browser. Open the page in a supported browser, or type your command.',speechDenied:'Microphone or speech permission was denied. Allow it in your browser’s site settings, or type your command.',speechEmpty:'I didn’t hear a command. Tap the microphone and try again, or type it.',speechDevice:'I couldn’t start the microphone. Check that a working microphone is connected and available.',speechNetwork:'The browser’s speech service could not complete recognition. Check the connection or type your command.',speechNote:'Dictation uses your browser’s speech service. Review before sending.'
  },
  zh:{
+  startSend:'开始并发送',continueSend:'继续并发送',chatStart:'开始时重置桌面并开始录制。',chatContinue:'发送后会继续已保存的录制。',chatPlayback:'正在回放，请停止回放后继续录制。',chatReady:'说出物品和要做的动作。',recordingDetails:'录制详情',
   timedTitle:'照图布置桌面',timedDifficulty:'难度',timedEasy:'简单',timedMedium:'中等',timedHard:'困难',
   timedAttempt:'解题用时',timedPlayback:'机械臂用时',timedStart:'开始录制',timedNew:'新建录制…',timedFinish:'结束录制',timedReplay:'▶ 播放录制',timedAgain:'▶ 再次回放',timedStop:'停止回放',
   timedConnect:'先查看参考图，再开始录制。',timedReady:'开始录制时会重置桌面，并开始解题计时。',

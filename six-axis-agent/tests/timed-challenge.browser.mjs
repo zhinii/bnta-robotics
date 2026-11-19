@@ -48,7 +48,7 @@ try{
   };
   const output=process.env.BNTA_SCREENSHOTS;
   if(output)await mkdir(output,{recursive:true});
-  const shot=async name=>{if(output){await page.evaluate(()=>scrollTo(0,0));await page.screenshot({path:path.join(output,name+'.png'),fullPage:true});}};
+  const shot=async name=>{if(output){await page.evaluate(()=>scrollTo(0,0));await page.waitForTimeout(180);await page.screenshot({path:path.join(output,name+'.png'),fullPage:true});}};
   const openReference=async level=>{
     if(await $('reference-tab').isVisible())await $('reference-tab').click();
     await $('reference-open').click();
@@ -62,10 +62,12 @@ try{
   await page.waitForFunction(()=>!!window.robotLabSnapshot);
   assert.equal(await $('render-error').isVisible(),false);
   assert.equal(await $('timed-start').isEnabled(),true,'Start also connects a managed deployment');
-  assert.equal(await $('composer').isVisible(),false);
+  assert.equal(await $('composer').isVisible(),true);
   assert.equal(await $('reference-preview').isVisible(),true);
   await shot('01-landscape-ready');
-  await $('timed-start').click();await waitIdle();
+  await $('prompt').fill('pick up the book');await $('send').click();await waitIdle();
+  assert.match(await $('messages').innerText(),/Which book/);
+  assert.equal((await snapshot()).timed.moves,0);
   const start=(await snapshot()).scene;
   assert.equal((await snapshot()).timed.recording,true);
   assert.equal((await snapshot()).connected,true);
@@ -73,6 +75,16 @@ try{
   assert.equal(await $('timed-finish').isVisible(),true);
   assert.equal(await $('session-options').isVisible(),false);
   await shot('02-landscape-recording');
+  for(const [width,height] of [[390,844],[820,1180],[1180,820]]){
+    await page.setViewportSize({width,height});await page.evaluate(()=>scrollTo(0,0));await page.waitForTimeout(150);
+    assert.equal(await $('session-controls').evaluate(el=>el.getBoundingClientRect().height<=56),true,'recording strip is at most 56px');
+    assert.equal(await $('send').evaluate(el=>{const r=el.getBoundingClientRect();return r.top>=0&&r.bottom<=innerHeight;}),true,'Send stays in the initial viewport');
+  }
+  await page.locator('[data-level="hard"]').click();assert.equal((await snapshot()).timed.level,'hard');
+  assert.deepEqual((await snapshot()).scene,start,'Hard starts fresh');
+  await page.locator('[data-level="easy"]').click();assert.equal((await snapshot()).timed.canEdit,true);
+  await $('timed-edit').click();assert.equal((await snapshot()).timed.recording,true);
+
 
   // Exercise VisualViewport resizing on touch layouts. This is not a native iPad keyboard test.
   for(const [width,height,visibleHeight] of [[820,1180,650],[1180,820,390]]){
@@ -123,13 +135,14 @@ try{
   await $('timed-finish').click();
   const finished=await snapshot();
   assert.equal(finished.timed.recording,false);assert.equal(finished.timed.moves,2);
-  assert.equal(await $('composer').isVisible(),false);assert.equal(await $('timed-replay').isVisible(),true);
+  assert.equal(await $('composer').isVisible(),true);assert.equal(await $('timed-replay').isVisible(),true);
   assert.equal(await $('timed-edit').isVisible(),true);
   assert.equal(await $('timed-replay').evaluate(button=>{const r=button.getBoundingClientRect();return r.top>=0&&r.bottom<=innerHeight;}),true,'Play recording replaces Finish in view');
   await page.setViewportSize({width:820,height:1180});await shot('04-tablet-finished');
   await page.setViewportSize({width:1180,height:820});await shot('05-landscape-finished');
   const calls=providerCalls;
   await $('timed-replay').click();
+  assert.equal(await $('prompt').isVisible(),true);assert.equal(await $('prompt').isDisabled(),true);
   await page.waitForFunction(()=>window.robotLabSnapshot().timed.replayMs>200);
   await $('timed-pause').click();
   const paused=await snapshot();assert.equal(paused.timed.paused,true);
@@ -156,10 +169,8 @@ try{
   await $('timed-stop').click();await waitIdle();
   assert.equal((await snapshot()).timed.replayStopped,true);
   assert.notDeepEqual((await snapshot()).scene,finished.scene);
-  await $('timed-edit').click();
-  assert.deepEqual((await snapshot()).scene,finished.scene);
-  assert.equal((await snapshot()).timed.recording,true);
   await send('Move the pen 10 mm to the right.');
+  assert.equal((await snapshot()).timed.recording,true,'Continue & send resumes the saved recording');
   await $('timed-finish').click();
   const edited=await snapshot();assert.equal(edited.timed.moves,3);assert.ok(edited.timed.attemptMs>finished.timed.attemptMs);
   await $('timed-replay').click();await waitIdle();assert.deepEqual((await snapshot()).scene,edited.scene);
@@ -179,15 +190,20 @@ try{
   // Stopping a movement records only the executed trajectory; replay ends without a pose score.
   await $('timed-start').click();await $('prompt').fill('Rotate joint 1 90degrees clockwise');await $('send').click();await $('preview-run').click();
   await page.waitForFunction(()=>window.robotLabSnapshot().scene.joints[0]<-25);
-  await $('stop').click();await waitIdle();
+  assert.equal(await page.locator('[data-level=medium]').isEnabled(),true);
+  await page.locator('[data-level=medium]').click();await waitIdle();
+  assert.deepEqual((await snapshot()).scene,start);
+  await page.locator('[data-level=easy]').click();
   const partial=await snapshot();assert.ok(partial.scene.joints[0]<-25&&partial.scene.joints[0]>-89);assert.equal(partial.timed.moves,1);
-  await $('timed-finish').click();await $('timed-replay').click();await waitIdle();
+  await $('timed-replay').click();await waitIdle();
   assert.deepEqual((await snapshot()).scene,partial.scene);assert.equal((await snapshot()).timed.replayComplete,true);
   await $('session-options').locator('summary').click();await $('timed-new').click();await page.keyboard.press('Escape');
   assert.equal((await snapshot()).timed.moves,1,'Escape must not reuse an earlier reset confirmation');
   await $('language').click();await page.setViewportSize({width:390,height:844});
   assert.match(await $('timed-replay').innerText(),/再次回放/);
+  await $('recording-details').locator('summary').click();
   assert.match(await $('timed-status').innerText(),/对照/);
+  await $('recording-details').locator('summary').click();
   await openReference('easy');assert.match(await $('reference-title').innerText(),/简单/);await page.keyboard.press('Escape');
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
   await shot('10-phone-chinese-review');
