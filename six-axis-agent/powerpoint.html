@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Six Axis Agent in PowerPoint</title>
+  <style>
+    html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#f5f8fa}
+    iframe{display:block;width:100%;height:100%;border:0}
+  </style>
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+</head>
+<body>
+  <iframe id="robot" title="Six Axis Agent robot simulator" allow="fullscreen" allowfullscreen></iframe>
+  <script>
+    // Finish the Office handshake before starting the simulator.
+    // The frame keeps Office.js changes to history APIs outside the simulator.
+    if (window.Office) {
+      Office.onReady(function () {
+        document.documentElement.dataset.officeReady = 'true';
+        document.getElementById('robot').src = './';
+      });
+    } else {
+      document.body.textContent = 'Unable to load the PowerPoint connection. Check your internet connection, then reload this add-in.';
+    }
+  </script>
+</body>
+</html>
